@@ -3,8 +3,8 @@
 The same `--model` option accepts GGUF weights or a JSON plugin:
 
 ```sh
-./build/typed-cangjie task 'Return the sum of 2 and 3.' --model /path/to/model.gguf
-./build/typed-cangjie task 'Return the sum of 2 and 3.' --model /path/to/my-plugin.json
+./build/typed-cangjie generate 'Return the sum of 2 and 3.' --model /path/to/model.gguf
+./build/typed-cangjie generate 'Return the sum of 2 and 3.' --model /path/to/my-plugin.json
 ```
 
 Models must be supported by the bundled llama.cpp. The runner reads the chat

@@ -20,13 +20,13 @@ python3 benchmarks/run.py --model /path/to/model.gguf \
     --output benchmark-results/smoke
 ```
 
-Model selection accepts the same GGUF files and JSON plugins as `task`. Supply a
+Model selection accepts the same GGUF files and JSON plugins as `generate`. Supply a
 new output directory for each run. Results are saved after every attempt, so an
 interrupted run retains completed measurements. An existing directory is never
 overwritten. `--validate` checks reference solutions without loading any model.
 Every generation run also validates its selected reference solutions first.
 
-A normal run plans once per arm. The typed planner is `typed-cangjie task --plan-only`.
+A normal run plans once per arm. The typed planner is `typed-cangjie generate --plan-only`.
 The Cangjie planner is `plain-llama` with the Cangjie specification and no token cap.
 Each arm then generates from its own plan. The typed arm's stdout is already Cangjie.
 Cangjie-arm programs are compiled as generated. Both are scored with the

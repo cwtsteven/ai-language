@@ -1,13 +1,13 @@
 # Cangjie translation
 
-`typed-cangjie task` samples the [typed language](language.md) and, when that
+`typed-cangjie generate` samples the [typed language](language.md) and, when that
 program is complete and well-typed, writes standalone Cangjie. Translation needs
 no extra command and no Cangjie SDK. An unfinished sample writes a diagnostic
 to stderr and no source. This is not the benchmark's direct Cangjie arm: that
 arm samples Cangjie with `plain-llama` and the [Cangjie excerpt](cangjie-subset.md).
 
 ```sh
-./build/typed-cangjie task 'Compute Fibonacci(5) iteratively.' --model /path/to/model.gguf --n 512 > fibonacci.cj
+./build/typed-cangjie generate 'Compute Fibonacci(5) iteratively.' --model /path/to/model.gguf --n 512 > fibonacci.cj
 cjc fibonacci.cj -o fibonacci --set-runtime-rpath
 ./fibonacci
 echo $?  # 5

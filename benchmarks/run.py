@@ -171,7 +171,7 @@ def write_messages(directory, system, user):
 
 def planning_command(args, task, seed, mode, directory):
     if mode == "constrained":
-        command = [str(args.cli), "task", task_prompt(task), "--model", str(args.model),
+        command = [str(args.cli), "generate", task_prompt(task), "--model", str(args.model),
                    "--plan-only", "--temperature", str(args.temperature), "--seed", str(seed),
                    "--ubatch", str(args.ubatch)]
     elif mode == "cangjie":
@@ -192,7 +192,7 @@ def generation_command(args, task, mode, seed, directory, plan_file=None):
     plan = plan_file.read_text() if plan_file is not None else None
     write_messages(directory, system_text(mode, False), code_user(task, mode, plan))
     if mode == "constrained":
-        command = [str(args.cli), "task", task_prompt(task), "--model", str(args.model),
+        command = [str(args.cli), "generate", task_prompt(task), "--model", str(args.model),
                    "--n", str(code_budget(args, task)), "--temperature", str(args.temperature), "--seed", str(seed),
                    "--ubatch", str(args.ubatch)]
         if args.plan:
@@ -555,7 +555,7 @@ def main(argv=None):
     parser.add_argument("--suite", type=Path, default=ROOT / "benchmarks/tasks.json", help="task manifest JSON")
     parser.add_argument("--cli", type=Path, default=ROOT / "build/typed-cangjie", help="typed constrained Cangjie generator")
     parser.add_argument("--translator", type=Path, default=ROOT / "build/emit-cangjie",
-                        help="translator for checked-in typed references; task output is already Cangjie")
+                        help="translator for checked-in typed references; generate output is already Cangjie")
     parser.add_argument("--plain", type=Path, default=ROOT / "build/plain-llama",
                         help="unconstrained sampler used only for the Cangjie arm")
     parser.add_argument("--cjc", default="cjc", help="Cangjie compiler path or command")
@@ -603,7 +603,7 @@ def main(argv=None):
         if compiler is None:
             raise ValueError("cjc was not found; install the Cangjie SDK or supply --cjc")
         args.cjc = str(Path(compiler).resolve())
-        help_result = execute([args.cli, "task", "--help"], 10)
+        help_result = execute([args.cli, "generate", "--help"], 10)
         if help_result.returncode != 0 or any(option not in help_result.stdout for option in
                                             ("--force-postfix", "--plan-only", "--plan-file")):
             raise ValueError("rebuild typed-cangjie: benchmark runs require a binary whose forced postfix is opt-in (--force-postfix, --plan-only, --plan-file)")

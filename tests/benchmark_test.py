@@ -45,13 +45,13 @@ class BenchmarkTests(unittest.TestCase):
         seen_plans = {}
 
         def fake_execute(command, timeout, **kwargs):
-            if "--help" in command and "task" in command:
+            if "--help" in command and "generate" in command:
                 return process(stdout="--force-postfix --plan-only --plan-file")
             planning = "--plan-only" in command or ("--system-file" in command and "--n" not in command)
             if planning:
                 plan_commands.append(command)
                 return process(stdout="Shared plan with preserved whitespace.\n\n")
-            generating = (len(command) > 1 and command[1] == "task") or "--user-file" in command
+            generating = (len(command) > 1 and command[1] == "generate") or "--user-file" in command
             if generating:
                 commands.append(command)
                 if "--plan-file" in command:
@@ -81,7 +81,7 @@ class BenchmarkTests(unittest.TestCase):
                              "--cjc", sys.executable, "--output", str(output)]
                 status = bench.main(arguments)
             self.assertEqual(status, 0)
-            typed = [command for command in commands if len(command) > 1 and command[1] == "task"]
+            typed = [command for command in commands if len(command) > 1 and command[1] == "generate"]
             cangjie = [command for command in commands if "--user-file" in command]
             self.assertEqual(len(typed), 12)
             self.assertEqual(len(cangjie), 12)

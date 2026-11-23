@@ -24,17 +24,17 @@ they also compile and run generated Cangjie; the SDK is otherwise optional.
 
 ## Use
 
-`task` requires your own compatible GGUF file or [JSON model plugin](docs/model-plugins.md).
+`generate` requires your own compatible GGUF file or [JSON model plugin](docs/model-plugins.md).
 The other commands need no model. Run from the repository root:
 
 ```sh
-./build/typed-cangjie task 'Return the sum of 2 and 3.' --model /path/to/model.gguf --n 128
+./build/typed-cangjie generate 'Return the sum of 2 and 3.' --model /path/to/model.gguf --n 128
 ./build/typed-cangjie check 'main(): Int64 { return 5; }'
 ./build/typed-cangjie complete 'main(): Int64 { return '
 ./build/typed-cangjie format - < examples/fibonacci-5-break.typed
 ```
 
-`task` writes a Cangjie program when the typed sample is complete, and writes
+`generate` writes a Cangjie program when the typed sample is complete, and writes
 nothing when it is not. `check`, `complete`, and `format` inspect the typed
 language without a model. `check` accepts complete programs or valid prefixes;
 `complete` finishes a valid prefix. `format` requires a complete typed program.
@@ -42,9 +42,9 @@ These commands accept quoted code or `-` for stdin; `format` defaults to stdin
 when code is omitted. Invalid input exits 2 and prints a compiler-style error
 on stderr. A valid unfinished prefix passes `check` with `complete=no`.
 
-## Task options
+## Generate options
 
-By default, `task` first generates an implementation plan, then generates code
+By default, `generate` first produces an implementation plan, then generates code
 using that plan and the language grammar. Planning has no output token cap;
 `--n` limits only code generation. The plan is shown only in debug mode.
 Code goes to stdout; diagnostics go to stderr. Each command has `--help`.
@@ -55,7 +55,7 @@ Code goes to stdout; diagnostics go to stderr. Each command has `--help`.
 | `--n N` | Maximum generated code tokens; default **256**. |
 | `--temperature T` | Sampling randomness for planning and code generation. Default **0.8**; **0** selects greedy decoding. |
 | `--seed N` | Fix the sampling seed (0–4294967295); default random, printed to stderr. |
-| `--skip-plan` | Skip planning and generate code directly from the task and grammar. |
+| `--skip-plan` | Skip planning and generate code directly from the description and grammar. |
 | `--plan-only` | Write only the implementation plan to stdout, without generating code. |
 | `--plan-file FILE` | Generate code from a saved plan; skip new planning. |
 | `--force-postfix` | If the token budget ends an open program, append a typed postfix and then translate. Off by default. |
@@ -75,8 +75,8 @@ runs out first, stdout stays empty and the prefix is not translated.
 it, and reports that on stderr. The postfix is constructed, so it may not fulfill the task.
 
 To reuse one typed plan, save it with
-`task TEXT --model FILE --plan-only > plan.txt`, then pass
-`task TEXT --model FILE --plan-file plan.txt` to each typed generation.
+`generate TEXT --model FILE --plan-only > plan.txt`, then pass
+`generate TEXT --model FILE --plan-file plan.txt` to each typed generation.
 The [benchmark](benchmarks/README.md) does not share that plan. It runs two arms
 with the same task, seed, temperature, and token budget: `typed-cangjie` plans,
 samples this language, and writes Cangjie, and `plain-llama` plans and generates
@@ -85,14 +85,14 @@ Cangjie from [its own excerpt](docs/cangjie-subset.md).
 ## Fibonacci example
 
 ```sh
-./build/typed-cangjie task "$(cat examples/fibonacci-5-prompt.txt)" --model /path/to/model.gguf --n 512 > fibonacci.cj
+./build/typed-cangjie generate "$(cat examples/fibonacci-5-prompt.txt)" --model /path/to/model.gguf --n 512 > fibonacci.cj
 cjc fibonacci.cj -o fibonacci --set-runtime-rpath
 ./fibonacci
 echo $?  # 5: the program's return value is its exit status
 ```
 
 The [prompt](examples/fibonacci-5-prompt.txt) supplies the algorithm explicitly.
-`task` writes the Cangjie program; there is no separate translation command.
+`generate` writes the Cangjie program; there is no separate translation command.
 
 ## Language
 
@@ -107,6 +107,6 @@ infix expressions are not supported.
 - [Typed language specification](docs/language.md) (embedded in `typed-cangjie` prompts at build time)
 - [Cangjie prompt excerpt](docs/cangjie-subset.md) (appended by the benchmark's Cangjie arm)
 - [Model plugin settings](docs/model-plugins.md)
-- [Cangjie translation](docs/cangjie.md) (`task` writes the translated program)
+- [Cangjie translation](docs/cangjie.md) (`generate` writes the translated program)
 - [Checker and decoder internals](docs/decoder.md)
 - [Typed pipeline vs direct Cangjie](benchmarks/README.md)

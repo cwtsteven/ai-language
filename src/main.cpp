@@ -107,7 +107,7 @@ int main(int argc, char ** argv) {
     try {
         options = cli::parse(argc, argv);
     } catch (const std::exception & error) {
-        std::fprintf(stderr, "%s\nUse '%s --help' for commands and 'task --help' for generation options.\n",
+        std::fprintf(stderr, "%s\nUse '%s --help' for commands and 'generate --help' for generation options.\n",
                      error.what(), argv[0]);
         return 1;
     }
@@ -115,7 +115,7 @@ int main(int argc, char ** argv) {
         cli::print_help(stdout, argv[0], options.command);
         return 0;
     }
-    if (options.command != cli::Command::Task) {
+    if (options.command != cli::Command::Generate) {
         std::string & check = options.input;
         const bool from_stdin = check == "-";
         if (from_stdin) {

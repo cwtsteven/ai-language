@@ -44,7 +44,7 @@ Options parse(int argc, const char * const * argv) {
         return options;
     }
     const std::string command = argv[1];
-    if (command == "task") options.command = Command::Task;
+    if (command == "generate") options.command = Command::Generate;
     else if (command == "check") options.command = Command::Check;
     else if (command == "complete") options.command = Command::Complete;
     else if (command == "format") options.command = Command::Format;
@@ -60,7 +60,7 @@ Options parse(int argc, const char * const * argv) {
         }
         if (!literal && arg == "--") { literal = true; continue; }
         if (!literal && arg.size() > 1 && arg.front() == '-') {
-            if (options.command != Command::Task)
+            if (options.command != Command::Generate)
                 throw std::runtime_error(command + " does not accept option " + arg);
             if (arg == "--unconstrained") { options.constrained = false; continue; }
             if (arg == "--skip-plan") { options.plan = false; continue; }
@@ -69,7 +69,7 @@ Options parse(int argc, const char * const * argv) {
             if (arg == "--debug") { options.debug = true; continue; }
             if (arg != "--model" && arg != "--n" && arg != "--debug-limit" && arg != "--ngl" &&
                 arg != "--ubatch" && arg != "--temperature" && arg != "--seed" && arg != "--plan-file")
-                throw std::runtime_error("unknown task option: " + arg);
+                throw std::runtime_error("unknown generate option: " + arg);
             if (i + 1 >= argc) throw std::runtime_error(arg + " requires a value");
             const std::string value = argv[++i];
             if (arg == "--model") options.model_path = value;
@@ -92,14 +92,14 @@ Options parse(int argc, const char * const * argv) {
             input_set = true;
         }
     }
-    if (options.command == Command::Task) {
-        if (options.model_path.empty()) throw std::runtime_error("task requires --model FILE");
+    if (options.command == Command::Generate) {
+        if (options.model_path.empty()) throw std::runtime_error("generate requires --model FILE");
         if (options.plan_only && !options.plan_file.empty())
             throw std::runtime_error("--plan-only and --plan-file cannot be combined");
         if ((options.plan_only || !options.plan_file.empty()) && !options.plan)
             throw std::runtime_error("--plan-only/--plan-file cannot combine with --skip-plan");
         if (!input_set || options.input.empty())
-            throw std::runtime_error("task requires TEXT");
+            throw std::runtime_error("generate requires TEXT");
     } else if (!input_set) {
         if (options.command == Command::Format) options.input = "-";
         else throw std::runtime_error(command + " requires CODE or '-' to read stdin");
@@ -112,15 +112,15 @@ void print_help(FILE * output, const char * executable, Command command) {
         std::fprintf(output,
             "usage: %s COMMAND [OPTIONS]\n\n"
             "Commands:\n"
-            "  task      Generate a Cangjie program using a supplied local model.\n"
+            "  generate  Generate a Cangjie program using a supplied local model.\n"
             "  check     Check typed code or a prefix without a model.\n"
             "  complete  Complete a valid typed prefix without a model.\n"
             "  format    Format existing typed code without a model.\n\n"
             "Use '%s COMMAND --help' for that command's arguments and options.\n",
             executable, executable);
-    } else if (command == Command::Task) {
+    } else if (command == Command::Generate) {
         std::fprintf(output,
-            "usage: %s task TEXT --model FILE [OPTIONS]\n\n"
+            "usage: %s generate TEXT --model FILE [OPTIONS]\n\n"
             "Arguments:\n"
             "  TEXT              A quoted description of the program to generate.\n\n"
             "Options:\n"
@@ -138,7 +138,7 @@ void print_help(FILE * output, const char * executable, Command command) {
             "  --ngl N           Override GPU layers (default: plugin, then 99 on macOS/0 elsewhere).\n"
             "  --ubatch N        Override physical batch size (default: plugin, then llama.cpp).\n"
             "  -h, --help        Show this command's help without loading a model.\n\n"
-            "Task descriptions first produce a plan (shown only in debug mode), without an output token cap,\n"
+            "The description first produces a plan (shown only in debug mode), without an output token cap,\n"
             "then include it with the language specification for code generation. Sampling is type-constrained.\n"
             "A complete typed program is translated to Cangjie and written to stdout. An unfinished program\n"
             "writes a diagnostic to stderr and no Cangjie source.\n"

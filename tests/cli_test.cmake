@@ -6,7 +6,7 @@ execute_process(COMMAND "${CLI}" --help RESULT_VARIABLE status OUTPUT_VARIABLE o
 if(NOT status EQUAL 0 OR NOT error STREQUAL "")
     message(FATAL_ERROR "Basic help failed: ${status}: ${error}")
 endif()
-foreach(command task check complete format)
+foreach(command generate check complete format)
     string(FIND "${output}" "${command}" position)
     if(position EQUAL -1)
         message(FATAL_ERROR "Top-level help is missing ${command}")
@@ -17,23 +17,23 @@ foreach(command task check complete format)
         message(FATAL_ERROR "${command} help failed: ${help}${error}")
     endif()
 endforeach()
-execute_process(COMMAND "${CLI}" task --help RESULT_VARIABLE status OUTPUT_VARIABLE output)
+execute_process(COMMAND "${CLI}" generate --help RESULT_VARIABLE status OUTPUT_VARIABLE output)
 foreach(option --model --n --temperature --seed --skip-plan --plan-only --plan-file --force-postfix --debug --debug-limit --ngl --ubatch --unconstrained)
     string(FIND "${output}" "${option}" position)
     if(position EQUAL -1)
-        message(FATAL_ERROR "Task help is missing ${option}")
+        message(FATAL_ERROR "Generate help is missing ${option}")
     endif()
 endforeach()
 if(NOT output MATCHES "default 256")
-    message(FATAL_ERROR "Task help does not describe the default token budget")
+    message(FATAL_ERROR "Generate help does not describe the default token budget")
 endif()
 
-execute_process(COMMAND "${CLI}" task "Return 0."
+execute_process(COMMAND "${CLI}" generate "Return 0."
     RESULT_VARIABLE status OUTPUT_VARIABLE output ERROR_VARIABLE error)
 if(NOT status EQUAL 1 OR NOT output STREQUAL "" OR NOT error MATCHES "requires --model")
     message(FATAL_ERROR "Generation without an explicit model was not rejected: ${error}")
 endif()
-execute_process(COMMAND "${CLI}" task "Return 0." --model ""
+execute_process(COMMAND "${CLI}" generate "Return 0." --model ""
     RESULT_VARIABLE status OUTPUT_VARIABLE output ERROR_VARIABLE error)
 if(NOT status EQUAL 1 OR NOT error MATCHES "requires --model")
     message(FATAL_ERROR "Empty model selection was not rejected: ${error}")
@@ -77,13 +77,13 @@ if(NOT status EQUAL 0 OR NOT output STREQUAL formatted)
     message(FATAL_ERROR "Standalone formatting failed: ${output}${error}")
 endif()
 file(MAKE_DIRECTORY "${TEST_DIR}")
-execute_process(COMMAND "${CLI}" task "Return 0." --model unused.gguf --plan-file "${TEST_DIR}/missing-plan.txt"
+execute_process(COMMAND "${CLI}" generate "Return 0." --model unused.gguf --plan-file "${TEST_DIR}/missing-plan.txt"
     RESULT_VARIABLE status OUTPUT_VARIABLE output ERROR_VARIABLE error)
 if(NOT status EQUAL 1 OR NOT output STREQUAL "" OR NOT error MATCHES "could not read plan file")
     message(FATAL_ERROR "Missing saved plan should fail before model loading: ${output}${error}")
 endif()
 file(WRITE "${TEST_DIR}/empty-plan.txt" " \n\t")
-execute_process(COMMAND "${CLI}" task "Return 0." --model unused.gguf --plan-file "${TEST_DIR}/empty-plan.txt"
+execute_process(COMMAND "${CLI}" generate "Return 0." --model unused.gguf --plan-file "${TEST_DIR}/empty-plan.txt"
     RESULT_VARIABLE status OUTPUT_VARIABLE output ERROR_VARIABLE error)
 if(NOT status EQUAL 1 OR NOT output STREQUAL "" OR NOT error MATCHES "no implementation plan")
     message(FATAL_ERROR "Empty saved plan should fail before model loading: ${output}${error}")
@@ -106,7 +106,7 @@ if(NOT status EQUAL 1 OR NOT output STREQUAL "")
 endif()
 
 file(WRITE "${TEST_DIR}/adapter.json" "{\"chat_template\":\"chatml\"}")
-execute_process(COMMAND "${CLI}" task "Return 0." --model "${TEST_DIR}/adapter.json"
+execute_process(COMMAND "${CLI}" generate "Return 0." --model "${TEST_DIR}/adapter.json"
     RESULT_VARIABLE status OUTPUT_VARIABLE output ERROR_VARIABLE error)
 if(NOT status EQUAL 1 OR NOT error MATCHES "needs a model path" OR NOT output STREQUAL "")
     message(FATAL_ERROR "JSON model selection did not validate the plugin: ${error}")
