@@ -7,7 +7,7 @@
 
 namespace cli {
 
-enum class Command { Help, Task, Check, Complete, Format };
+enum class Command { Help, Task, Check, Complete, Format, Cj };
 
 struct Options {
     Command command = Command::Help;

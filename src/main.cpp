@@ -1,5 +1,6 @@
 #include "typed_prefix.h"
 #include "pretty_printer.h"
+#include "cj_codegen.h"
 #include "typed_sampler.h"
 #include "model_plugin.h"
 #include "language_prompt.h"
@@ -129,6 +130,15 @@ int main(int argc, char ** argv) {
                 return 2;
             }
             std::fwrite(formatted->data(), 1, formatted->size(), stdout);
+            return 0;
+        }
+        if (options.command == cli::Command::Cj) {
+            const auto generated = typed::generate_cangjie(check);
+            if (!generated) {
+                std::fputs("cj requires a complete, well-typed program\n", stderr);
+                return 2;
+            }
+            std::fwrite(generated->data(), 1, generated->size(), stdout);
             return 0;
         }
         typed::Prefix checker;

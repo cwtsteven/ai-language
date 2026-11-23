@@ -48,6 +48,7 @@ Options parse(int argc, const char * const * argv) {
     else if (command == "check") options.command = Command::Check;
     else if (command == "complete") options.command = Command::Complete;
     else if (command == "format") options.command = Command::Format;
+    else if (command == "cj") options.command = Command::Cj;
     else throw std::runtime_error("unknown command: " + command);
 
     bool input_set = false;
@@ -97,7 +98,7 @@ Options parse(int argc, const char * const * argv) {
             throw std::runtime_error("task requires TEXT or --prompt TEXT");
         if (options.prompt && options.prompt->empty()) throw std::runtime_error("--prompt must not be empty");
     } else if (!input_set) {
-        if (options.command == Command::Format) options.input = "-";
+        if (options.command == Command::Format || options.command == Command::Cj) options.input = "-";
         else throw std::runtime_error(command + " requires CODE or '-' to read stdin");
     }
     return options;
@@ -111,7 +112,8 @@ void print_help(FILE * output, const char * executable, Command command) {
             "  task      Generate a program using a supplied local model.\n"
             "  check     Check code or a prefix without a model.\n"
             "  complete  Complete a valid prefix without a model.\n"
-            "  format    Format existing code without a model.\n\n"
+            "  format    Format existing code without a model.\n"
+            "  cj        Translate a checked program to Cangjie without a model.\n\n"
             "Use '%s COMMAND --help' for that command's arguments and options.\n",
             executable, executable);
     } else if (command == Command::Task) {
@@ -143,15 +145,20 @@ void print_help(FILE * output, const char * executable, Command command) {
             "invalid model output. Store memory settings in a model plugin for routine use.\n",
             executable, executable);
     } else {
-        const char * name = command == Command::Check ? "check" : command == Command::Complete ? "complete" : "format";
+        const char * name = command == Command::Check ? "check" : command == Command::Complete ? "complete" :
+                           command == Command::Cj ? "cj" : "format";
         std::fprintf(output, "usage: %s %s %s\n\n", executable, name,
-                     command == Command::Format ? "[CODE|-]" : "CODE|-");
+                     command == Command::Format || command == Command::Cj ? "[CODE|-]" : "CODE|-");
         if (command == Command::Check) std::fputs(
             "Check prefix viability and whether the program is complete.\n"
             "A viable unfinished prefix exits 0; an invalid prefix exits 2.\n", output);
         else if (command == Command::Complete) std::fputs(
             "Print a valid prefix plus a deterministically constructed suffix.\n"
             "Invalid prefixes exit 2. Completion does not prove algorithm correctness.\n", output);
+        else if (command == Command::Cj) std::fputs(
+            "Translate a complete, well-typed program to standalone Cangjie source on stdout.\n"
+            "Omit CODE to read stdin. Redirect stdout to a .cj file and compile it with cjc.\n"
+            "Invalid or unfinished input exits 2 without emitting source.\n", output);
         else std::fputs(
             "Pretty-print a complete, well-typed program. Omit CODE to read stdin.\n"
             "Invalid or unfinished input exits 2 without printing formatted code.\n", output);

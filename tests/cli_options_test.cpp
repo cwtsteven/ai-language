@@ -32,7 +32,7 @@ static void fails(std::initializer_list<const char *> arguments, const std::stri
 int main() {
     CHECK(parse({}).help);
     CHECK(parse({"--help"}).command == cli::Command::Help);
-    for (auto command : {"task", "check", "complete", "format"}) {
+    for (auto command : {"task", "check", "complete", "format", "cj"}) {
         CHECK(parse({command, "--help"}).help);
         CHECK(parse({command, "-h"}).help);
     }
@@ -66,6 +66,11 @@ int main() {
     CHECK(parse({"check", "-"}).input == "-");
     CHECK(parse({"format"}).input == "-");
     CHECK(parse({"format", "--", "--help"}).input == "--help");
+    CHECK(parse({"cj"}).command == cli::Command::Cj);
+    CHECK(parse({"cj"}).input == "-");
+    CHECK(parse({"cj", "-"}).input == "-");
+    CHECK(parse({"cj", "main(): Int64 { return 5; }"}).input == "main(): Int64 { return 5; }");
+    CHECK(parse({"cj", "--", "--help"}).input == "--help");
 
     fails({"task", "request", "--model", "x", "-n", "512"}, "unknown task option");
     fails({"--task", "request"}, "unknown command");
@@ -96,6 +101,8 @@ int main() {
     fails({"complete"}, "requires CODE");
     fails({"check", "code", "--model", "x"}, "does not accept option");
     fails({"format", "code", "--raw"}, "does not accept option");
+    fails({"cj", "--model", "x"}, "does not accept option");
+    fails({"cj", "code", "other"}, "one quoted text");
     fails({"check", "code", "complete", "code"}, "one quoted text");
     std::puts("CLI argument tests passed");
 }

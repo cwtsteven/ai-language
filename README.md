@@ -2,7 +2,8 @@
 
 Generate programs in a small Cangjie-inspired language using type-constrained
 local decoding with llama.cpp. This prototype checks code; it does not execute it
-or guarantee algorithm correctness.
+or guarantee algorithm correctness. Export checked programs as standalone Cangjie
+source with `cj`, then compile them with `cjc`.
 
 ## Build
 
@@ -19,6 +20,7 @@ ctest --test-dir build --output-on-failure
 
 For CPU builds, replace the Metal options with `-DGGML_METAL=OFF -DGGML_BLAS=OFF`.
 Tests do not load model weights or run inference.
+When `cjc` is available at configure time, tests also compile and run generated Cangjie.
 
 ## Use
 
@@ -30,10 +32,11 @@ There is no default model or download helper. Run from the repository root:
 ./build/typed-llama check 'main(): Int64 { return 5; }'
 ./build/typed-llama complete 'main(): Int64 { return '
 ./build/typed-llama format - < examples/fibonacci-5-break.typed
+./build/typed-llama cj - < examples/fibonacci-5-break.typed > fibonacci.cj
 ```
 
-`check`, `complete`, and `format` need no model. Use `-` to read code from stdin;
-`format` also reads stdin when its argument is omitted. Invalid code exits 2.
+`check`, `complete`, `format`, and `cj` need no model. Use `-` to read code from stdin;
+`format` and `cj` also read stdin when their argument is omitted. Invalid code exits 2.
 A viable unfinished prefix passes `check` with `complete=no`.
 
 ## Task options
@@ -75,6 +78,10 @@ with the same model, prompt, and settings; `--temperature 0` uses greedy decodin
 
 The [prompt](examples/fibonacci-5-prompt.txt) supplies the algorithm explicitly.
 A [reference program](examples/fibonacci-5-break.typed) uses `while (true)` and `break;`.
+
+Compile exported Cangjie with `cjc fibonacci.cj -o fibonacci --set-runtime-rpath`.
+Running `./fibonacci` returns exit status **5**. See [Cangjie generation](docs/cangjie.md)
+for translation details.
 
 ## Language
 

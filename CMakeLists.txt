@@ -37,12 +37,16 @@ add_library(cli_options src/cli.cpp)
 target_include_directories(cli_options PUBLIC src)
 target_compile_features(cli_options PUBLIC cxx_std_17)
 
+add_library(cj_codegen src/cj_codegen.cpp)
+target_link_libraries(cj_codegen PUBLIC typed_prefix)
+target_compile_features(cj_codegen PUBLIC cxx_std_17)
+
 add_library(token_sampling src/sampling.cpp src/typed_sampler.cpp)
 target_link_libraries(token_sampling PUBLIC typed_prefix llama)
 target_compile_features(token_sampling PUBLIC cxx_std_17)
 
 add_executable(typed-llama src/main.cpp)
-target_link_libraries(typed-llama PRIVATE token_sampling model_plugin cli_options language_spec)
+target_link_libraries(typed-llama PRIVATE token_sampling model_plugin cli_options language_spec cj_codegen)
 target_compile_features(typed-llama PRIVATE cxx_std_17)
 
 enable_testing()
@@ -70,6 +74,18 @@ add_test(NAME planning-test COMMAND planning-test)
 add_executable(sampling-test tests/sampling_test.cpp)
 target_link_libraries(sampling-test PRIVATE token_sampling)
 add_test(NAME sampling-test COMMAND sampling-test)
+add_executable(cj-codegen-test tests/cj_codegen_test.cpp)
+target_link_libraries(cj-codegen-test PRIVATE cj_codegen)
+add_test(NAME cj-codegen-test COMMAND cj-codegen-test)
+find_program(CANGJIE_COMPILER NAMES cjc)
+if(CANGJIE_COMPILER)
+    add_test(NAME cj-runtime-test COMMAND ${CMAKE_COMMAND}
+        -DCLI=$<TARGET_FILE:typed-llama>
+        -DCJC=${CANGJIE_COMPILER}
+        -DTEST_DIR=${CMAKE_CURRENT_BINARY_DIR}/cj-runtime-test
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/cj_runtime_test.cmake)
+    set_tests_properties(cj-runtime-test PROPERTIES TIMEOUT 120)
+endif()
 add_test(NAME cli-test COMMAND ${CMAKE_COMMAND}
     -DCLI=$<TARGET_FILE:typed-llama>
     -DTEST_DIR=${CMAKE_CURRENT_BINARY_DIR}/cli-test
