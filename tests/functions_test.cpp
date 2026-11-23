@@ -60,6 +60,29 @@ int main() {
              "main(): Int64 { let result: Int64 = factorial(5); return result; }");
     complete("func loop(flag: RefBool): Int64 { while(!flag){if(!flag){flag:=false;continue;}else{break;}} return 1; } "
              "main(): Int64 { let flag: RefBool = refBool(true); let value: Int64 = loop(flag); return value; }");
+    complete("main(): Int64 { if(true){return 1;}else{return 2;} }");
+    complete("main(): Int64 { while(true){if(false){return 1;}else{continue;} break;} return 2; }");
+    complete("main(): Int64 { return 1; let value: Int64 = 2; return value; }");
+    complete("func factorial(n: Int64): Int64 { let base: Bool = n < 2; if(base){return 1;}else{"
+             "let previous: Int64 = n - 1; let partial: Int64 = factorial(previous); "
+             "let product: Int64 = n * partial; return product;} } "
+             "main(): Int64 { let result: Int64 = factorial(5); return result; }");
+    complete("func flag(x: Bool): Bool { if(x){return true;}else{while(x){return false;}} return true; } "
+             "main(): Int64 { let value: Bool = flag(false); return 0; }");
+    complete("func choose(x: Bool, first: RefInt64, second: RefInt64): RefInt64 { "
+             "if(x){return first;}else{return second;} } main(): Int64 { let a: RefInt64 = refInt(1); "
+             "let b: RefInt64 = refInt(2); let result: RefInt64 = choose(true,a,b); return !result; }");
+    complete("func choose(x: RefBool): RefBool { while(!x){return x;} return x; } "
+             "main(): Int64 { let flag: RefBool = refBool(true); let result: RefBool = choose(flag); return 0; }");
+    // Return presence and reachability are intentionally not analyzed.
+    complete("func optional(x: Bool): Int64 { if(x){return 1;}else{} } main(): Int64 {}");
+
+    rejected("main(): Int64 { if(true){return ", "false;", "1;}else{return 2;} }");
+    rejected("func flag(): Bool { while(true){return ", "1;", "false;} } main(): Int64 {return 0;}");
+    rejected("main(): Int64 { return 1; return ", "true;", "2; }");
+    rejected("func choose(x: RefInt64): RefInt64 { if(true){return ", "!x;", "x;}else{return x;} } main(): Int64 {}");
+    rejected("main(): Int64 { if(true){let local: Int64 = 1; return local;}else{return 0;} return ", "local;", "0; }");
+    rejected("main(): Int64 { if(true){return 1 ", "}", ";}else{return 2;} }");
 
     rejected(identity + "main(): Int64 { let result: Int64 = identity(", "true", "5); return result; }");
     rejected(identity + "main(): Int64 { let result: Int64 = identity(", ")", "5); return result; }");
@@ -98,7 +121,10 @@ int main() {
         std::string("func test(x: Ref"), std::string("func test(x: Int64,"),
         std::string("func create(): RefBool {"), std::string("func create(): RefInt64 { let r:"),
         identity + "main(): Int64 { let result: Int64 = ident",
-        pair + "main(): Int64 { let result: Bool = combine(0,"
+        pair + "main(): Int64 { let result: Bool = combine(0,",
+        std::string("main(): Int64 { if(true){ret"),
+        std::string("func flag(): Bool { while(true){return "),
+        std::string("func choose(x: RefInt64): RefInt64 { if(true){ret")
     }) {
         typed::Prefix base;
         CHECK(base.append(seed));

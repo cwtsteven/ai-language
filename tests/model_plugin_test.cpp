@@ -77,6 +77,7 @@ int main() {
         CHECK(prompt.find("\"let\" identifier") != std::string::npos);
         CHECK(prompt.find("\"break\" \";\"") != std::string::npos);
         CHECK(prompt.find("\"continue\" \";\"") != std::string::npos);
+        CHECK(prompt.find("\"return\" typed_atom \";\"") != std::string::npos);
     };
     assert_grammar(format_prompt(plugin, nullptr, "other-model", rules, "sum 2 and 3"));
     plugin = {};

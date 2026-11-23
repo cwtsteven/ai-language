@@ -40,7 +40,7 @@ private:
         AssignOperator, LoopControlSemi,
         IfOpenParen, IfCondition, IfCloseParen, IfOpen, Else, ElseOpen,
         WhileOpenParen, WhileCondition, WhileCloseParen, WhileOpen,
-        ReturnValue, ReturnSemi, BodyClose, Done,
+        ReturnValue, ReturnSemi, Done,
     };
     enum class Block { Main, Function, IfThen, IfElse, While };
     struct Function {
@@ -65,6 +65,7 @@ private:
     Type rhs_lhs_type_ = Type::Int;
     Type rhs_right_type_ = Type::Int;
     bool assignment_ = false;
+    bool after_return_ = false; // Prefer a closing brace during deterministic completion.
     std::vector<Type> call_arguments_;
     size_t argument_ = 0;
 

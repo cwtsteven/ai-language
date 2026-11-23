@@ -12,15 +12,16 @@ newlines. Statements currently require semicolons so the prefix checker can
 recognize their ends without relying on line breaks.
 
 ```text
-program       ::= function* "main" "(" ")" ":" "Int64" "{" statement* "return" int_atom ";" "}"
+program       ::= function* "main" "(" ")" ":" "Int64" "{" statement* "}"
 function      ::= "func" identifier "(" [parameter ("," parameter)*] ")" ":" Type
-                  "{" statement* "return" typed_atom ";" "}"
+                  "{" statement* "}"
 parameter     ::= identifier ":" Type
 statement     ::= "let" identifier ":" Type "=" rhs ";"
                 | ref_identifier ":=" rhs ";"
                 | "if" "(" bool_atom ")" "{" statement* "}" "else" "{" statement* "}"
                 | "while" "(" bool_atom ")" "{" statement* "}"
                 | "break" ";" | "continue" ";"
+                | "return" typed_atom ";"
 Type          ::= "Int64" | "Bool" | "RefInt64" | "RefBool"
 atom          ::= integer | "true" | "false" | in_scope_identifier | "!" ref_identifier
 rhs           ::= atom | atom binary_op atom | call
@@ -46,8 +47,11 @@ are not supported. `main` takes no parameters and returns `Int64`.
 
 Calls require exactly the declared number and types of atomic arguments. Bind
 call results before using them in another call, operator, condition, or return.
-Every body must end with `return atom;` at its outer level; nested returns are
-not supported. Parameters and locals are scoped to that body, and cannot shadow
+`return atom;` is an ordinary statement and may appear inside `if` or `while`
+blocks. It exits the enclosing function. Every returned atom must match that function's declared return
+type (`Int64` in `main`). The checker does not require a final return or check
+that every path returns; it also typechecks statements after a return.
+Parameters and locals are scoped to that body, and cannot shadow
 visible function names or built-in operations. See [the recursive factorial
 example](../examples/functions.typed).
 

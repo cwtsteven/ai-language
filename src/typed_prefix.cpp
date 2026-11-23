@@ -213,11 +213,14 @@ bool Prefix::rhs_atom_possible(std::string_view partial) const {
 }
 
 bool Prefix::close_block() {
-    if (blocks_.size() <= 1) return false;
+    if (blocks_.empty()) return false;
     const Frame frame = blocks_.back();
     blocks_.pop_back();
     symbols_.resize(frame.symbol_count);
-    phase_ = frame.kind == Block::IfThen ? Phase::Else : Phase::Stmt;
+    if (frame.kind == Block::Main || frame.kind == Block::Function) {
+        declaring_ = {};
+        phase_ = frame.kind == Block::Main ? Phase::Done : Phase::TopLevel;
+    } else phase_ = frame.kind == Block::IfThen ? Phase::Else : Phase::Stmt;
     return true;
 }
 
@@ -248,8 +251,8 @@ bool Prefix::possible(std::string_view p) const {
         case Phase::Stmt:
             return one_of(p, { "let", "if", "while" }) ||
                 (in_loop() && one_of(p, { "break", "continue" })) ||
-                (blocks_.size() == 1 && has_atom(return_type_) && one_of(p, { "return" })) ||
-                (blocks_.size() > 1 && one_of(p, { "}" })) ||
+                (has_atom(return_type_) && one_of(p, { "return" })) ||
+                (!blocks_.empty() && one_of(p, { "}" })) ||
                 symbol_prefix(Type::RefInt, p) || symbol_prefix(Type::RefBool, p);
         case Phase::LetName:     return identifier_prefix(p);
         case Phase::LetColon:    return one_of(p, { ":" });
@@ -284,7 +287,6 @@ bool Prefix::possible(std::string_view p) const {
         case Phase::WhileOpen:      return one_of(p, { "{" });
         case Phase::ReturnValue:    return atom_possible(return_type_, p);
         case Phase::ReturnSemi:     return one_of(p, { ";" });
-        case Phase::BodyClose:      return one_of(p, { "}" });
         case Phase::Done:           return false;
     }
     return false;
@@ -362,6 +364,7 @@ bool Prefix::commit(std::string_view token) {
             phase_ = Phase::Stmt;
             return true;
         case Phase::Stmt:
+            after_return_ = false;
             if (token == "let") {
                 assignment_ = false;
                 phase_ = Phase::LetName;
@@ -373,11 +376,11 @@ bool Prefix::commit(std::string_view token) {
                 phase_ = Phase::LoopControlSemi;
                 return true;
             }
-            if (token == "return" && blocks_.size() == 1) {
+            if (token == "return") {
                 phase_ = Phase::ReturnValue;
                 return true;
             }
-            if (token == "}" && blocks_.size() > 1) return close_block();
+            if (token == "}") return close_block();
             if (const auto * symbol = find(token); symbol && (symbol->type == Type::RefInt || symbol->type == Type::RefBool)) {
                 new_name_ = std::string(token);
                 new_type_ = symbol->type == Type::RefInt ? Type::Int : Type::Bool;
@@ -501,13 +504,10 @@ bool Prefix::commit(std::string_view token) {
             if (!atom_complete(return_type_, token)) return false;
             phase_ = Phase::ReturnSemi;
             return true;
-        case Phase::ReturnSemi: if (token != ";") return false; phase_ = Phase::BodyClose; return true;
-        case Phase::BodyClose:
-            if (token != "}") return false;
-            phase_ = blocks_.front().kind == Block::Main ? Phase::Done : Phase::TopLevel;
-            blocks_.clear();
-            symbols_.clear();
-            declaring_ = {};
+        case Phase::ReturnSemi:
+            if (token != ";") return false;
+            after_return_ = true;
+            phase_ = Phase::Stmt;
             return true;
         case Phase::Done: return false;
     }
@@ -671,12 +671,19 @@ std::string Prefix::completion_token() const {
         case Phase::MainType:    return fixed({ "Int64" });
         case Phase::MainOpen:    return fixed({ "{" });
         case Phase::Stmt:
+            if (after_return_) {
+                if (const auto token = fixed({ "}" }); !token.empty()) return token;
+            }
             if (blocks_.size() == 1 && has_atom(return_type_)) {
                 const auto token = fixed({ "return" });
                 if (!token.empty()) return token;
-            } else if (blocks_.size() > 1) {
+            }
+            if (!blocks_.empty()) {
                 const auto token = fixed({ "}" });
                 if (!token.empty()) return token;
+            }
+            if (has_atom(return_type_)) {
+                if (const auto token = fixed({ "return" }); !token.empty()) return token;
             }
             if (const auto token = fixed({ "let", "if", "while" }); !token.empty()) return token;
             if (in_loop()) {
@@ -744,7 +751,6 @@ std::string Prefix::completion_token() const {
         case Phase::WhileOpen:      return fixed({ "{" });
         case Phase::ReturnValue:    return completion_atom(return_type_);
         case Phase::ReturnSemi:     return fixed({ ";" });
-        case Phase::BodyClose:      return fixed({ "}" });
         case Phase::Done:           return {};
     }
     return {};
