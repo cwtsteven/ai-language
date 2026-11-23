@@ -3,11 +3,10 @@
 #include "typed_sampler.h"
 #include "model_plugin.h"
 #include "language_prompt.h"
+#include "cli.h"
 #include "llama.h"
 
 #include <cstdio>
-#include <cstdlib>
-#include <cstring>
 #include <exception>
 #include <string>
 #include <vector>
@@ -16,33 +15,6 @@ namespace {
 
 void quiet_log(ggml_log_level level, const char * message, void *) {
     if (level == GGML_LOG_LEVEL_ERROR) std::fputs(message, stderr);
-}
-
-void usage(const char * executable, FILE * output = stderr, bool advanced = false) {
-    std::fprintf(output,
-        "usage: %s --model FILE --task TEXT\n"
-        "       %s --check CODE\n\n"
-        "  --task TEXT   Describe the program to generate.\n"
-        "  --model FILE  GGUF weights or a JSON model plugin; required for generation.\n"
-        "  --check CODE  Check code without loading a model.\n\n"
-        "Generation includes the grammar prompt, type constraints, and formatted output.\n"
-        "Use --help-advanced for development options and standalone utilities.\n",
-        executable, executable);
-    if (advanced) std::fputs(
-        "\nAdvanced options:\n"
-        "  --n N             Generated token budget (default 256).\n"
-        "  --prefix CODE     Seed generation with a valid program prefix.\n"
-        "  --prompt TEXT     Supply a prepared raw prompt instead of --task.\n"
-        "  --raw             Stream unformatted output.\n"
-        "  --unconstrained   Disable token constraints and check the result.\n"
-        "  --debug           Trace selected and rejected tokens to stderr.\n"
-        "  --debug-limit N   Rejected candidates shown per step (default 20).\n"
-        "  --ngl N           Override GPU layers from the model plugin.\n"
-        "  --ubatch N        Override physical batch size from the model plugin.\n"
-        "  --complete CODE   Construct a valid suffix without a model.\n"
-        "  --format [CODE|-] Format existing code; omit CODE to read stdin.\n\n"
-        "Store GPU layers and batch size in a model plugin for everyday use.\n"
-        "Use --unconstrained --raw to inspect invalid model output.\n", output);
 }
 
 std::string task_prompt(const llama_model * model, const models::Plugin & plugin, const std::string & task) {
@@ -76,83 +48,20 @@ void batch_set(llama_batch_ext * batch, const llama_token * tokens, int count, l
 } // namespace
 
 int main(int argc, char ** argv) {
-    std::string model_path;
-    models::Plugin model_plugin;
-    std::string check;
-    std::string prefix;
-    std::string task;
-    std::string prompt = "Write only code in the typed Cangjie-inspired language. Start with main ( ) : Int64 { . ";
-    int n_predict = 256;
-    int n_ubatch = 0;
-#ifdef __APPLE__
-    int n_gpu_layers = 99;
-#else
-    int n_gpu_layers = 0;
-#endif
-    bool gpu_layers_set = false;
-    bool checking = false;
-    bool completing = false;
-    bool formatting = true;
-    bool format_requested = false;
-    bool format_text = false;
-    bool prompt_set = false;
-    bool constrained = true;
-    bool debug = false;
-    size_t debug_limit = 20;
-
-    for (int i = 1; i < argc; ++i) {
-        const std::string arg = argv[i];
-        if (arg == "--help" || arg == "-h" || arg == "--help-advanced") {
-            usage(argv[0], stdout, arg == "--help-advanced");
-            return 0;
-        }
-        if (arg == "--raw") {
-            formatting = false;
-            continue;
-        }
-        if (arg == "--unconstrained") {
-            constrained = false;
-            continue;
-        }
-        if (arg == "--debug") {
-            debug = true;
-            continue;
-        }
-        if (arg == "--format") {
-            format_requested = true;
-            if (i + 1 < argc && std::strncmp(argv[i + 1], "--", 2) != 0) {
-                check = argv[++i];
-                format_text = true;
-            }
-            continue;
-        }
-        if (i + 1 >= argc) { usage(argv[0]); return 1; }
-        const std::string value = argv[++i];
-        try {
-            if (arg == "--model") model_path = value;
-            else if (arg == "--check") { check = value; checking = true; }
-            else if (arg == "--complete") { check = value; completing = true; }
-            else if (arg == "--task") task = value;
-            else if (arg == "--prefix") prefix = value;
-            else if (arg == "--prompt") { prompt = value; prompt_set = true; }
-            else if (arg == "--n") n_predict = std::stoi(value);
-            else if (arg == "--ubatch") {
-                n_ubatch = std::stoi(value);
-                if (n_ubatch < 1) { usage(argv[0]); return 1; }
-            }
-            else if (arg == "--ngl") { n_gpu_layers = std::stoi(value); gpu_layers_set = true; }
-            else if (arg == "--debug-limit") { debug_limit = std::stoul(value); debug = true; }
-            else { usage(argv[0]); return 1; }
-        } catch (...) { usage(argv[0]); return 1; }
-    }
-
-    if ((checking && completing) || (format_requested && (!formatting || checking || completing ||
-        (format_text && (!task.empty() || !model_path.empty() || prompt_set))))) {
-        usage(argv[0]);
+    cli::Options options;
+    try {
+        options = cli::parse(argc, argv);
+    } catch (const std::exception & error) {
+        std::fprintf(stderr, "%s\nUse '%s --help' for commands and 'task --help' for generation options.\n",
+                     error.what(), argv[0]);
         return 1;
     }
-    if (format_requested && (format_text || (task.empty() && model_path.empty() && !prompt_set))) {
-        if (!format_text) check = "-";
+    if (options.help) {
+        cli::print_help(stdout, argv[0], options.command);
+        return 0;
+    }
+    if (options.command != cli::Command::Task) {
+        std::string & check = options.input;
         if (check == "-") {
             check.clear();
             char buffer[4096];
@@ -161,19 +70,18 @@ int main(int argc, char ** argv) {
                 check.append(buffer, size);
             if (std::ferror(stdin)) { std::fputs("could not read stdin\n", stderr); return 2; }
         }
-        const auto formatted = typed::format_program(check);
-        if (!formatted) {
-            std::fputs("format requires a complete, well-typed program\n", stderr);
-            return 2;
+        if (options.command == cli::Command::Format) {
+            const auto formatted = typed::format_program(check);
+            if (!formatted) {
+                std::fputs("format requires a complete, well-typed program\n", stderr);
+                return 2;
+            }
+            std::fwrite(formatted->data(), 1, formatted->size(), stdout);
+            return 0;
         }
-        std::fwrite(formatted->data(), 1, formatted->size(), stdout);
-        return 0;
-    }
-
-    if (checking || completing) {
         typed::Prefix checker;
         const bool viable = checker.append(check);
-        if (completing) {
+        if (options.command == cli::Command::Complete) {
             if (!viable) { std::fputs("invalid prefix\n", stderr); return 2; }
             const auto suffix = checker.completion();
             if (!suffix) { std::fputs("could not complete prefix\n", stderr); return 2; }
@@ -185,23 +93,30 @@ int main(int argc, char ** argv) {
         std::printf("%s; complete=%s\n", viable ? "viable" : "invalid", viable && checker.can_end() ? "yes" : "no");
         return viable ? 0 : 2;
     }
-    if (model_path.empty()) {
-        std::fputs("generation requires --model FILE (GGUF weights or a JSON model plugin)\n", stderr);
-        return 1;
-    }
-    if (n_predict < 1) {
-        usage(argv[0]);
-        return 1;
-    }
+
+    models::Plugin model_plugin;
     try {
-        model_plugin = models::select_model(model_path);
+        model_plugin = models::select_model(options.model_path);
     } catch (const std::exception & error) {
         std::fprintf(stderr, "%s\n", error.what());
         return 1;
     }
-    model_path = model_plugin.model_path;
-    if (!gpu_layers_set && model_plugin.gpu_layers) n_gpu_layers = *model_plugin.gpu_layers;
-    if (!n_ubatch && model_plugin.ubatch) n_ubatch = *model_plugin.ubatch;
+    const std::string & model_path = model_plugin.model_path;
+    const std::string & prefix = options.prefix;
+    const std::string & task = options.input;
+    const std::string prompt = options.prompt.value_or("");
+    const int n_predict = options.tokens;
+    const int n_ubatch = options.ubatch ? options.ubatch : model_plugin.ubatch.value_or(0);
+#ifdef __APPLE__
+    const int platform_gpu_layers = 99;
+#else
+    const int platform_gpu_layers = 0;
+#endif
+    const int n_gpu_layers = options.gpu_layers.value_or(model_plugin.gpu_layers.value_or(platform_gpu_layers));
+    const bool constrained = options.constrained;
+    const bool formatting = !options.raw;
+    const bool debug = options.debug;
+    const size_t debug_limit = options.debug_limit;
 
     typed::Prefix initial;
     if (!initial.append(prefix)) {

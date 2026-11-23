@@ -1,0 +1,88 @@
+#include "cli.h"
+
+#include <cstdio>
+#include <cstdlib>
+#include <initializer_list>
+#include <stdexcept>
+#include <vector>
+
+#define CHECK(condition) do { \
+    if (!(condition)) { \
+        std::fprintf(stderr, "check failed at %s:%d: %s\n", __FILE__, __LINE__, #condition); \
+        std::exit(1); \
+    } \
+} while (false)
+
+static cli::Options parse(std::initializer_list<const char *> arguments) {
+    std::vector<const char *> argv{ "typed-llama" };
+    argv.insert(argv.end(), arguments);
+    return cli::parse(static_cast<int>(argv.size()), argv.data());
+}
+
+static void fails(std::initializer_list<const char *> arguments, const std::string & reason) {
+    try {
+        parse(arguments);
+    } catch (const std::runtime_error & error) {
+        CHECK(std::string(error.what()).find(reason) != std::string::npos);
+        return;
+    }
+    CHECK(false);
+}
+
+int main() {
+    CHECK(parse({}).help);
+    CHECK(parse({"--help"}).command == cli::Command::Help);
+    for (auto command : {"task", "check", "complete", "format"}) {
+        CHECK(parse({command, "--help"}).help);
+        CHECK(parse({command, "-h"}).help);
+    }
+    CHECK(parse({"task", "request", "--help"}).command == cli::Command::Task);
+    auto options = parse({"task", "Compute Fibonacci(5)", "--model", "weights.gguf"});
+    CHECK(options.command == cli::Command::Task);
+    CHECK(options.input == "Compute Fibonacci(5)");
+    CHECK(options.model_path == "weights.gguf");
+    CHECK(options.tokens == 256 && options.constrained && !options.raw);
+    CHECK(!options.gpu_layers && options.ubatch == 0 && !options.prompt);
+    options = parse({"task", "--model", "plugin.json", "--n", "512", "request"});
+    CHECK(options.model_path == "plugin.json" && options.tokens == 512);
+    CHECK(parse({"task", "request", "--model", "x", "--n", "32"}).tokens == 32);
+    options = parse({"task", "--model", "x", "--prompt", "raw prompt", "--prefix", "main",
+                     "--raw", "--unconstrained", "--debug-limit", "0", "--ngl", "0", "--ubatch", "64"});
+    CHECK(options.prompt && *options.prompt == "raw prompt");
+    CHECK(options.input.empty() && options.prefix == "main");
+    CHECK(options.raw && !options.constrained && options.debug && options.debug_limit == 0);
+    CHECK(options.gpu_layers && *options.gpu_layers == 0 && options.ubatch == 64);
+    CHECK(parse({"task", "request", "--model", "x", "--debug"}).debug);
+    CHECK(parse({"task", "--model", "x", "--", "--help"}).input == "--help");
+    CHECK(parse({"check", ""}).input.empty());
+    CHECK(parse({"complete", ""}).command == cli::Command::Complete);
+    CHECK(parse({"check", "-"}).input == "-");
+    CHECK(parse({"format"}).input == "-");
+    CHECK(parse({"format", "--", "--help"}).input == "--help");
+
+    fails({"task", "request", "--model", "x", "-n", "512"}, "unknown task option");
+    fails({"--task", "request"}, "unknown command");
+    fails({"--check", "code"}, "unknown command");
+    fails({"task", "request"}, "requires --model");
+    fails({"task", "request", "--model", ""}, "requires --model");
+    fails({"task", "--model", "x"}, "requires TEXT");
+    fails({"task", "", "--model", "x"}, "requires TEXT");
+    fails({"task", "request", "--model", "x", "--prompt", "raw"}, "not both");
+    fails({"task", "--model", "x", "--prompt", ""}, "must not be empty");
+    fails({"task", "request", "--model"}, "requires a value");
+    fails({"task", "request", "--model", "x", "--n"}, "requires a value");
+    fails({"task", "request", "--model", "x", "--n", "0"}, "positive integer");
+    fails({"task", "request", "--model", "x", "--n", "-1"}, "positive integer");
+    fails({"task", "request", "--model", "x", "--n", "12oops"}, "integer");
+    fails({"task", "request", "--model", "x", "--n", "2147483648"}, "integer");
+    fails({"task", "request", "--model", "x", "--ubatch", "0"}, "positive integer");
+    fails({"task", "request", "--model", "x", "--ngl", "-1"}, "nonnegative integer");
+    fails({"task", "request", "--model", "x", "--debug-limit", "-1"}, "nonnegative integer");
+    fails({"task", "request", "--unknown"}, "unknown task option");
+    fails({"check"}, "requires CODE");
+    fails({"complete"}, "requires CODE");
+    fails({"check", "code", "--model", "x"}, "does not accept option");
+    fails({"format", "code", "--raw"}, "does not accept option");
+    fails({"check", "code", "complete", "code"}, "one quoted text");
+    std::puts("CLI argument tests passed");
+}

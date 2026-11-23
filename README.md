@@ -88,7 +88,7 @@ and Linux without downloading a model.
 ## Generate a program
 
 ```sh
-./build/typed-llama --model /path/to/model.gguf --task 'Return the sum of 2 and 3.'
+./build/typed-llama task 'Return the sum of 2 and 3.' --model /path/to/model.gguf
 ```
 
 Generation requires `--model`: supply the path to your own GGUF weights or a
@@ -106,12 +106,14 @@ main(): Int64 {
 }
 ```
 
-| Option | Meaning |
+| Command / option | Meaning |
 | --- | --- |
-| `--task TEXT` | Describe the program to generate. |
+| `task TEXT` | Describe the program to generate; quote the request. |
 | `--model FILE` | Required for generation: GGUF weights or a JSON model plugin. |
+| `--n N` | Maximum generated model tokens; default **256**. Use a larger budget for longer programs. |
 
-Use `--help` for basic usage and `--help-advanced` for development options.
+Use `--help` for the command list and `task --help` for all generation flags.
+Each command also has its own `--help` page.
 The model can still produce incorrect algorithms or infinite loops; type
 validity does not prove behavior or termination.
 
@@ -120,8 +122,8 @@ validity does not prove behavior or termination.
 The same `--model` option accepts GGUF weights or a JSON plugin:
 
 ```sh
-./build/typed-llama --model /path/to/model.gguf --task 'Return the sum of 2 and 3.'
-./build/typed-llama --model /path/to/my-plugin.json --task 'Return the sum of 2 and 3.'
+./build/typed-llama task 'Return the sum of 2 and 3.' --model /path/to/model.gguf
+./build/typed-llama task 'Return the sum of 2 and 3.' --model /path/to/my-plugin.json
 ```
 
 Models must be supported by the bundled llama.cpp. The runner reads the chat
@@ -163,33 +165,53 @@ remote generation would require token selection control on the server.
 ## Check code without a model
 
 ```sh
-./build/typed-llama --check 'main(): Int64 { let x: Int64 = 2 + 3; return x; }'
-./build/typed-llama --check 'main(): Int64 { let x: Int64 = 2 +'
+./build/typed-llama check 'main(): Int64 { let x: Int64 = 2 + 3; return x; }'
+./build/typed-llama check 'main(): Int64 { let x: Int64 = 2 +'
 ```
 
-`--check` reports prefix viability and whether the program is complete. A viable
+`check` reports prefix viability and whether the program is complete. A viable
 but unfinished prefix exits successfully; an invalid prefix exits with code 2.
 
-## Development tools
+## Command help and task options
 
 ```sh
-./build/typed-llama --help-advanced
+./build/typed-llama task --help
+./build/typed-llama check --help
+./build/typed-llama complete --help
+./build/typed-llama format --help
 ```
 
-Advanced options include the token budget (`--n`, default 256), prefix seeding,
-raw prompts, tracing, unconstrained generation, and memory overrides. Store
-GPU layers and batch size in the model plugin for routine use. Raw `--prompt`
-input bypasses automatic task prompting; supply the complete prompt yourself.
+All generation options belong to `task` and are listed in `task --help`:
+
+| Option | Meaning / default |
+| --- | --- |
+| `--model FILE` | Required GGUF weights or JSON model plugin. |
+| `--n N` | Maximum generated model tokens, default **256**; positive integer. Tokens are text pieces, not words. |
+| `--prefix CODE` | Seed generation with a viable typed prefix; default empty. |
+| `--prompt TEXT` | A prepared raw prompt in place of the positional task description; no automatic language prompt is added. |
+| `--raw` | Stream unformatted model output; default is buffered, formatted output. |
+| `--unconstrained` | Use ordinary greedy decoding and check the result; default is type-constrained decoding. |
+| `--debug` | Trace selected and rejected candidates to stderr; default off. |
+| `--debug-limit N` | Rejected candidates shown per step, default **20**; nonnegative integer. Also enables tracing. |
+| `--ngl N` | Override GPU layers, a nonnegative integer. Default comes from the plugin, then **99 on macOS / 0 elsewhere**. |
+| `--ubatch N` | Override physical batch size, a positive integer. Default comes from the plugin, then llama.cpp. |
+| `-h`, `--help` | Show command help without loading a model. |
+
+Store GPU layers and batch size in the model plugin for routine use. For an
+experiment with a fully prepared prompt, use `task --prompt TEXT --model FILE`
+and omit the positional task description. Generation always requires a model.
+`check`, `complete`, and `format` accept quoted code or `-` to read stdin and
+need no model. `format` also reads stdin when its code argument is omitted.
 
 Generation normally buffers and formats the complete program. Use `--raw` to
 stream unformatted model output, including invalid output during experiments:
 
 ```sh
-./build/typed-llama --model /path/to/model.gguf --task 'Return the sum of 2 and 3.' --debug 2> trace.log
-./build/typed-llama --model /path/to/model.gguf --task 'Return the sum of 2 and 3.' --unconstrained --raw
+./build/typed-llama task 'Return the sum of 2 and 3.' --model /path/to/model.gguf --debug 2> trace.log
+./build/typed-llama task 'Return the sum of 2 and 3.' --model /path/to/model.gguf --unconstrained --raw
 ```
 
-Both constrained and unconstrained `--task` prompts contain the same rules and
+Both constrained and unconstrained `task` prompts contain the same rules and
 grammar. Decoding is greedy in both modes. If the token budget is exhausted,
 constrained generation constructs a typed suffix and reports this on stderr;
 that suffix may not fulfill the request. Qwen3.5 uses a completed thinking
@@ -198,15 +220,15 @@ block before code generation; GPT-OSS uses its Harmony final-answer header.
 The standalone formatter and prefix completion utility need no model:
 
 ```sh
-./build/typed-llama --format 'main():Int64{let x:RefInt64=refInt(5);x:=!x+1;return !x;}'
-./build/typed-llama --format - < program.txt
-./build/typed-llama --complete 'main(): Int64 { let x: Int64 = 2 +'
+./build/typed-llama format 'main():Int64{let x:RefInt64=refInt(5);x:=!x+1;return !x;}'
+./build/typed-llama format - < program.txt
+./build/typed-llama complete 'main(): Int64 { let x: Int64 = 2 +'
 ```
 
-Standalone `--format` with no argument also reads stdin. Invalid, ill-typed,
+`format` with no argument also reads stdin. Invalid, ill-typed,
 or unfinished input exits with code 2 and produces no formatted program.
 Formatting preserves literal text and does not complete or repair input.
-`--complete` prints the supplied prefix plus a deterministically constructed
+`complete` prints the supplied prefix plus a deterministically constructed
 valid suffix.
 
 ## Fibonacci prompt example
@@ -218,8 +240,8 @@ inspection shows it returns 5. This supplies the algorithm to the model, so it
 does not demonstrate that the model can discover Fibonacci's algorithm unaided.
 
 ```sh
-./build/typed-llama --model /path/to/model.gguf --task "$(cat examples/fibonacci-5-prompt.txt)" --n 512
-./build/typed-llama --format - < examples/fibonacci-5.typed
+./build/typed-llama task "$(cat examples/fibonacci-5-prompt.txt)" --model /path/to/model.gguf --n 512
+./build/typed-llama format - < examples/fibonacci-5.typed
 ```
 
 The generated example is in [examples/fibonacci-5.typed](examples/fibonacci-5.typed).

@@ -6,95 +6,103 @@ execute_process(COMMAND "${CLI}" --help RESULT_VARIABLE status OUTPUT_VARIABLE o
 if(NOT status EQUAL 0 OR NOT error STREQUAL "")
     message(FATAL_ERROR "Basic help failed: ${status}: ${error}")
 endif()
-foreach(option --task --model --check --help-advanced)
+foreach(command task check complete format)
+    string(FIND "${output}" "${command}" position)
+    if(position EQUAL -1)
+        message(FATAL_ERROR "Top-level help is missing ${command}")
+    endif()
+    execute_process(COMMAND "${CLI}" "${command}" --help
+        RESULT_VARIABLE status OUTPUT_VARIABLE help ERROR_VARIABLE error)
+    if(NOT status EQUAL 0 OR NOT error STREQUAL "" OR NOT help MATCHES "usage:")
+        message(FATAL_ERROR "${command} help failed: ${help}${error}")
+    endif()
+endforeach()
+execute_process(COMMAND "${CLI}" task --help RESULT_VARIABLE status OUTPUT_VARIABLE output)
+foreach(option --model --n --raw --debug --debug-limit --prefix --prompt --ngl --ubatch --unconstrained)
     string(FIND "${output}" "${option}" position)
     if(position EQUAL -1)
-        message(FATAL_ERROR "Basic help is missing ${option}")
+        message(FATAL_ERROR "Task help is missing ${option}")
     endif()
 endforeach()
-foreach(option --prefix --debug --ngl --ubatch --complete --model-plugin --unconstrained)
-    string(FIND "${output}" "${option}" position)
-    if(NOT position EQUAL -1)
-        message(FATAL_ERROR "Basic help exposes advanced option ${option}")
-    endif()
-endforeach()
+if(NOT output MATCHES "default 256")
+    message(FATAL_ERROR "Task help does not describe the default token budget")
+endif()
 
-execute_process(COMMAND "${CLI}" --task "Return 0."
+execute_process(COMMAND "${CLI}" task "Return 0."
     RESULT_VARIABLE status OUTPUT_VARIABLE output ERROR_VARIABLE error)
 if(NOT status EQUAL 1 OR NOT output STREQUAL "" OR NOT error MATCHES "requires --model")
     message(FATAL_ERROR "Generation without an explicit model was not rejected: ${error}")
 endif()
-execute_process(COMMAND "${CLI}" --prompt "Return 0." --raw
+execute_process(COMMAND "${CLI}" task --prompt "Return 0." --raw
     RESULT_VARIABLE status OUTPUT_VARIABLE output ERROR_VARIABLE error)
 if(NOT status EQUAL 1 OR NOT output STREQUAL "" OR NOT error MATCHES "requires --model")
     message(FATAL_ERROR "Raw-prompt generation without a model was not rejected: ${error}")
 endif()
-execute_process(COMMAND "${CLI}" --model "" --task "Return 0."
+execute_process(COMMAND "${CLI}" task "Return 0." --model "" --raw
     RESULT_VARIABLE status OUTPUT_VARIABLE output ERROR_VARIABLE error)
 if(NOT status EQUAL 1 OR NOT error MATCHES "requires --model")
     message(FATAL_ERROR "Empty model selection was not rejected: ${error}")
 endif()
 
-execute_process(COMMAND "${CLI}" --help-advanced RESULT_VARIABLE status OUTPUT_VARIABLE output)
-if(NOT status EQUAL 0)
-    message(FATAL_ERROR "Advanced help failed")
-endif()
-foreach(option --n --raw --debug --prefix --prompt --ngl --ubatch --unconstrained --complete --format)
-    string(FIND "${output}" "${option}" position)
-    if(position EQUAL -1)
-        message(FATAL_ERROR "Advanced help is missing ${option}")
-    endif()
-endforeach()
-
 set(program "main():Int64{let x:Int64=2+3;return x;}")
 set(formatted "main(): Int64 {\n    let x: Int64 = 2 + 3;\n    return x;\n}\n")
-execute_process(COMMAND "${CLI}" --check "${program}"
+execute_process(COMMAND "${CLI}" check "${program}"
     RESULT_VARIABLE status OUTPUT_VARIABLE output ERROR_VARIABLE error)
 if(NOT status EQUAL 0 OR NOT output MATCHES "viable; complete=yes")
     message(FATAL_ERROR "Checking valid code failed: ${output}${error}")
 endif()
-execute_process(COMMAND "${CLI}" --check "main(): Int64 { return false; }"
+execute_process(COMMAND "${CLI}" check "main(): Int64 { return false; }"
     RESULT_VARIABLE status OUTPUT_VARIABLE output)
 if(NOT status EQUAL 2 OR NOT output MATCHES "invalid")
     message(FATAL_ERROR "Checking ill-typed code did not fail")
 endif()
-execute_process(COMMAND "${CLI}" --complete "main(): Int64 { return "
+execute_process(COMMAND "${CLI}" complete "main(): Int64 { return "
     RESULT_VARIABLE status OUTPUT_VARIABLE output ERROR_VARIABLE error)
 if(NOT status EQUAL 0 OR NOT output MATCHES "return 0" OR NOT error STREQUAL "")
     message(FATAL_ERROR "Prefix completion should not require a model: ${output}${error}")
 endif()
 
-execute_process(COMMAND "${CLI}" --format "${program}"
+execute_process(COMMAND "${CLI}" format "${program}"
     RESULT_VARIABLE status OUTPUT_VARIABLE output ERROR_VARIABLE error)
 if(NOT status EQUAL 0 OR NOT output STREQUAL formatted)
     message(FATAL_ERROR "Standalone formatting failed: ${output}${error}")
 endif()
 file(MAKE_DIRECTORY "${TEST_DIR}")
 file(WRITE "${TEST_DIR}/program.txt" "${program}")
-execute_process(COMMAND "${CLI}" --format INPUT_FILE "${TEST_DIR}/program.txt"
+execute_process(COMMAND "${CLI}" format INPUT_FILE "${TEST_DIR}/program.txt"
     RESULT_VARIABLE status OUTPUT_VARIABLE output ERROR_VARIABLE error)
 if(NOT status EQUAL 0 OR NOT output STREQUAL formatted)
     message(FATAL_ERROR "Formatting stdin failed: ${output}${error}")
 endif()
-execute_process(COMMAND "${CLI}" --format --raw RESULT_VARIABLE status OUTPUT_VARIABLE output ERROR_QUIET)
+execute_process(COMMAND "${CLI}" format --raw RESULT_VARIABLE status OUTPUT_VARIABLE output ERROR_QUIET)
 if(NOT status EQUAL 1 OR NOT output STREQUAL "")
     message(FATAL_ERROR "Conflicting output modes were not rejected")
 endif()
-execute_process(COMMAND "${CLI}" --check "${program}" --complete "${program}"
+execute_process(COMMAND "${CLI}" check "${program}" complete "${program}"
     RESULT_VARIABLE status OUTPUT_VARIABLE output ERROR_QUIET)
 if(NOT status EQUAL 1 OR NOT output STREQUAL "")
     message(FATAL_ERROR "Conflicting checker modes were not rejected")
 endif()
 
 file(WRITE "${TEST_DIR}/adapter.json" "{\"chat_template\":\"chatml\"}")
-execute_process(COMMAND "${CLI}" --model "${TEST_DIR}/adapter.json" --task "Return 0."
+execute_process(COMMAND "${CLI}" task "Return 0." --model "${TEST_DIR}/adapter.json"
     RESULT_VARIABLE status OUTPUT_VARIABLE output ERROR_VARIABLE error)
 if(NOT status EQUAL 1 OR NOT error MATCHES "needs a model path" OR NOT output STREQUAL "")
     message(FATAL_ERROR "JSON model selection did not validate the plugin: ${error}")
 endif()
-execute_process(COMMAND "${CLI}" --model-plugin "${TEST_DIR}/adapter.json" --task "Return 0."
-    RESULT_VARIABLE status OUTPUT_VARIABLE output ERROR_QUIET)
-if(NOT status EQUAL 1 OR NOT output STREQUAL "")
-    message(FATAL_ERROR "Removed --model-plugin option was unexpectedly accepted")
+execute_process(COMMAND "${CLI}" --task "Return 0."
+    RESULT_VARIABLE status OUTPUT_VARIABLE output ERROR_VARIABLE error)
+if(NOT status EQUAL 1 OR NOT error MATCHES "unknown command")
+    message(FATAL_ERROR "The old command flag was unexpectedly accepted")
+endif()
+execute_process(COMMAND "${CLI}" check - INPUT_FILE "${TEST_DIR}/program.txt"
+    RESULT_VARIABLE status OUTPUT_VARIABLE output ERROR_VARIABLE error)
+if(NOT status EQUAL 0 OR NOT output MATCHES "complete=yes")
+    message(FATAL_ERROR "Checking stdin failed: ${error}")
+endif()
+execute_process(COMMAND "${CLI}" task "Return 0." --model unused.gguf --n 512 --prefix bad
+    RESULT_VARIABLE status OUTPUT_VARIABLE output ERROR_VARIABLE error)
+if(NOT status EQUAL 1 OR NOT error MATCHES "invalid --prefix")
+    message(FATAL_ERROR "Valid task flags did not reach prefix validation before model loading: ${error}")
 endif()
 file(REMOVE "${TEST_DIR}/program.txt" "${TEST_DIR}/adapter.json")
