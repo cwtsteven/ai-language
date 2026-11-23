@@ -1,6 +1,7 @@
 /build/
 /build-*/
 /models/
+/benchmark-results/
 /.cache/
 /.cursorrules
 .DS_Store

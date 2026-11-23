@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdio>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -13,6 +14,18 @@ struct Symbol {
     std::string name;
     Type type;
 };
+
+struct Diagnostic {
+    size_t line = 1;    // 1-based
+    size_t column = 1;  // 1-based
+    size_t offset = 0;  // 0-based byte offset into the source so far
+    size_t length = 1;  // highlighted span in bytes
+    std::string message;
+};
+
+// Print a compiler-style diagnostic for source under path (e.g. "<input>" or "<stdin>").
+void print_diagnostic(FILE * out, std::string_view path, std::string_view source,
+                      const Diagnostic & diagnostic);
 
 // The accepted language is specified in docs/language.md. Each public operation is
 // transactional: a rejected model token never changes the checker state.
@@ -29,6 +42,11 @@ public:
     std::string_view partial_for_debug() const { return pending_; }
     Prefix state_before_rejection_for_debug(std::string_view bytes) const;
     const std::vector<Symbol> & symbols() const { return symbols_; }
+
+    // Set when the most recent append rejected its argument. Cleared on success.
+    const std::optional<Diagnostic> & diagnostic() const { return diagnostic_; }
+    // For a viable but unfinished prefix (format/cj): unexpected end of input.
+    Diagnostic end_diagnostic() const;
 
 private:
     enum class Phase {
@@ -66,6 +84,13 @@ private:
     bool after_return_ = false; // Prefer a closing brace during deterministic completion.
     std::vector<Type> call_arguments_;
     size_t argument_ = 0;
+    size_t offset_ = 0;
+    size_t line_ = 1;
+    size_t column_ = 1;
+    size_t token_start_offset_ = 0;
+    size_t token_start_line_ = 1;
+    size_t token_start_column_ = 1;
+    std::optional<Diagnostic> diagnostic_;
 
     bool step(unsigned char ch);
     bool commit(std::string_view token);
@@ -83,6 +108,9 @@ private:
     bool in_loop() const;
     std::string completion_token() const;
     std::string completion_atom(Type type) const;
+    std::string diagnose_message(std::string_view lexeme) const;
+    Type expected_atom_type() const;
+    bool expects_atom() const;
 };
 
 } // namespace typed

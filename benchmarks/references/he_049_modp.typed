@@ -1,0 +1,23 @@
+func remainder(n: Int64, p: Int64): Int64 {
+    let r: RefInt64 = refInt(n);
+    while (true) {
+        let done: Bool = lt(!r, p);
+        if (done) { return !r; } else {}
+        let next: Int64 = sub(!r, p);
+        assign(r, next);
+    }
+}
+func solve(n: Int64, p: Int64): Int64 {
+    let result: RefInt64 = refInt(1);
+    let i: RefInt64 = refInt(0);
+    while (true) {
+        let done: Bool = eq(!i, n);
+        if (done) { return !result; } else {}
+        let doubled: Int64 = mul(!result, 2);
+        let next: Int64 = remainder(doubled, p);
+        assign(result, next);
+        let nextIndex: Int64 = add(!i, 1);
+        assign(i, nextIndex);
+    }
+}
+main(): Int64 { return 0; }

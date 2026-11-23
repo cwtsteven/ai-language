@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <cctype>
+#include <cstdio>
 
 namespace typed {
 namespace {
@@ -82,6 +83,80 @@ std::optional<Type> parse_type(std::string_view token) {
     if (token == "RefInt64") return Type::RefInt;
     if (token == "RefBool") return Type::RefBool;
     return std::nullopt;
+}
+
+const char * type_name(Type type) {
+    switch (type) {
+        case Type::Int: return "Int64";
+        case Type::Bool: return "Bool";
+        case Type::RefInt: return "RefInt64";
+        case Type::RefBool: return "RefBool";
+    }
+    return "?";
+}
+
+bool word_char(unsigned char ch) {
+    return std::isalnum(ch) || ch == '_';
+}
+
+bool is_punctuation(unsigned char ch) {
+    return ch == '(' || ch == ')' || ch == '{' || ch == '}' ||
+           ch == ':' || ch == ';' || ch == ',' || ch == '=' || ch == '-';
+}
+
+// Peek one lexical token from the start of text without consuming parser state.
+std::string_view first_lexeme(std::string_view text) {
+    if (text.empty()) return {};
+    const unsigned char ch = static_cast<unsigned char>(text.front());
+    if (ch < 0x21 || ch > 0x7e) return text.substr(0, 1);
+    if (ch == '!') {
+        size_t i = 1;
+        while (i < text.size() && word_char(static_cast<unsigned char>(text[i]))) ++i;
+        return text.substr(0, i);
+    }
+    if (ch == '-') {
+        size_t i = 1;
+        while (i < text.size() && std::isdigit(static_cast<unsigned char>(text[i]))) ++i;
+        return text.substr(0, i);
+    }
+    if (is_punctuation(ch) && ch != '-') return text.substr(0, 1);
+    if (word_char(ch)) {
+        size_t i = 1;
+        while (i < text.size() && word_char(static_cast<unsigned char>(text[i]))) ++i;
+        return text.substr(0, i);
+    }
+    return text.substr(0, 1);
+}
+
+std::string display_lexeme(std::string_view lexeme) {
+    if (lexeme.empty()) return "<end of input>";
+    const unsigned char ch = static_cast<unsigned char>(lexeme.front());
+    if (ch < 0x21 || ch > 0x7e) {
+        char buffer[8];
+        std::snprintf(buffer, sizeof(buffer), "\\x%02x", ch);
+        return buffer;
+    }
+    return std::string(lexeme);
+}
+
+void advance_position(unsigned char ch, size_t & offset, size_t & line, size_t & column) {
+    ++offset;
+    if (ch == '\n') {
+        ++line;
+        column = 1;
+    } else {
+        ++column;
+    }
+}
+
+bool looks_like_integer(std::string_view token) {
+    if (token.empty()) return false;
+    size_t i = token[0] == '-' ? 1 : 0;
+    if (i >= token.size()) return false;
+    for (; i < token.size(); ++i) {
+        if (token[i] < '0' || token[i] > '9') return false;
+    }
+    return true;
 }
 
 } // namespace
@@ -504,9 +579,147 @@ bool Prefix::step(unsigned char ch) {
     return possible(pending_);
 }
 
+bool Prefix::expects_atom() const {
+    return phase_ == Phase::Rhs || phase_ == Phase::CallArg || phase_ == Phase::AssignValue ||
+           phase_ == Phase::ReturnValue || phase_ == Phase::IfCondition ||
+           phase_ == Phase::WhileCondition;
+}
+
+Type Prefix::expected_atom_type() const {
+    switch (phase_) {
+        case Phase::Rhs:
+        case Phase::AssignValue: return new_type_;
+        case Phase::CallArg:
+            return argument_ < call_arguments_.size() ? call_arguments_[argument_] : Type::Int;
+        case Phase::ReturnValue: return return_type_;
+        case Phase::IfCondition:
+        case Phase::WhileCondition: return Type::Bool;
+        default: return Type::Int;
+    }
+}
+
+std::string Prefix::diagnose_message(std::string_view lexeme) const {
+    if (lexeme.size() == 1) {
+        const unsigned char ch = static_cast<unsigned char>(lexeme.front());
+        if (ch < 0x21 || ch > 0x7e)
+            return "unexpected character '" + display_lexeme(lexeme) + "'";
+    }
+    if (phase_ == Phase::Done)
+        return "unexpected token after the end of the program";
+
+    if (phase_ == Phase::Stmt && (lexeme == "break" || lexeme == "continue") && !in_loop())
+        return "'" + std::string(lexeme) + "' is only allowed inside a loop";
+
+    if (phase_ == Phase::LetName || phase_ == Phase::FunctionName ||
+        phase_ == Phase::ParamName || phase_ == Phase::ParamStart) {
+        if (identifier_prefix(lexeme) && !name_available(lexeme)) {
+            if (reserved(lexeme))
+                return "'" + std::string(lexeme) + "' is a reserved name";
+            return "name '" + std::string(lexeme) + "' is already defined";
+        }
+    }
+
+    if (expects_atom()) {
+        if (looks_like_integer(lexeme) && !integer_prefix(lexeme))
+            return "Int64 literal is out of range";
+        std::optional<Type> found;
+        if (!lexeme.empty() && lexeme.front() == '!') {
+            if (const auto * symbol = find(lexeme.substr(1))) {
+                if (symbol->type == Type::RefInt) found = Type::Int;
+                else if (symbol->type == Type::RefBool) found = Type::Bool;
+            }
+        } else if (lexeme == "true" || lexeme == "false") {
+            found = Type::Bool;
+        } else if (integer_complete(lexeme)) {
+            found = Type::Int;
+        } else if (const auto * symbol = find(lexeme)) {
+            found = symbol->type;
+        }
+        if (found) {
+            const Type expected = expected_atom_type();
+            if (*found != expected) {
+                return std::string("expected ") + type_name(expected) + ", found " +
+                       type_name(*found) + " '" + std::string(lexeme) + "'";
+            }
+        }
+        if (phase_ == Phase::Rhs) {
+            if (const auto * op = operation(lexeme); op && op->result != new_type_) {
+                return std::string("call '") + op->name + "' has type " + type_name(op->result) +
+                       " but expected " + type_name(new_type_);
+            }
+            if (const auto * function = find_function(lexeme);
+                function && function->result != new_type_) {
+                return "call '" + function->name + "' has type " + type_name(function->result) +
+                       " but expected " + type_name(new_type_);
+            }
+        }
+        if (phase_ == Phase::CallArg && lexeme == ")" && argument_ < call_arguments_.size())
+            return std::string("expected ") + type_name(call_arguments_[argument_]) +
+                   " argument, found ')'";
+    }
+
+    if (phase_ == Phase::CallAfterArg) {
+        if (argument_ + 1 < call_arguments_.size() && lexeme == ")")
+            return std::string("expected ") + type_name(call_arguments_[argument_ + 1]) +
+                   " argument, found ')'";
+        if (argument_ + 1 >= call_arguments_.size() && lexeme == ",")
+            return "expected ')', found ','";
+    }
+
+    return "expected " + expected_for_debug() + ", found '" + display_lexeme(lexeme) + "'";
+}
+
 bool Prefix::append(std::string_view bytes) {
     Prefix next = *this;
-    for (unsigned char ch : bytes) if (!next.step(ch)) return false;
+    next.diagnostic_.reset();
+    size_t offset = offset_;
+    size_t line = line_;
+    size_t column = column_;
+    for (size_t i = 0; i < bytes.size(); ++i) {
+        const unsigned char ch = static_cast<unsigned char>(bytes[i]);
+        Prefix before = next;
+        if (!next.step(ch)) {
+            // A punctuation byte may commit the preceding word successfully
+            // and then fail in the new parser state.
+            const bool committed_pending = !before.pending_.empty() && next.pending_.empty() &&
+                (next.phase_ != before.phase_ || next.blocks_.size() != before.blocks_.size() ||
+                 next.symbols_.size() != before.symbols_.size());
+            const Prefix & failure = committed_pending ? next : before;
+
+            size_t token_offset = offset;
+            size_t token_line = line;
+            size_t token_column = column;
+            std::string lexeme_storage;
+            std::string_view lexeme;
+            if (!committed_pending && !before.pending_.empty()) {
+                token_offset = before.token_start_offset_;
+                token_line = before.token_start_line_;
+                token_column = before.token_start_column_;
+                // pending is the accepted prefix; extend with the failing byte and look-ahead.
+                lexeme_storage = before.pending_;
+                lexeme_storage.append(bytes.substr(i));
+                lexeme = first_lexeme(lexeme_storage);
+            } else {
+                lexeme = first_lexeme(bytes.substr(i));
+                if (lexeme.empty()) lexeme = bytes.substr(i, 1);
+            }
+            diagnostic_ = Diagnostic{
+                token_line, token_column, token_offset, std::max<size_t>(lexeme.size(), 1),
+                failure.diagnose_message(lexeme),
+            };
+            return false;
+        }
+        if (before.pending_.empty() && !next.pending_.empty()) {
+            next.token_start_offset_ = offset;
+            next.token_start_line_ = line;
+            next.token_start_column_ = column;
+        }
+        advance_position(ch, offset, line, column);
+        next.offset_ = offset;
+        next.line_ = line;
+        next.column_ = column;
+    }
+    next.diagnostic_.reset();
     *this = std::move(next);
     return true;
 }
@@ -530,6 +743,42 @@ Prefix Prefix::state_before_rejection_for_debug(std::string_view bytes) const {
         }
     }
     return state;
+}
+
+Diagnostic Prefix::end_diagnostic() const {
+    return Diagnostic{
+        line_, column_, offset_, 1,
+        "unexpected end of input, expected " + expected_for_debug(),
+    };
+}
+
+void print_diagnostic(FILE * out, std::string_view path, std::string_view source,
+                      const Diagnostic & diagnostic) {
+    std::fprintf(out, "%.*s:%zu:%zu: error: %s\n",
+                 static_cast<int>(path.size()), path.data(),
+                 diagnostic.line, diagnostic.column, diagnostic.message.c_str());
+    size_t line_start = 0;
+    size_t current_line = 1;
+    while (current_line < diagnostic.line && line_start < source.size()) {
+        const size_t next = source.find('\n', line_start);
+        if (next == std::string_view::npos) {
+            line_start = source.size();
+            break;
+        }
+        line_start = next + 1;
+        ++current_line;
+    }
+    size_t line_end = line_start;
+    while (line_end < source.size() && source[line_end] != '\n') ++line_end;
+    const std::string_view line = source.substr(line_start, line_end - line_start);
+    std::fprintf(out, "%.*s\n", static_cast<int>(line.size()), line.data());
+
+    const size_t caret_column = diagnostic.column == 0 ? 1 : diagnostic.column;
+    for (size_t i = 1; i < caret_column; ++i) std::fputc(' ', out);
+    std::fputc('^', out);
+    const size_t mark = diagnostic.length == 0 ? 0 : diagnostic.length - 1;
+    for (size_t i = 0; i < mark; ++i) std::fputc('~', out);
+    std::fputc('\n', out);
 }
 
 bool Prefix::can_end() const {

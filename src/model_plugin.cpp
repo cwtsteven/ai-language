@@ -104,13 +104,13 @@ std::string format_prompt(const Plugin & plugin, const char * embedded_template,
     } else {
         const char * tmpl = plugin.chat_template ? plugin.chat_template->c_str() : embedded_template;
         if (!tmpl) throw std::runtime_error(
-            "model has no chat template; use --model FILE.json with a prompt_template or use --prompt");
+            "model has no chat template; use --model FILE.json with a prompt_template");
         const llama_chat_message messages[] = {
             { "system", system.c_str() }, { "user", user.c_str() },
         };
         const int32_t length = llama_chat_apply_template(tmpl, messages, 2, true, nullptr, 0);
         if (length <= 0) throw std::runtime_error(
-            "unsupported chat template; use --model FILE.json with a prompt_template or use --prompt");
+            "unsupported chat template; use --model FILE.json with a prompt_template");
         formatted.resize(static_cast<size_t>(length));
         if (llama_chat_apply_template(tmpl, messages, 2, true, formatted.data(), length) != length)
             throw std::runtime_error("could not format the model's chat template");

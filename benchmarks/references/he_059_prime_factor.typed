@@ -1,0 +1,41 @@
+func remainder(n: Int64, d: Int64): Int64 {
+    let r: RefInt64 = refInt(n);
+    while (true) {
+        let done: Bool = lt(!r, d);
+        if (done) { return !r; } else {}
+        let next: Int64 = sub(!r, d);
+        assign(r, next);
+    }
+}
+func quotient(n: Int64, d: Int64): Int64 {
+    let r: RefInt64 = refInt(n);
+    let count: RefInt64 = refInt(0);
+    while (true) {
+        let done: Bool = lt(!r, d);
+        if (done) { return !count; } else {}
+        let next: Int64 = sub(!r, d);
+        assign(r, next);
+        let incremented: Int64 = add(!count, 1);
+        assign(count, incremented);
+    }
+}
+func solve(n: Int64): Int64 {
+    let remaining: RefInt64 = refInt(n);
+    let factor: RefInt64 = refInt(2);
+    let largest: RefInt64 = refInt(1);
+    while (true) {
+        let done: Bool = eq(!remaining, 1);
+        if (done) { return !largest; } else {}
+        let r: Int64 = remainder(!remaining, !factor);
+        let divides: Bool = eq(r, 0);
+        if (divides) {
+            assign(largest, !factor);
+            let next: Int64 = quotient(!remaining, !factor);
+            assign(remaining, next);
+        } else {
+            let next: Int64 = add(!factor, 1);
+            assign(factor, next);
+        }
+    }
+}
+main(): Int64 { return 0; }

@@ -29,7 +29,7 @@ inline const std::string & planning_prompt() {
         "Conditions must be Bool atoms and return values must be atoms of the function's declared return type; bind comparisons before if. "
         "For a changing loop condition, use a RefBool atom updated in the body, or while (true) with a comparison bound inside the loop and an if/break exit. "
         "An immutable Bool bound before a loop does not update when its inputs change. "
-        "Use prose for goals and invariants, but do not use syntax from other languages as pseudocode. Respect any supplied code prefix. "
+        "Use prose for goals and invariants, but do not use syntax from other languages as pseudocode. "
         "Use as much space as needed for the plan; do not output a complete program or Markdown code fences. "
         "The following specification governs both the planned statement sketches and the eventual program:\n\n" +
         std::string(specification);

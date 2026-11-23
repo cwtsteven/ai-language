@@ -44,14 +44,12 @@ std::vector<Token> replay_tokens(const std::vector<Token> & prompt, std::vector<
     return replay;
 }
 
-inline Prepared prepare(const std::string & task, const std::string & prefix, bool enabled,
-                        const UnconstrainedGenerator & generate) {
-    Prepared prepared{ language::system_prompt(), "Produce a program for this request: " + task, std::nullopt };
-    if (!enabled) return prepared;
+inline Request request(const std::string & task) {
+    return { language::planning_prompt(), "Plan the implementation for this request: " + task };
+}
 
-    Request request{ language::planning_prompt(), "Plan the implementation for this request: " + task };
-    if (!prefix.empty()) request.user += "\n\nExisting code prefix to continue:\n" + prefix;
-    auto plan = generate(request);
+inline Prepared with_plan(const std::string & task, Plan plan) {
+    Prepared prepared{ language::system_prompt(), "Produce a program for this request: " + task, std::nullopt };
     if (!plan.complete) throw std::runtime_error("planning ended without a complete response");
     if (plan.text.find_first_not_of(" \t\r\n") == std::string::npos)
         throw std::runtime_error("planning produced no implementation plan");
@@ -59,6 +57,12 @@ inline Prepared prepare(const std::string & task, const std::string & prefix, bo
         "\n\nUse this plan as guidance. Correct any conflict with the original request or language rules. Output code only.";
     prepared.plan = std::move(plan);
     return prepared;
+}
+
+inline Prepared prepare(const std::string & task, bool enabled, const UnconstrainedGenerator & generate) {
+    if (!enabled)
+        return { language::system_prompt(), "Produce a program for this request: " + task, std::nullopt };
+    return with_plan(task, generate(request(task)));
 }
 
 } // namespace planning

@@ -1,0 +1,25 @@
+func remainder(n: Int64, d: Int64): Int64 {
+    let r: RefInt64 = refInt(n);
+    while (true) {
+        let done: Bool = lt(!r, d);
+        if (done) { return !r; } else {}
+        let next: Int64 = sub(!r, d);
+        assign(r, next);
+    }
+}
+func solve(n: Int64): Bool {
+    let small: Bool = lt(n, 2);
+    if (small) { return false; } else {}
+    let d: RefInt64 = refInt(2);
+    while (true) {
+        let square: Int64 = mul(!d, !d);
+        let done: Bool = lt(n, square);
+        if (done) { return true; } else {}
+        let r: Int64 = remainder(n, !d);
+        let divides: Bool = eq(r, 0);
+        if (divides) { return false; } else {}
+        let next: Int64 = add(!d, 1);
+        assign(d, next);
+    }
+}
+main(): Int64 { return 0; }

@@ -1,0 +1,239 @@
+{
+  "schema_version": 1,
+  "name": "humaneval-scalar-anf-v1",
+  "description": "Adapted scalar subset, not the official HumanEval benchmark or score.",
+  "upstream": {
+    "repository": "https://github.com/openai/human-eval",
+    "revision": "b9453e8f1865df0a0057a1383767caa400acfbcf",
+    "dataset_sha256": "b796127e635a67f93fb35c04f4cb03cf06f38c8072ee7cee8833d7bee06979ef",
+    "license": "MIT"
+  },
+  "adaptations": [
+    "Select 12 problems expressible with Int64 and Bool; no strings, lists, floats, or tuples.",
+    "Rename each entry point to solve, avoiding reserved built-ins such as add.",
+    "Require a complete typed-language program with helpers before solve and a dummy main.",
+    "Retain all literal upstream assertions for selected tasks and add deterministic boundary and seeded-random cases as checked-in std.unittest files under cjtests/.",
+    "Replace upstream randomized loops with frozen additional cases; use bounded Int64 input domains documented in each prompt."
+  ],
+  "extra_test_seed": 20261123,
+  "tasks": [
+    {
+      "id": "he_013_gcd",
+      "source_id": "HumanEval/13",
+      "original_entry_point": "greatest_common_divisor",
+      "entry_point": "solve",
+      "parameters": [
+        {
+          "name": "a",
+          "type": "Int64"
+        },
+        {
+          "name": "b",
+          "type": "Int64"
+        }
+      ],
+      "return_type": "Int64",
+      "description": "Return the greatest common divisor of a and b. Inputs are nonnegative integers and are not both zero.",
+      "reference": "references/he_013_gcd.typed",
+      "upstream_literal_tests": 4
+    },
+    {
+      "id": "he_031_is_prime",
+      "source_id": "HumanEval/31",
+      "original_entry_point": "is_prime",
+      "entry_point": "solve",
+      "parameters": [
+        {
+          "name": "n",
+          "type": "Int64"
+        }
+      ],
+      "return_type": "Bool",
+      "description": "Return true exactly when n is a prime integer. Values below two are not prime.",
+      "reference": "references/he_031_is_prime.typed",
+      "upstream_literal_tests": 12
+    },
+    {
+      "id": "he_041_collisions",
+      "source_id": "HumanEval/41",
+      "original_entry_point": "car_race_collision",
+      "entry_point": "solve",
+      "parameters": [
+        {
+          "name": "n",
+          "type": "Int64"
+        }
+      ],
+      "return_type": "Int64",
+      "description": "Two groups of n cars travel toward each other along one straight road, all at equal speed. Each car passes through every oncoming car and continues. Return the total number of encounters between the groups. n is nonnegative.",
+      "reference": "references/he_041_collisions.typed",
+      "upstream_literal_tests": 5
+    },
+    {
+      "id": "he_049_modp",
+      "source_id": "HumanEval/49",
+      "original_entry_point": "modp",
+      "entry_point": "solve",
+      "parameters": [
+        {
+          "name": "n",
+          "type": "Int64"
+        },
+        {
+          "name": "p",
+          "type": "Int64"
+        }
+      ],
+      "return_type": "Int64",
+      "description": "Compute two raised to the power n, reduced modulo p. n is nonnegative and p is greater than one. Intermediate integer overflow must be avoided.",
+      "reference": "references/he_049_modp.typed",
+      "upstream_literal_tests": 7
+    },
+    {
+      "id": "he_053_add",
+      "source_id": "HumanEval/53",
+      "original_entry_point": "add",
+      "entry_point": "solve",
+      "parameters": [
+        {
+          "name": "x",
+          "type": "Int64"
+        },
+        {
+          "name": "y",
+          "type": "Int64"
+        }
+      ],
+      "return_type": "Int64",
+      "description": "Return the sum of x and y. Both inputs and their sum fit in Int64.",
+      "reference": "references/he_053_add.typed",
+      "upstream_literal_tests": 5
+    },
+    {
+      "id": "he_055_fibonacci",
+      "source_id": "HumanEval/55",
+      "original_entry_point": "fib",
+      "entry_point": "solve",
+      "parameters": [
+        {
+          "name": "n",
+          "type": "Int64"
+        }
+      ],
+      "return_type": "Int64",
+      "description": "Return Fibonacci term n, with term zero equal to zero and term one equal to one. Each subsequent term is the sum of the preceding two. n is between zero and twenty.",
+      "reference": "references/he_055_fibonacci.typed",
+      "upstream_literal_tests": 5,
+      "min_code_tokens": 2048
+    },
+    {
+      "id": "he_059_prime_factor",
+      "source_id": "HumanEval/59",
+      "original_entry_point": "largest_prime_factor",
+      "entry_point": "solve",
+      "parameters": [
+        {
+          "name": "n",
+          "type": "Int64"
+        }
+      ],
+      "return_type": "Int64",
+      "description": "Return the largest prime factor of n. n is a composite integer greater than one.",
+      "reference": "references/he_059_prime_factor.typed",
+      "upstream_literal_tests": 5
+    },
+    {
+      "id": "he_060_sum_to_n",
+      "source_id": "HumanEval/60",
+      "original_entry_point": "sum_to_n",
+      "entry_point": "solve",
+      "parameters": [
+        {
+          "name": "n",
+          "type": "Int64"
+        }
+      ],
+      "return_type": "Int64",
+      "description": "Return the sum of every integer from one through n, inclusive. n is between zero and one thousand; the sum for zero is zero.",
+      "reference": "references/he_060_sum_to_n.typed",
+      "upstream_literal_tests": 5
+    },
+    {
+      "id": "he_063_fibfib",
+      "source_id": "HumanEval/63",
+      "original_entry_point": "fibfib",
+      "entry_point": "solve",
+      "parameters": [
+        {
+          "name": "n",
+          "type": "Int64"
+        }
+      ],
+      "return_type": "Int64",
+      "description": "Return term n of a sequence whose first three terms, at indices zero, one, and two, are zero, zero, and one. Each later term is the sum of the three preceding terms. n is between zero and twenty.",
+      "reference": "references/he_063_fibfib.typed",
+      "upstream_literal_tests": 7,
+      "min_code_tokens": 2048
+    },
+    {
+      "id": "he_097_unit_digits",
+      "source_id": "HumanEval/97",
+      "original_entry_point": "multiply",
+      "entry_point": "solve",
+      "parameters": [
+        {
+          "name": "a",
+          "type": "Int64"
+        },
+        {
+          "name": "b",
+          "type": "Int64"
+        }
+      ],
+      "return_type": "Int64",
+      "description": "Return the product of the decimal units digits of the absolute values of a and b. The inputs may be negative and have absolute values at most ten thousand.",
+      "reference": "references/he_097_unit_digits.typed",
+      "upstream_literal_tests": 8
+    },
+    {
+      "id": "he_138_four_even",
+      "source_id": "HumanEval/138",
+      "original_entry_point": "is_equal_to_sum_even",
+      "entry_point": "solve",
+      "parameters": [
+        {
+          "name": "n",
+          "type": "Int64"
+        }
+      ],
+      "return_type": "Bool",
+      "description": "Return true exactly when n can be expressed as a sum of four positive even integers; the four integers do not need to be distinct.",
+      "reference": "references/he_138_four_even.typed",
+      "upstream_literal_tests": 8
+    },
+    {
+      "id": "he_150_prime_choice",
+      "source_id": "HumanEval/150",
+      "original_entry_point": "x_or_y",
+      "entry_point": "solve",
+      "parameters": [
+        {
+          "name": "n",
+          "type": "Int64"
+        },
+        {
+          "name": "x",
+          "type": "Int64"
+        },
+        {
+          "name": "y",
+          "type": "Int64"
+        }
+      ],
+      "return_type": "Int64",
+      "description": "Return x when n is prime, otherwise return y. Integers smaller than two are not prime. x and y may be negative.",
+      "reference": "references/he_150_prime_choice.typed",
+      "upstream_literal_tests": 10
+    }
+  ]
+}

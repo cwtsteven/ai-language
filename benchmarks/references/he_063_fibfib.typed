@@ -1,0 +1,20 @@
+func solve(n: Int64): Int64 {
+    let small: Bool = lt(n, 2);
+    if (small) { return 0; } else {}
+    let a: RefInt64 = refInt(0);
+    let b: RefInt64 = refInt(0);
+    let c: RefInt64 = refInt(1);
+    let i: RefInt64 = refInt(2);
+    while (true) {
+        let done: Bool = eq(!i, n);
+        if (done) { return !c; } else {}
+        let pair: Int64 = add(!a, !b);
+        let next: Int64 = add(pair, !c);
+        assign(a, !b);
+        assign(b, !c);
+        assign(c, next);
+        let nextIndex: Int64 = add(!i, 1);
+        assign(i, nextIndex);
+    }
+}
+main(): Int64 { return 0; }

@@ -38,8 +38,8 @@ The other commands need no model. Run from the repository root:
 `check` accepts complete programs or valid prefixes; `complete` finishes a valid
 prefix without a model. `format` and `cj` require a complete program.
 These commands accept quoted code or `-` for stdin; `format` and `cj` default to
-stdin when code is omitted. Invalid input exits 2. A valid unfinished prefix
-passes `check` with `complete=no`.
+stdin when code is omitted. Invalid input exits 2 and prints a compiler-style
+error on stderr. A valid unfinished prefix passes `check` with `complete=no`.
 
 ## Task options
 
@@ -54,10 +54,11 @@ Code goes to stdout; diagnostics go to stderr. Each command has `--help`.
 | `--n N` | Maximum generated code tokens; default **256**. |
 | `--temperature T` | Sampling randomness for planning and code generation. Default **0.8**; **0** selects greedy decoding. |
 | `--seed N` | Fix the sampling seed (0–4294967295); default random, printed to stderr. |
-| `--no-plan` | Skip planning and generate code directly from the task and grammar. |
-| `--prefix CODE` | Continue a valid program prefix; default empty. |
-| `--prompt TEXT` | Use a raw prompt instead of the task description; skip planning and automatic grammar/chat formatting. |
-| `--raw` | Stream code as tokens arrive; otherwise buffer and format it. |
+| `--skip-plan` | Skip planning and generate code directly from the task and grammar. |
+| `--plan-only` | Write only the implementation plan to stdout, without generating code. |
+| `--plan-file FILE` | Generate code from a saved plan; skip new planning. |
+| `--force-postfix` | If the token budget ends an open program, append a typed postfix. Off by default. |
+| `--format` | Pretty-print a complete, well-typed program. Default is to stream sampled tokens. |
 | `--unconstrained` | Disable code token filtering and typecheck the result afterward. |
 | `--debug` | Show the implementation plan and token traces on stderr; default off. |
 | `--debug-limit N` | Rejected candidates shown per code token; default **20**. Enables debug mode. |
@@ -68,8 +69,14 @@ Code goes to stdout; diagnostics go to stderr. Each command has `--help`.
 Raising the temperature increases the chance of choosing lower-scoring tokens;
 greedy decoding always chooses the highest-scoring token. Code generation accepts
 only tokens that preserve syntax and type correctness, unless `--unconstrained`
-is set. If `--n` runs out, constrained decoding finishes the program
-deterministically and reports this on stderr; the result may not fulfill the task.
+is set. If `--n` runs out, generation stops on the sampled prefix.
+`--force-postfix` appends a typed postfix that closes the program and reports
+that on stderr. The postfix is constructed, so it may not fulfill the task.
+
+To compare code generation with the same plan, save it once with
+`task TEXT --model FILE --plan-only > plan.txt`, then use
+`task TEXT --model FILE --plan-file plan.txt` in each mode. The benchmark runner
+does this automatically.
 
 ## Fibonacci example
 
@@ -102,3 +109,4 @@ infix expressions are not supported.
 - [Model plugin settings](docs/model-plugins.md)
 - [Cangjie generation](docs/cangjie.md)
 - [Checker and decoder internals](docs/decoder.md)
+- [Constrained vs unconstrained benchmarks](benchmarks/README.md) (compilation and functional correctness through Cangjie)

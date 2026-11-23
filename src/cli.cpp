@@ -63,19 +63,22 @@ Options parse(int argc, const char * const * argv) {
         if (!literal && arg.size() > 1 && arg.front() == '-') {
             if (options.command != Command::Task)
                 throw std::runtime_error(command + " does not accept option " + arg);
-            if (arg == "--raw") { options.raw = true; continue; }
+            if (arg == "--format") { options.format = true; continue; }
             if (arg == "--unconstrained") { options.constrained = false; continue; }
-            if (arg == "--no-plan") { options.plan = false; continue; }
+            if (arg == "--skip-plan") { options.plan = false; continue; }
+            if (arg == "--plan-only") { options.plan_only = true; continue; }
+            if (arg == "--force-postfix") { options.force_postfix = true; continue; }
             if (arg == "--debug") { options.debug = true; continue; }
-            if (arg != "--model" && arg != "--n" && arg != "--prefix" &&
-                arg != "--prompt" && arg != "--debug-limit" && arg != "--ngl" && arg != "--ubatch" &&
-                arg != "--temperature" && arg != "--seed")
+            if (arg != "--model" && arg != "--n" && arg != "--debug-limit" && arg != "--ngl" &&
+                arg != "--ubatch" && arg != "--temperature" && arg != "--seed" && arg != "--plan-file")
                 throw std::runtime_error("unknown task option: " + arg);
             if (i + 1 >= argc) throw std::runtime_error(arg + " requires a value");
             const std::string value = argv[++i];
             if (arg == "--model") options.model_path = value;
-            else if (arg == "--prefix") options.prefix = value;
-            else if (arg == "--prompt") options.prompt = value;
+            else if (arg == "--plan-file") {
+                if (value.empty()) throw std::runtime_error("--plan-file must not be empty");
+                options.plan_file = value;
+            }
             else if (arg == "--n") options.tokens = number(arg, value, 1);
             else if (arg == "--temperature") options.temperature = temperature(value);
             else if (arg == "--seed") options.seed = seed(value);
@@ -93,10 +96,12 @@ Options parse(int argc, const char * const * argv) {
     }
     if (options.command == Command::Task) {
         if (options.model_path.empty()) throw std::runtime_error("task requires --model FILE");
-        if (input_set && options.prompt) throw std::runtime_error("task accepts TEXT or --prompt, not both");
-        if (!options.prompt && (!input_set || options.input.empty()))
-            throw std::runtime_error("task requires TEXT or --prompt TEXT");
-        if (options.prompt && options.prompt->empty()) throw std::runtime_error("--prompt must not be empty");
+        if (options.plan_only && !options.plan_file.empty())
+            throw std::runtime_error("--plan-only and --plan-file cannot be combined");
+        if ((options.plan_only || !options.plan_file.empty()) && !options.plan)
+            throw std::runtime_error("--plan-only/--plan-file cannot combine with --skip-plan");
+        if (!input_set || options.input.empty())
+            throw std::runtime_error("task requires TEXT");
     } else if (!input_set) {
         if (options.command == Command::Format || options.command == Command::Cj) options.input = "-";
         else throw std::runtime_error(command + " requires CODE or '-' to read stdin");
@@ -118,8 +123,7 @@ void print_help(FILE * output, const char * executable, Command command) {
             executable, executable);
     } else if (command == Command::Task) {
         std::fprintf(output,
-            "usage: %s task TEXT --model FILE [OPTIONS]\n"
-            "       %s task --prompt TEXT --model FILE [OPTIONS]\n\n"
+            "usage: %s task TEXT --model FILE [OPTIONS]\n\n"
             "Arguments:\n"
             "  TEXT              A quoted description of the program to generate.\n\n"
             "Options:\n"
@@ -127,10 +131,11 @@ void print_help(FILE * output, const char * executable, Command command) {
             "  --n N             Maximum generated code tokens (default 256).\n"
             "  --temperature T   Sampling randomness for planning and code generation (default 0.8; 0 = greedy).\n"
             "  --seed N          Reuse a sampling seed (0..4294967295; default random, printed to stderr).\n"
-            "  --no-plan         Skip the default unconstrained implementation-planning pass.\n"
-            "  --prefix CODE     Seed generation with a valid program prefix.\n"
-            "  --prompt TEXT     Use a raw prompt; skip planning and automatic grammar/chat formatting.\n"
-            "  --raw             Stream unformatted output.\n"
+            "  --skip-plan       Skip the default unconstrained implementation-planning pass.\n"
+            "  --plan-only       Write only the implementation plan to stdout; do not generate code.\n"
+            "  --plan-file FILE  Generate code using this saved plan; do not run the planner.\n"
+            "  --force-postfix   If the token budget ends an open program, append a typed postfix.\n"
+            "  --format          Pretty-print a complete, well-typed program instead of streaming tokens.\n"
             "  --unconstrained   Disable token constraints and check the result.\n"
             "  --debug           Show the implementation plan and token traces on stderr.\n"
             "  --debug-limit N   Rejected candidates shown per code token (default 20); enables debug mode.\n"
@@ -138,12 +143,12 @@ void print_help(FILE * output, const char * executable, Command command) {
             "  --ubatch N        Override physical batch size (default: plugin, then llama.cpp).\n"
             "  -h, --help        Show this command's help without loading a model.\n\n"
             "Task descriptions first produce a plan (shown only in debug mode), without an output token cap,\n"
-            "then include it with the language specification for code generation. Output is type-constrained and\n"
-            "formatted by default. A token budget is not a word count; if it runs out,\n"
-            "constrained generation constructs a typed suffix and reports this on stderr.\n"
-            "The suffix may not fulfill the request. Use --unconstrained --raw to inspect\n"
-            "invalid model output. Store memory settings in a model plugin for routine use.\n",
-            executable, executable);
+            "then include it with the language specification for code generation. Output is type-constrained\n"
+            "and streamed as sampled. --format pretty-prints a complete, well-typed program at the end.\n"
+            "A token budget is not a word count. If it runs out, generation stops on the sampled prefix.\n"
+            "--force-postfix appends a typed postfix that closes the program and reports that on stderr.\n"
+            "That postfix is constructed, so it may not fulfill the request. Store memory settings in a model plugin for routine use.\n",
+            executable);
     } else {
         const char * name = command == Command::Check ? "check" : command == Command::Complete ? "complete" :
                            command == Command::Cj ? "cj" : "format";
@@ -151,7 +156,8 @@ void print_help(FILE * output, const char * executable, Command command) {
                      command == Command::Format || command == Command::Cj ? "[CODE|-]" : "CODE|-");
         if (command == Command::Check) std::fputs(
             "Check prefix viability and whether the program is complete.\n"
-            "A viable unfinished prefix exits 0; an invalid prefix exits 2.\n", output);
+            "A viable unfinished prefix exits 0; an invalid prefix exits 2 with a\n"
+            "compiler-style error on stderr (location, message, and source caret).\n", output);
         else if (command == Command::Complete) std::fputs(
             "Print a valid prefix plus a deterministically constructed suffix.\n"
             "Invalid prefixes exit 2. Completion does not prove algorithm correctness.\n", output);

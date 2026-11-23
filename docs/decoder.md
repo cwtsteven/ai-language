@@ -11,21 +11,31 @@ correctness. The planning prompt includes the full language specification and
 requires pseudocode and typed statement sketches to obey its ANF, type, and scope
 rules, including named calls with atomic arguments, conditions, and return values.
 Planning remains unconstrained text generation; these are prompt instructions,
-not a typechecker guarantee for the plan. `--n` limits code tokens independently; `--no-plan` or a raw
-`--prompt` skips planning. When the context fills, it re-evaluates the original
+not a typechecker guarantee for the plan. `--n` limits code tokens independently; `--skip-plan`
+skips planning. When the context fills, it re-evaluates the original
 planning request plus recent output while retaining the entire plan text for
 code generation. Empty plans or planner failures stop generation. The planning context is freed before creating a fresh
 code-generation context, while model weights remain loaded.
+
+`task --plan-only` writes the complete plan to stdout and exits before code
+generation. `task --plan-file FILE` reads a saved nonempty plan and skips the
+planner. It builds the code prompt with the same helper as integrated planning,
+preserving the plan text exactly and still including the language specification.
+These options require a task description and cannot combine with `--skip-plan`.
+Normal `task` runs still show the plan only in debug mode.
 
 `typed::Prefix` consumes arbitrary byte chunks, so model tokens can split an
 identifier or span several language tokens. It keeps a parser phase, a block
 stack, typed local symbols, visible function signatures, and a partial lexical token. A candidate is
 accepted if every byte keeps the current state extendable to a valid typed
-program. The check is transactional: rejection leaves the state unchanged.
+program. The check is transactional: rejection leaves the state unchanged and
+records one located diagnostic (line, column, message) for `check`, `complete`,
+`format`, `cj`, and unconstrained `task` to print like a compiler error.
 An end token is accepted only when the whole program has closed. The checker
-can also construct a completion from every viable prefix. This prevents a
-model that keeps extending a literal or identifier from leaving the output
-unfinished at the token budget.
+can also construct a postfix from every viable prefix. `--force-postfix` appends
+that constructed ending when the token budget leaves the program open. The
+default leaves the sampled prefix as it is, and the benchmark runner does not
+pass the flag.
 
 Both passes use temperature sampling (`--temperature`, default `0.8`). Code
 sampling conditions the temperature-scaled model distribution on type-valid

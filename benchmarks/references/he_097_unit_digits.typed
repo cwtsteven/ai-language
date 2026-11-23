@@ -1,0 +1,21 @@
+func digit(n: Int64): Int64 {
+    let r: RefInt64 = refInt(n);
+    let negative: Bool = lt(n, 0);
+    if (negative) {
+        let positive: Int64 = sub(0, n);
+        assign(r, positive);
+    } else {}
+    while (true) {
+        let done: Bool = lt(!r, 10);
+        if (done) { return !r; } else {}
+        let next: Int64 = sub(!r, 10);
+        assign(r, next);
+    }
+}
+func solve(a: Int64, b: Int64): Int64 {
+    let x: Int64 = digit(a);
+    let y: Int64 = digit(b);
+    let result: Int64 = mul(x, y);
+    return result;
+}
+main(): Int64 { return 0; }

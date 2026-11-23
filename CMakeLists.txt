@@ -49,6 +49,10 @@ add_executable(typed-llama src/main.cpp)
 target_link_libraries(typed-llama PRIVATE token_sampling model_plugin cli_options language_spec cj_codegen)
 target_compile_features(typed-llama PRIVATE cxx_std_17)
 
+add_executable(plain-llama src/plain_main.cpp)
+target_link_libraries(plain-llama PRIVATE token_sampling model_plugin language_spec)
+target_compile_features(plain-llama PRIVATE cxx_std_17)
+
 enable_testing()
 add_test(NAME typed-prefix-test COMMAND typed-prefix-test)
 add_executable(functions-test tests/functions_test.cpp)
@@ -86,7 +90,17 @@ if(CANGJIE_COMPILER)
         -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/cj_runtime_test.cmake)
     set_tests_properties(cj-runtime-test PROPERTIES TIMEOUT 120)
 endif()
+add_test(NAME plain-llama-help COMMAND $<TARGET_FILE:plain-llama> --help)
 add_test(NAME cli-test COMMAND ${CMAKE_COMMAND}
     -DCLI=$<TARGET_FILE:typed-llama>
     -DTEST_DIR=${CMAKE_CURRENT_BINARY_DIR}/cli-test
     -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/cli_test.cmake)
+
+find_package(Python3 3.10 COMPONENTS Interpreter QUIET)
+if(Python3_Interpreter_FOUND)
+    add_test(NAME benchmark-test COMMAND ${CMAKE_COMMAND} -E env
+        BENCHMARK_CLI=$<TARGET_FILE:typed-llama>
+        "BENCHMARK_CJC=${CANGJIE_COMPILER}"
+        ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/benchmark_test.py)
+    set_tests_properties(benchmark-test PROPERTIES TIMEOUT 120)
+endif()

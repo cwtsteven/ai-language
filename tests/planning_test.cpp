@@ -25,7 +25,7 @@ int main() {
     const std::string plan = "Expected: 120. factorial(n: Int64): Int64 multiplies 1 through n and returns the product. "
                              "main binds factorial(5) and returns the result.";
     int calls = 0;
-    const auto prepared = planning::prepare(task, "", true, [&](const planning::Request & request) {
+    const auto prepared = planning::prepare(task, true, [&](const planning::Request & request) {
         ++calls;
         CHECK(request.user.find(task) != std::string::npos);
         CHECK(request.system.find(language::specification) != std::string::npos);
@@ -42,32 +42,33 @@ int main() {
     CHECK(prepared.user.find(plan) != std::string::npos);
     CHECK(prepared.user.find("Correct any conflict") != std::string::npos);
     CHECK(prepared.user.find("Output code only") != std::string::npos);
+    // Saved planning text must produce exactly the same code prompt as the
+    // integrated planner, including whitespace and long, uncapped plans.
+    const auto reused = planning::with_plan(task, planning::Plan{ plan, true });
+    CHECK(reused.system == prepared.system);
+    CHECK(reused.user == prepared.user);
+    CHECK(reused.plan->text == plan);
+    CHECK(planning::request(task).system == language::planning_prompt());
 
-    const auto direct = planning::prepare(task, "", false, [&](const planning::Request &) -> planning::Plan {
+    const auto direct = planning::prepare(task, false, [&](const planning::Request &) -> planning::Plan {
         CHECK(false);
         return {};
     });
     CHECK(!direct.plan);
     CHECK(direct.user == "Produce a program for this request: " + task);
 
-    const std::string prefix = "func factorial(n: Int64): Int64 { ";
-    const auto continued = planning::prepare(task, prefix, true, [&](const planning::Request & request) {
-        CHECK(request.user.find(prefix) != std::string::npos);
-        return planning::Plan{ plan, true };
-    });
-    CHECK(continued.plan && continued.plan->complete);
-
     const std::string long_plan = std::string(20000, 'x') + "END OF COMPLETE PLAN";
-    const auto long_prepared = planning::prepare(task, "", true, [&](const planning::Request &) {
+    const auto long_prepared = planning::prepare(task, true, [&](const planning::Request &) {
         return planning::Plan{ long_plan, true };
     });
     CHECK(long_prepared.plan->text == long_plan);
     CHECK(long_prepared.user.find(long_plan) != std::string::npos);
+    CHECK(planning::with_plan(task, planning::Plan{ long_plan, true }).user == long_prepared.user);
     CHECK(long_prepared.user.find("truncated") == std::string::npos);
 
     bool incomplete_failed = false;
     try {
-        planning::prepare(task, "", true, [](const planning::Request &) {
+        planning::prepare(task, true, [](const planning::Request &) {
             return planning::Plan{ "An interrupted plan", false };
         });
     } catch (const std::runtime_error &) {
@@ -104,7 +105,7 @@ int main() {
     for (const auto & result : { "", " \n\t\r" }) {
         bool failed = false;
         try {
-            planning::prepare(task, "", true, [&](const planning::Request &) {
+            planning::prepare(task, true, [&](const planning::Request &) {
                 return planning::Plan{ result, true };
             });
         } catch (const std::runtime_error & error) {
@@ -115,7 +116,7 @@ int main() {
     }
     bool failed = false;
     try {
-        planning::prepare(task, "", true, [](const planning::Request &) -> planning::Plan {
+        planning::prepare(task, true, [](const planning::Request &) -> planning::Plan {
             throw std::runtime_error("planner failed");
         });
     } catch (const std::runtime_error & error) {

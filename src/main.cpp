@@ -12,6 +12,8 @@
 #include <cstdio>
 #include <algorithm>
 #include <exception>
+#include <fstream>
+#include <iterator>
 #include <limits>
 #include <memory>
 #include <random>
@@ -115,7 +117,8 @@ int main(int argc, char ** argv) {
     }
     if (options.command != cli::Command::Task) {
         std::string & check = options.input;
-        if (check == "-") {
+        const bool from_stdin = check == "-";
+        if (from_stdin) {
             check.clear();
             char buffer[4096];
             size_t size;
@@ -123,16 +126,29 @@ int main(int argc, char ** argv) {
                 check.append(buffer, size);
             if (std::ferror(stdin)) { std::fputs("could not read stdin\n", stderr); return 2; }
         }
-        if (options.command == cli::Command::Format) {
-            const auto formatted = typed::format_program(check);
-            if (!formatted) {
-                std::fputs("format requires a complete, well-typed program\n", stderr);
+        const std::string_view source_path = from_stdin ? "<stdin>" : "<input>";
+        const auto report_check_error = [&](const typed::Prefix & checker, bool viable) {
+            if (!viable && checker.diagnostic())
+                typed::print_diagnostic(stderr, source_path, check, *checker.diagnostic());
+            else if (viable)
+                typed::print_diagnostic(stderr, source_path, check, checker.end_diagnostic());
+        };
+        if (options.command == cli::Command::Format || options.command == cli::Command::Cj) {
+            typed::Prefix checker;
+            const bool viable = checker.append(check);
+            if (!viable || !checker.can_end()) {
+                report_check_error(checker, viable);
                 return 2;
             }
-            std::fwrite(formatted->data(), 1, formatted->size(), stdout);
-            return 0;
-        }
-        if (options.command == cli::Command::Cj) {
+            if (options.command == cli::Command::Format) {
+                const auto formatted = typed::format_program(check);
+                if (!formatted) {
+                    std::fputs("format requires a complete, well-typed program\n", stderr);
+                    return 2;
+                }
+                std::fwrite(formatted->data(), 1, formatted->size(), stdout);
+                return 0;
+            }
             const auto generated = typed::generate_cangjie(check);
             if (!generated) {
                 std::fputs("cj requires a complete, well-typed program\n", stderr);
@@ -144,7 +160,10 @@ int main(int argc, char ** argv) {
         typed::Prefix checker;
         const bool viable = checker.append(check);
         if (options.command == cli::Command::Complete) {
-            if (!viable) { std::fputs("invalid prefix\n", stderr); return 2; }
+            if (!viable) {
+                report_check_error(checker, false);
+                return 2;
+            }
             const auto suffix = checker.completion();
             if (!suffix) { std::fputs("could not complete prefix\n", stderr); return 2; }
             std::fwrite(check.data(), 1, check.size(), stdout);
@@ -152,6 +171,7 @@ int main(int argc, char ** argv) {
             std::fputc('\n', stdout);
             return 0;
         }
+        if (!viable) report_check_error(checker, false);
         std::printf("%s; complete=%s\n", viable ? "viable" : "invalid", viable && checker.can_end() ? "yes" : "no");
         return viable ? 0 : 2;
     }
@@ -164,9 +184,7 @@ int main(int argc, char ** argv) {
         return 1;
     }
     const std::string & model_path = model_plugin.model_path;
-    const std::string & prefix = options.prefix;
     const std::string & task = options.input;
-    const std::string prompt = options.prompt.value_or("");
     const int n_predict = options.tokens;
     const int n_ubatch = options.ubatch ? options.ubatch : model_plugin.ubatch.value_or(0);
 #ifdef __APPLE__
@@ -176,14 +194,24 @@ int main(int argc, char ** argv) {
 #endif
     const int n_gpu_layers = options.gpu_layers.value_or(model_plugin.gpu_layers.value_or(platform_gpu_layers));
     const bool constrained = options.constrained;
-    const bool formatting = !options.raw;
+    const bool formatting = options.format;
     const bool debug = options.debug;
     const size_t debug_limit = options.debug_limit;
 
-    typed::Prefix initial;
-    if (!initial.append(prefix)) {
-        std::fputs("invalid --prefix\n", stderr);
-        return 1;
+    const typed::Prefix initial;
+
+    std::optional<planning::Prepared> supplied_plan;
+    if (!options.plan_file.empty()) {
+        try {
+            std::ifstream file(options.plan_file, std::ios::binary);
+            if (!file) throw std::runtime_error("could not read plan file: " + options.plan_file);
+            const std::string text(std::istreambuf_iterator<char>{file}, {});
+            if (file.bad()) throw std::runtime_error("could not read plan file: " + options.plan_file);
+            supplied_plan = planning::with_plan(task, planning::Plan{ text, true });
+        } catch (const std::exception & error) {
+            std::fprintf(stderr, "%s\n", error.what());
+            return 1;
+        }
     }
 
     const uint32_t seed = options.seed ? *options.seed : std::random_device{}();
@@ -199,29 +227,32 @@ int main(int argc, char ** argv) {
     const llama_vocab * vocab = llama_model_get_vocab(model);
 
     std::string full_prompt;
-    if (!task.empty()) {
-        try {
-            const auto prepared = planning::prepare(task, prefix, options.plan, [&](const planning::Request & request) {
+    try {
+        const auto prepared = supplied_plan ? std::move(*supplied_plan) :
+            planning::prepare(task, options.plan, [&](const planning::Request & request) {
                 if (debug) {
                     std::fputs("Planning implementation...\n", stderr);
                     std::fflush(stderr);
                 }
                 return run_planner(model, model_plugin, request, n_ubatch, options.temperature, seed);
             });
-            if (debug && prepared.plan) {
-                std::fprintf(stderr, "Implementation plan:\n%s\n\n", prepared.plan->text.c_str());
-            }
-            full_prompt = models::task_prompt(model, model_plugin, prepared.system, prepared.user);
-        } catch (const std::exception & error) {
-            std::fprintf(stderr, "%s\n", error.what());
+        if (options.plan_only) {
+            std::fwrite(prepared.plan->text.data(), 1, prepared.plan->text.size(), stdout);
+            const bool output_failed = std::ferror(stdout);
             llama_model_free(model);
             llama_backend_free();
-            return 1;
+            return output_failed ? 1 : 0;
         }
-    } else {
-        full_prompt = prompt;
+        if (debug && prepared.plan) {
+            std::fprintf(stderr, "Implementation plan:\n%s\n\n", prepared.plan->text.c_str());
+        }
+        full_prompt = models::task_prompt(model, model_plugin, prepared.system, prepared.user);
+    } catch (const std::exception & error) {
+        std::fprintf(stderr, "%s\n", error.what());
+        llama_model_free(model);
+        llama_backend_free();
+        return 1;
     }
-    full_prompt += prefix;
     const int token_count = -llama_tokenize(vocab, full_prompt.data(), full_prompt.size(), nullptr, 0, true, true);
     if (token_count <= 0) { std::fputs("failed to tokenize prompt\n", stderr); return 1; }
     std::vector<llama_token> prompt_tokens(static_cast<size_t>(token_count));
@@ -243,18 +274,21 @@ int main(int argc, char ** argv) {
         ? typed_sampler_init(vocab, initial, debug, debug_limit, options.temperature, seed)
         : sampling::sampler_init(options.temperature, seed);
     typed::Prefix emitted = initial;
-    std::string generated = prefix;
-    if (!formatting) std::fwrite(prefix.data(), 1, prefix.size(), stdout);
+    std::string generated;
     int position = 0;
     int batch_count = token_count;
+    int generated_tokens = 0;
     bool complete = false;
     bool failed = false;
+    bool inference_failed = false;
     for (int i = 0; i < n_predict; ++i) {
         if (llama_process(context, LLAMA_PROCESS_TYPE_DECODE, batch)) {
             std::fputs("model decode failed\n", stderr);
             failed = true;
+            inference_failed = true;
             break;
         }
+        ++generated_tokens;
         position += batch_count;
         const llama_token token = llama_sampler_sample(sampler, context, -1);
         if (llama_vocab_is_eog(vocab, token)) { complete = true; break; }
@@ -262,6 +296,7 @@ int main(int argc, char ** argv) {
         if (constrained && !emitted.append(text)) {
             std::fputs("sampler emitted an invalid token\n", stderr);
             failed = true;
+            inference_failed = true;
             break;
         }
         generated += text;
@@ -272,13 +307,14 @@ int main(int argc, char ** argv) {
         batch_set(batch, &token, 1, position);
         batch_count = 1;
     }
-    if (constrained && !complete && !failed) {
+    std::fprintf(stderr, "generated_tokens=%d\n", generated_tokens);
+    if (constrained && options.force_postfix && !complete && !failed) {
         const auto suffix = emitted.completion();
         if (suffix && emitted.append(*suffix) && emitted.can_end()) {
             if (!formatting) std::fwrite(suffix->data(), 1, suffix->size(), stdout);
             generated += *suffix;
             complete = true;
-            std::fputs("model token budget exhausted; finished the program deterministically\n", stderr);
+            std::fputs("model token budget exhausted; appended a typed postfix\n", stderr);
         }
     }
     if (!formatting) std::fputc('\n', stdout);
@@ -295,6 +331,8 @@ int main(int argc, char ** argv) {
         typed::Prefix validator;
         const bool viable = validator.append(generated);
         std::fprintf(stderr, "typed-check=%s\n", !viable ? "invalid" : validator.can_end() ? "pass" : "incomplete");
+        if (!viable && validator.diagnostic())
+            typed::print_diagnostic(stderr, "<generated>", generated, *validator.diagnostic());
     }
     if (!complete) std::fputs(constrained ? "unable to finish the generated prefix\n" :
         "model stopped before an end token\n", stderr);
@@ -304,5 +342,5 @@ int main(int argc, char ** argv) {
     llama_free(context);
     llama_model_free(model);
     llama_backend_free();
-    return complete && !failed ? 0 : 2;
+    return inference_failed ? 1 : complete && !failed ? 0 : 2;
 }

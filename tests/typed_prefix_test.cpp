@@ -227,4 +227,43 @@ int main() {
         }
     }
 
+    {
+        Prefix ok;
+        CHECK(ok.append("main(): Int64 { return 0; }"));
+        CHECK(!ok.diagnostic());
+        CHECK(ok.can_end());
+    }
+
+    const auto expect_error = [](std::string_view source, size_t line, size_t column,
+                                 std::string_view message_part, std::string_view continuation) {
+        Prefix checker;
+        CHECK(!checker.append(source));
+        CHECK(checker.diagnostic());
+        CHECK(checker.diagnostic()->line == line);
+        CHECK(checker.diagnostic()->column == column);
+        CHECK(checker.diagnostic()->message.find(message_part) != std::string::npos);
+        CHECK(checker.append(continuation));
+        CHECK(checker.can_end());
+        CHECK(!checker.diagnostic());
+    };
+
+    expect_error("main(): Int64 { return false; }", 1, 24, "expected Int64, found Bool 'false'",
+                 "main(): Int64 { return 0; }");
+    expect_error("main(): Int64 { let x: Int64 = 1; let x: Int64 = 2; return x; }", 1, 39,
+                 "name 'x' is already defined",
+                 "main(): Int64 { let x: Int64 = 1; let y: Int64 = 2; return x; }");
+    expect_error("main(): Int64 { break; return 0; }", 1, 17, "'break' is only allowed inside a loop",
+                 "main(): Int64 { return 0; }");
+    expect_error("main(): Int64 { let x: Int64 = 9223372036854775808; return x; }", 1, 32,
+                 "Int64 literal is out of range",
+                 "main(): Int64 { let x: Int64 = 9223372036854775807; return x; }");
+
+    Prefix unfinished;
+    CHECK(unfinished.append("main(): Int64 {"));
+    CHECK(!unfinished.diagnostic());
+    CHECK(!unfinished.can_end());
+    const auto end = unfinished.end_diagnostic();
+    CHECK(end.message.find("unexpected end of input") != std::string::npos);
+    CHECK(end.message.find("statement") != std::string::npos);
+
 }

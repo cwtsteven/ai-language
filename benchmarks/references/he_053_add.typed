@@ -1,0 +1,5 @@
+func solve(x: Int64, y: Int64): Int64 {
+    let result: Int64 = add(x, y);
+    return result;
+}
+main(): Int64 { return 0; }
