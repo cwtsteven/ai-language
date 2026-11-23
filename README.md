@@ -98,6 +98,37 @@ and Linux without downloading a model.
 but unfinished prefix exits successfully; an invalid prefix exits with code 2.
 `--complete` prints the prefix plus a deterministically constructed valid suffix.
 
+## Pretty-print a program
+
+The formatter needs no model. It uses four-space indentation, puts statements
+on separate lines, normalizes operator spacing, and prints dereferences as
+`!cell`. It preserves literal text (including signs and leading zeroes).
+
+```sh
+./build/typed-llama --format 'main():Int64{let x:RefInt64=refInt(5);x:=!x+1;return !x;}'
+./build/typed-llama --format - < program.txt
+```
+
+Output:
+
+```text
+main(): Int64 {
+    let x: RefInt64 = refInt(5);
+    x := !x + 1;
+    return !x;
+}
+```
+
+To format the model's generated output:
+
+```sh
+./build/typed-llama --task 'Return the sum of 2 and 3.' --n 128 | ./build/typed-llama --format -
+```
+
+`--format -` reads stdin. Invalid, ill-typed, or unfinished input produces an
+error on stderr and exits with code 2, without printing a formatted program.
+Formatting does not complete or repair input.
+
 ## Download a model
 
 The default is [Qwen3.5-9B Q4_K_M from Unsloth](https://huggingface.co/unsloth/Qwen3.5-9B-GGUF).
@@ -160,6 +191,7 @@ For a CPU build, explicitly set `--ngl 0` (including Intel Macs):
 | `--prompt TEXT` | Raw prompt instead of `--task`; requires `--model`. |
 | `--check CODE` | Check a prefix without loading a model. |
 | `--complete CODE` | Construct a valid suffix without loading a model. |
+| `--format CODE` | Pretty-print a complete, well-typed program; use `-` to read stdin. No model needed. |
 
 The sampler ends generation after a complete program. If `--n` is exhausted,
 it constructs a typed suffix and prints a diagnostic on stderr. That suffix

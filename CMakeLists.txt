@@ -13,7 +13,7 @@ set(LLAMA_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(LLAMA_BUILD_SERVER OFF CACHE BOOL "" FORCE)
 add_subdirectory(llama.cpp)
 
-add_library(typed_prefix src/typed_prefix.cpp)
+add_library(typed_prefix src/typed_prefix.cpp src/pretty_printer.cpp)
 target_include_directories(typed_prefix PUBLIC src)
 target_compile_features(typed_prefix PUBLIC cxx_std_17)
 
@@ -26,3 +26,7 @@ target_compile_features(typed-llama PRIVATE cxx_std_17)
 
 enable_testing()
 add_test(NAME typed-prefix-test COMMAND typed-prefix-test)
+
+add_executable(pretty-printer-test tests/pretty_printer_test.cpp)
+target_link_libraries(pretty-printer-test PRIVATE typed_prefix)
+add_test(NAME pretty-printer-test COMMAND pretty-printer-test)

@@ -1,4 +1,5 @@
 #include "typed_prefix.h"
+#include "pretty_printer.h"
 #include "typed_sampler.h"
 #include "llama.h"
 
@@ -18,9 +19,10 @@ void usage(const char * executable) {
     std::fprintf(stderr,
         "usage: %s --check TEXT\n"
         "       %s --complete TEXT\n"
+        "       %s --format TEXT|-\n"
         "       %s --task REQUEST [--model MODEL.gguf] [--n 256] [--prefix CODE] [--debug] [--unconstrained]\n"
         "       %s --model MODEL.gguf [--prefix CODE] [--prompt TEXT] [--n 256] [--ngl N]\n",
-        executable, executable, executable, executable);
+        executable, executable, executable, executable, executable);
 }
 
 std::string task_prompt(const llama_model * model, const std::string & task) {
@@ -111,6 +113,7 @@ int main(int argc, char ** argv) {
 #endif
     bool checking = false;
     bool completing = false;
+    bool formatting = false;
     bool constrained = true;
     bool debug = false;
     size_t debug_limit = 20;
@@ -131,6 +134,7 @@ int main(int argc, char ** argv) {
             if (arg == "--model") model_path = value;
             else if (arg == "--check") { check = value; checking = true; }
             else if (arg == "--complete") { check = value; completing = true; }
+            else if (arg == "--format") { check = value; formatting = true; }
             else if (arg == "--task") task = value;
             else if (arg == "--prefix") prefix = value;
             else if (arg == "--prompt") prompt = value;
@@ -139,6 +143,25 @@ int main(int argc, char ** argv) {
             else if (arg == "--debug-limit") { debug_limit = std::stoul(value); debug = true; }
             else { usage(argv[0]); return 1; }
         } catch (...) { usage(argv[0]); return 1; }
+    }
+
+    if (formatting) {
+        if (checking || completing) { usage(argv[0]); return 1; }
+        if (check == "-") {
+            check.clear();
+            char buffer[4096];
+            size_t size;
+            while ((size = std::fread(buffer, 1, sizeof(buffer), stdin)) != 0)
+                check.append(buffer, size);
+            if (std::ferror(stdin)) { std::fputs("could not read stdin\n", stderr); return 2; }
+        }
+        const auto formatted = typed::format_program(check);
+        if (!formatted) {
+            std::fputs("format requires a complete, well-typed program\n", stderr);
+            return 2;
+        }
+        std::fwrite(formatted->data(), 1, formatted->size(), stdout);
+        return 0;
     }
 
     if (checking || completing) {
