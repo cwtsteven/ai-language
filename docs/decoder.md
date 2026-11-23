@@ -4,8 +4,9 @@
 model, continuing until the model emits an end token with no output token cap.
 It requests an implementation plan: expected
 behavior, typed helper signatures, function-body steps, mutations, loop exits,
-and recursion base cases. The plan goes to stderr and is included with the
-original request in the code-generation prompt. It is guidance, not a proof of
+and recursion base cases. Planning messages and the plan text go to stderr only
+in debug mode (`--debug`, also enabled by `--debug-limit`). The plan is included
+with the original request in the code-generation prompt. It is guidance, not a proof of
 correctness. The planning prompt includes the full language specification and
 requires pseudocode and typed statement sketches to obey its ANF, type, and scope
 rules, including atomic operands, call arguments, conditions, and return values.

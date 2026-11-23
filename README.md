@@ -51,15 +51,16 @@ A viable unfinished prefix passes `check` with `complete=no`.
 | `--prompt TEXT` | Prepared raw prompt instead of the positional task description. |
 | `--raw` | Stream unformatted output; default is buffered and formatted. |
 | `--unconstrained` | Disable token constraints and check the result; default off. |
-| `--debug` | Trace selected/rejected tokens to stderr; default off. |
+| `--debug` | Show the implementation plan and token traces on stderr; default off. |
 | `--debug-limit N` | Rejections shown per step; default **20**. Enables tracing. |
 | `--ngl N` | GPU layers: plugin setting, otherwise **99 on macOS / 0 elsewhere**. |
 | `--ubatch N` | Physical batch size: plugin setting, otherwise llama.cpp's default. |
 | `-h`, `--help` | Command help. |
 
-Tasks first produce an implementation plan on stderr until the model ends its response,
+Tasks first produce an implementation plan until the model ends its response,
 then generate code using that plan and the language specification. `--no-plan` skips the first
-pass; `--prompt` bypasses planning and task formatting. If the code budget runs
+pass; `--prompt` bypasses planning and task formatting. Planning messages and the
+plan text appear on stderr only in debug mode. If the code budget runs
 out, constrained decoding constructs
 a typed suffix and reports this on stderr; the suffix may not fulfill the task.
 

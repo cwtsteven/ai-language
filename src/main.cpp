@@ -192,11 +192,13 @@ int main(int argc, char ** argv) {
     if (!task.empty()) {
         try {
             const auto prepared = planning::prepare(task, prefix, options.plan, [&](const planning::Request & request) {
-                std::fputs("Planning implementation...\n", stderr);
-                std::fflush(stderr);
+                if (debug) {
+                    std::fputs("Planning implementation...\n", stderr);
+                    std::fflush(stderr);
+                }
                 return run_planner(model, model_plugin, request, n_ubatch, options.temperature, seed);
             });
-            if (prepared.plan) {
+            if (debug && prepared.plan) {
                 std::fprintf(stderr, "Implementation plan:\n%s\n\n", prepared.plan->text.c_str());
             }
             full_prompt = models::task_prompt(model, model_plugin, prepared.system, prepared.user);
