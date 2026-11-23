@@ -122,10 +122,15 @@ main(): Int64 {
 To format the model's generated output:
 
 ```sh
-./build/typed-llama --task 'Return the sum of 2 and 3.' --n 128 | ./build/typed-llama --format -
+./build/typed-llama --task 'Return the sum of 2 and 3.' --n 128 --format
 ```
 
-`--format -` reads stdin. Invalid, ill-typed, or unfinished input produces an
+`--format` alongside `--task` (or `--model` with a raw prompt) buffers generation
+and prints the formatted program once it is finished. Token selection still
+uses the incremental type checker. Debug messages remain on stderr.
+
+Standalone `--format -` reads stdin; standalone `--format` without an argument
+also reads stdin. Invalid, ill-typed, or unfinished input produces an
 error on stderr and exits with code 2, without printing a formatted program.
 Formatting does not complete or repair input.
 
@@ -191,7 +196,7 @@ For a CPU build, explicitly set `--ngl 0` (including Intel Macs):
 | `--prompt TEXT` | Raw prompt instead of `--task`; requires `--model`. |
 | `--check CODE` | Check a prefix without loading a model. |
 | `--complete CODE` | Construct a valid suffix without loading a model. |
-| `--format CODE` | Pretty-print a complete, well-typed program; use `-` to read stdin. No model needed. |
+| `--format [CODE]` | With generation, pretty-print the finished output. Standalone, format CODE or read stdin (`-` or no argument). |
 
 The sampler ends generation after a complete program. If `--n` is exhausted,
 it constructs a typed suffix and prints a diagnostic on stderr. That suffix
@@ -218,7 +223,7 @@ inspection shows it returns 5. This supplies the algorithm to the model, so it
 does not demonstrate that the model can discover Fibonacci's algorithm unaided.
 
 ```sh
-./build/typed-llama --task "$(cat prompts/fibonacci-5.txt)" --n 512 | ./build/typed-llama --format -
+./build/typed-llama --task "$(cat prompts/fibonacci-5.txt)" --n 512 --format
 ./build/typed-llama --format - < examples/fibonacci-5.typed
 ```
 

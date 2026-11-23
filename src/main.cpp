@@ -20,8 +20,8 @@ void usage(const char * executable) {
         "usage: %s --check TEXT\n"
         "       %s --complete TEXT\n"
         "       %s --format TEXT|-\n"
-        "       %s --task REQUEST [--model MODEL.gguf] [--n 256] [--prefix CODE] [--debug] [--unconstrained]\n"
-        "       %s --model MODEL.gguf [--prefix CODE] [--prompt TEXT] [--n 256] [--ngl N]\n",
+        "       %s --task REQUEST [--model MODEL.gguf] [--n 256] [--prefix CODE] [--debug] [--unconstrained] [--format]\n"
+        "       %s --model MODEL.gguf [--prefix CODE] [--prompt TEXT] [--n 256] [--ngl N] [--format]\n",
         executable, executable, executable, executable, executable);
 }
 
@@ -114,6 +114,7 @@ int main(int argc, char ** argv) {
     bool checking = false;
     bool completing = false;
     bool formatting = false;
+    bool format_text = false;
     bool constrained = true;
     bool debug = false;
     size_t debug_limit = 20;
@@ -128,13 +129,20 @@ int main(int argc, char ** argv) {
             debug = true;
             continue;
         }
+        if (arg == "--format") {
+            formatting = true;
+            if (i + 1 < argc && std::strncmp(argv[i + 1], "--", 2) != 0) {
+                check = argv[++i];
+                format_text = true;
+            }
+            continue;
+        }
         if (i + 1 >= argc) { usage(argv[0]); return 1; }
         const std::string value = argv[++i];
         try {
             if (arg == "--model") model_path = value;
             else if (arg == "--check") { check = value; checking = true; }
             else if (arg == "--complete") { check = value; completing = true; }
-            else if (arg == "--format") { check = value; formatting = true; }
             else if (arg == "--task") task = value;
             else if (arg == "--prefix") prefix = value;
             else if (arg == "--prompt") prompt = value;
@@ -145,8 +153,13 @@ int main(int argc, char ** argv) {
         } catch (...) { usage(argv[0]); return 1; }
     }
 
-    if (formatting) {
-        if (checking || completing) { usage(argv[0]); return 1; }
+    if (formatting && (checking || completing ||
+        (format_text && (!task.empty() || !model_path.empty())))) {
+        usage(argv[0]);
+        return 1;
+    }
+    if (formatting && (format_text || (task.empty() && model_path.empty()))) {
+        if (!format_text) check = "-";
         if (check == "-") {
             check.clear();
             char buffer[4096];
@@ -231,7 +244,7 @@ int main(int argc, char ** argv) {
     llama_sampler * sampler = constrained ? typed_sampler_init(vocab, initial, debug, debug_limit) : llama_sampler_init_greedy();
     typed::Prefix emitted = initial;
     std::string generated = prefix;
-    std::fwrite(prefix.data(), 1, prefix.size(), stdout);
+    if (!formatting) std::fwrite(prefix.data(), 1, prefix.size(), stdout);
     int position = 0;
     int batch_count = token_count;
     bool complete = false;
@@ -252,21 +265,32 @@ int main(int argc, char ** argv) {
             break;
         }
         generated += text;
-        std::fwrite(text.data(), 1, text.size(), stdout);
-        std::fflush(stdout);
+        if (!formatting) {
+            std::fwrite(text.data(), 1, text.size(), stdout);
+            std::fflush(stdout);
+        }
         batch_set(batch, &token, 1, position);
         batch_count = 1;
     }
     if (constrained && !complete && !failed) {
         const auto suffix = emitted.completion();
         if (suffix && emitted.append(*suffix) && emitted.can_end()) {
-            std::fwrite(suffix->data(), 1, suffix->size(), stdout);
+            if (!formatting) std::fwrite(suffix->data(), 1, suffix->size(), stdout);
             generated += *suffix;
             complete = true;
             std::fputs("model token budget exhausted; finished the program deterministically\n", stderr);
         }
     }
-    std::fputc('\n', stdout);
+    if (!formatting) std::fputc('\n', stdout);
+    if (formatting && !failed) {
+        const auto formatted = typed::format_program(generated);
+        if (formatted) {
+            std::fwrite(formatted->data(), 1, formatted->size(), stdout);
+        } else {
+            std::fputs("cannot format generated output: program is invalid or incomplete\n", stderr);
+            failed = true;
+        }
+    }
     if (!constrained) {
         typed::Prefix validator;
         const bool viable = validator.append(generated);
@@ -280,5 +304,5 @@ int main(int argc, char ** argv) {
     llama_free(context);
     llama_model_free(model);
     llama_backend_free();
-    return complete ? 0 : 2;
+    return complete && !failed ? 0 : 2;
 }
