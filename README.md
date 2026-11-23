@@ -8,7 +8,7 @@ or guarantee that they implement the requested algorithm.
 
 ## Requirements
 
-- macOS with Apple Silicon (Metal GPU or CPU), or Linux (CPU first).
+- macOS with Apple Silicon (Metal GPU or CPU).
   Intel Macs can use the CPU build below.
 - A C/C++ compiler supporting C++17, CMake 3.16 or newer, and Git.
 - For generation, supply a local GGUF model supported by the bundled llama.cpp.
@@ -40,16 +40,6 @@ For Metal, use Apple's compiler from the command line tools.
 If shader compilation reports a missing Metal toolchain, install the toolchain
 requested by Xcode, or use the CPU build below.
 
-### Linux (Ubuntu / Debian)
-
-```sh
-sudo apt update
-sudo apt install -y build-essential cmake git ca-certificates
-```
-
-Other distributions need the equivalent C/C++ compiler, CMake, and Git packages.
-NVIDIA/CUDA support is optional and outside this initial setup.
-
 ## Clone and build
 
 ```sh
@@ -73,7 +63,7 @@ cmake --build build --parallel 4
 ctest --test-dir build --output-on-failure
 ```
 
-**Linux CPU, or macOS CPU:**
+**macOS CPU:**
 
 ```sh
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DGGML_METAL=OFF -DGGML_BLAS=OFF
@@ -82,8 +72,8 @@ ctest --test-dir build --output-on-failure
 ```
 
 Use fewer parallel jobs if memory is limited. Run the commands below from the
-repository root. GitHub Actions builds the CLI and runs checker tests on macOS
-and Linux without downloading a model.
+repository root. GitHub Actions builds the CLI and runs checker tests without
+downloading a model.
 
 ## Generate a program
 
@@ -248,6 +238,14 @@ The generated example is in [examples/fibonacci-5.typed](examples/fibonacci-5.ty
 There is no runtime interpreter in this project yet; behavioral correctness here
 was checked by inspection, not by executing the generated program.
 
+A reference version using `while (true)` and `break;`, without a Boolean flag
+cell, is in [examples/fibonacci-5-break.typed](examples/fibonacci-5-break.typed):
+
+```sh
+./build/typed-llama check "$(cat examples/fibonacci-5-break.typed)"
+./build/typed-llama format - < examples/fibonacci-5-break.typed
+```
+
 ## Troubleshooting
 
 - **Missing llama.cpp:** run `git submodule update --init --recursive`.
@@ -274,6 +272,8 @@ statement::= let identifier : Type = rhs ;
            | ref_identifier := rhs ;
            | if ( bool_atom ) { statement* } else { statement* }
            | while ( bool_atom ) { statement* }
+           | break ;
+           | continue ;
 Type     ::= Int64 | Bool | RefInt64 | RefBool
 atom     ::= integer | true | false | in_scope_identifier | ! ref_identifier
 rhs      ::= atom | atom binary_op atom | operation ( atom [, atom] )
@@ -301,6 +301,14 @@ decisions.
 Conditions and return values currently accept atoms only. Bind comparisons
 before `if`, and use `while (!flag)` with a `RefBool` cell for an updatable loop condition.
 There are no chained infix expressions or precedence rules yet.
+
+`break;` exits the nearest enclosing `while`. `continue;` skips the remaining
+statements in that loop's current iteration and rechecks its condition. Both
+statements require semicolons and are allowed only inside a loop, including
+inside its nested `if` branches. They cannot be used as variable names.
+For `while (true)`, use `break;` to leave the loop; updating a local flag does
+not change a literal `true` condition. The checker validates these rules but
+does not execute the control flow or prove termination.
 
 `Int64` literals are signed 64-bit decimal integers, optionally prefixed
 with `-`. Variable names start with a lowercase ASCII letter, then contain

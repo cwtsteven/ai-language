@@ -24,6 +24,16 @@ static void formatted(std::string_view source, std::string_view expected) {
 }
 
 int main() {
+    formatted("main():Int64{while(true){if(false){continue;}else{break;}}return 0;}",
+              "main(): Int64 {\n"
+              "    while (true) {\n"
+              "        if (false) {\n"
+              "            continue;\n"
+              "        } else {\n"
+              "            break;\n"
+              "        }\n"
+              "    }\n"
+              "    return 0;\n}\n");
     formatted("main ( ) : Int64 { return 0 ; }",
               "main(): Int64 {\n    return 0;\n}\n");
     formatted("main():Int64{let x:RefInt64=refInt(5);x:=! x+1;return !x;}",
@@ -58,7 +68,9 @@ int main() {
               "    return -0001;\n}\n");
     for (auto invalid : { "", "main(): Int64 {", "main(): Int64 { return true; }",
                           "main(): Int64 { var x: Int64 = 0; return x; }",
-                          "main(): Int64 { let x: RefInt64 = refInt(0); x: =1; return !x; }" }) {
+                          "main(): Int64 { let x: RefInt64 = refInt(0); x: =1; return !x; }",
+                          "main(): Int64 { break; return 0; }",
+                          "main(): Int64 { if(true){continue;}else{} return 0; }" }) {
         CHECK(!typed::format_program(invalid));
     }
 }

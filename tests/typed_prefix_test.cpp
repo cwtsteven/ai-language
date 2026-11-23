@@ -73,6 +73,30 @@ int main() {
              "let b: Bool = !flag && false; if (!flag) { flag := b; } else {} return 0; }");
     complete("main(): Int64 { let flag: Bool = true; if (flag) { "
              "let local: Int64 = 2; } else { let other: Bool = false; } return 0; }");
+    complete("main(): Int64 { while(true){break;} return 0; }");
+    complete("main(): Int64 { let flag: RefBool = refBool(true); "
+             "while(!flag){flag:=false;continue;} return 0; }");
+    complete("main(): Int64 { while(true){if(true){break;}else{continue;}} return 0; }");
+    complete("main(): Int64 { while(true){while(false){continue;break;} "
+             "if(false){continue;}else{break;}} return 0; }");
+    complete("main(): Int64 { let breakfast: RefInt64 = refInt(0); "
+             "let continued: Int64 = 1; while(true){breakfast:=continued;break;} return !breakfast; }");
+    complete("main(): Int64 { let i: RefInt64 = refInt(0); let a: RefInt64 = refInt(0); "
+             "let b: RefInt64 = refInt(1); while(true){let done: Bool = !i == 5; "
+             "if(done){break;}else{let next: Int64 = !a + !b; a:=!b; b:=next; i:=!i+1;}} return !a; }");
+
+    rejected("main(): Int64 { ", "break;", "return 0; }");
+    rejected("main(): Int64 { ", "continue;", "return 0; }");
+    rejected("main(): Int64 { if(true){", "break;", "}else{} return 0; }");
+    rejected("main(): Int64 { if(true){}else{", "continue;", "} return 0; }");
+    rejected("main(): Int64 { while(true){break;} ", "continue;", "return 0; }");
+    rejected("main(): Int64 { while(true){break ", "}", ";} return 0; }");
+    rejected("main(): Int64 { while(true){continue ", "true", ";} return 0; }");
+    rejected("main(): Int64 { while(true){let local: Int64 = 1; break;} return ", "local;", "0; }");
+    rejected("main(): Int64 { let ", "break ", "breakfast: Int64 = 0; return breakfast; }");
+    rejected("main(): Int64 { let ", "continue ", "continued: Int64 = 0; return continued; }");
+    rejected("main(): Int64 { let b: RefInt64 = refInt(0); let breakfast: Int64 = 1; b",
+             "reak;", ":=2; return !b; }");
 
     rejected("main(): Int64 { let name: Bool = true; let number: Int64 = 2; return n",
              "ame ", "umber; }");
@@ -154,7 +178,12 @@ int main() {
         "main(): Int64 { let r: RefInt64 = refInt(0); r:=!",
         "main(): Int64 { let r: RefInt64 = refInt(0); let b: Bool = !",
         "main(): Int64 { let r: RefInt64 = refInt(0); let b: Bool = !r=",
-        "main(): Int64 { let r: RefBool = refBool(true); while (!"
+        "main(): Int64 { let r: RefBool = refBool(true); while (!",
+        "main(): Int64 { while(true){br",
+        "main(): Int64 { while(true){continu",
+        "main(): Int64 { while(true){break ",
+        "main(): Int64 { while(true){if(true){continue ",
+        "main(): Int64 { while(true){while(true){break;}"
     }) {
         Prefix base;
         CHECK(base.append(seed));

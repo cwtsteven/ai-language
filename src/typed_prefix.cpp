@@ -87,10 +87,10 @@ const Operation * operation(std::string_view name) {
 
 bool reserved(std::string_view name) {
     if (one_of(name, { "main", "Int64", "Bool", "RefInt64", "RefBool", "let", "var",
-                       "if", "else", "while", "return", "write", "true", "false" })) {
+                       "if", "else", "while", "break", "continue", "return", "write", "true", "false" })) {
         // one_of is a prefix test; only exact keywords are reserved.
         for (auto keyword : { "main", "Int64", "Bool", "RefInt64", "RefBool", "let", "var",
-                              "if", "else", "while", "return", "write", "true", "false" }) {
+                              "if", "else", "while", "break", "continue", "return", "write", "true", "false" }) {
             if (name == keyword) return true;
         }
     }
@@ -202,6 +202,12 @@ bool Prefix::close_block() {
     return true;
 }
 
+bool Prefix::in_loop() const {
+    return std::any_of(blocks_.begin(), blocks_.end(), [](const Frame & frame) {
+        return frame.kind == Block::While;
+    });
+}
+
 bool Prefix::possible(std::string_view p) const {
     switch (phase_) {
         case Phase::Main:        return one_of(p, { "main" });
@@ -212,6 +218,7 @@ bool Prefix::possible(std::string_view p) const {
         case Phase::MainOpen:    return one_of(p, { "{" });
         case Phase::Stmt:
             return one_of(p, { "let", "if", "while" }) ||
+                (in_loop() && one_of(p, { "break", "continue" })) ||
                 (blocks_.size() == 1 && one_of(p, { "return" })) ||
                 (blocks_.size() > 1 && one_of(p, { "}" })) ||
                 symbol_prefix(Type::RefInt, p) || symbol_prefix(Type::RefBool, p);
@@ -237,6 +244,7 @@ bool Prefix::possible(std::string_view p) const {
         }
         case Phase::LetSemi:        return one_of(p, { ";" });
         case Phase::AssignOperator: return one_of(p, { ":=" });
+        case Phase::LoopControlSemi:return one_of(p, { ";" });
         case Phase::IfOpenParen:    return one_of(p, { "(" });
         case Phase::IfCondition:    return atom_possible(Type::Bool, p);
         case Phase::IfCloseParen:   return one_of(p, { ")" });
@@ -276,6 +284,10 @@ bool Prefix::commit(std::string_view token) {
             }
             if (token == "if")     { phase_ = Phase::IfOpenParen; return true; }
             if (token == "while") { phase_ = Phase::WhileOpenParen; return true; }
+            if ((token == "break" || token == "continue") && in_loop()) {
+                phase_ = Phase::LoopControlSemi;
+                return true;
+            }
             if (token == "return" && blocks_.size() == 1) {
                 phase_ = Phase::ReturnValue;
                 return true;
@@ -360,6 +372,10 @@ bool Prefix::commit(std::string_view token) {
         case Phase::AssignOperator:
             if (token != ":=") return false;
             phase_ = Phase::Rhs;
+            return true;
+        case Phase::LoopControlSemi:
+            if (token != ";") return false;
+            phase_ = Phase::Stmt;
             return true;
         case Phase::IfOpenParen:
             if (token != "(") return false;
@@ -551,6 +567,9 @@ std::string Prefix::completion_token() const {
                 if (!token.empty()) return token;
             }
             if (const auto token = fixed({ "let", "if", "while" }); !token.empty()) return token;
+            if (in_loop()) {
+                if (const auto token = fixed({ "break", "continue" }); !token.empty()) return token;
+            }
             for (const auto & symbol : symbols_) {
                 if ((symbol.type == Type::RefInt || symbol.type == Type::RefBool) &&
                     starts_with(symbol.name, pending_)) return symbol.name;
@@ -598,6 +617,7 @@ std::string Prefix::completion_token() const {
         }
         case Phase::LetSemi:        return fixed({ ";" });
         case Phase::AssignOperator: return fixed({ ":=" });
+        case Phase::LoopControlSemi:return fixed({ ";" });
         case Phase::IfOpenParen:    return fixed({ "(" });
         case Phase::IfCondition:    return completion_atom(Type::Bool);
         case Phase::IfCloseParen:   return fixed({ ")" });
@@ -619,8 +639,8 @@ std::string Prefix::completion_token() const {
 std::optional<std::string> Prefix::completion() const {
     Prefix state = *this;
     std::string suffix;
-    // Each step finishes one lexical token. Existing nested blocks shrink,
-    // while the selected next statement is always a return or a close brace.
+    // Each step finishes one lexical token. After pending statements finish,
+    // completion closes nested blocks and returns from main.
     const size_t limit = 64 + state.blocks_.size() * 16;
     for (size_t i = 0; i < limit; ++i) {
         if (state.can_end()) return suffix;
@@ -657,6 +677,7 @@ std::string Prefix::expected_for_debug() const {
             return op ? std::string(type_name(op->arguments[argument_])) + " argument" : "argument";
         }
         case Phase::AssignOperator: return "reference assignment :=";
+        case Phase::LoopControlSemi:return "semicolon after break/continue";
         case Phase::IfCondition: return "Bool condition";
         case Phase::WhileCondition: return "Bool condition";
         case Phase::ReturnValue: return "Int64 return atom";

@@ -67,6 +67,8 @@ int main() {
         CHECK(prompt.find(language::grammar) != std::string::npos);
         CHECK(prompt.find("\"while\" \"(\" bool_atom") != std::string::npos);
         CHECK(prompt.find("\"let\" identifier") != std::string::npos);
+        CHECK(prompt.find("\"break\" \";\"") != std::string::npos);
+        CHECK(prompt.find("\"continue\" \";\"") != std::string::npos);
     };
     assert_grammar(format_prompt(plugin, nullptr, "other-model", rules, "sum 2 and 3"));
     plugin = {};

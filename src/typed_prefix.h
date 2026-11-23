@@ -35,7 +35,7 @@ private:
         Main, OpenParen, CloseParen, Colon, MainType, MainOpen,
         Stmt, LetName, LetColon, LetType, LetEqual, Rhs, RhsAfterAtom, RhsRight,
         CallOpen, CallArg, CallAfterArg, LetSemi,
-        AssignOperator,
+        AssignOperator, LoopControlSemi,
         IfOpenParen, IfCondition, IfCloseParen, IfOpen, Else, ElseOpen,
         WhileOpenParen, WhileCondition, WhileCloseParen, WhileOpen,
         ReturnValue, ReturnSemi, MainClose, Done,
@@ -73,6 +73,7 @@ private:
     bool rhs_atom_possible(std::string_view partial) const;
     bool begin_rhs_operator(std::string_view token);
     bool close_block();
+    bool in_loop() const;
     std::string completion_token() const;
     std::string completion_atom(Type type) const;
 };
