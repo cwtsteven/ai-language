@@ -3,14 +3,15 @@ main(): Int64 {
     let a: RefInt64 = refInt(0);
     let b: RefInt64 = refInt(1);
     while (true) {
-        let done: Bool = !i == 5;
+        let done: Bool = eq(!i, 5);
         if (done) {
             break;
         } else {
-            let next: Int64 = !a + !b;
-            a := !b;
-            b := next;
-            i := !i + 1;
+            let next: Int64 = add(!a, !b);
+            assign(a, !b);
+            assign(b, next);
+            let nextIndex: Int64 = add(!i, 1);
+            assign(i, nextIndex);
         }
     }
     return !a;

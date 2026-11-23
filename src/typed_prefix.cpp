@@ -27,24 +27,6 @@ constexpr Operation operations[] = {
     { "refBool", Type::RefBool, { Type::Bool,    Type::Bool }, 1 },
 };
 
-struct BinaryOperation {
-    const char * name;
-    Type left;
-    Type right;
-    Type result;
-};
-
-constexpr BinaryOperation binary_operations[] = {
-    { "+", Type::Int, Type::Int, Type::Int },
-    { "-", Type::Int, Type::Int, Type::Int },
-    { "*", Type::Int, Type::Int, Type::Int },
-    { "<", Type::Int, Type::Int, Type::Bool },
-    { "==", Type::Int, Type::Int, Type::Bool },
-    { "==", Type::Bool, Type::Bool, Type::Bool },
-    { "&&", Type::Bool, Type::Bool, Type::Bool },
-    { "||", Type::Bool, Type::Bool, Type::Bool },
-};
-
 bool starts_with(std::string_view word, std::string_view prefix) {
     return word.size() >= prefix.size() && word.substr(0, prefix.size()) == prefix;
 }
@@ -87,7 +69,7 @@ const Operation * operation(std::string_view name) {
 
 bool reserved(std::string_view name) {
     for (auto keyword : { "main", "func", "Int64", "Bool", "RefInt64", "RefBool", "let", "var",
-                          "if", "else", "while", "break", "continue", "return", "write",
+                          "if", "else", "while", "break", "continue", "return", "assign", "write",
                           "readInt", "readBool", "true", "false" }) {
         if (name == keyword) return true;
     }
@@ -181,37 +163,6 @@ bool Prefix::begin_operation(std::string_view name, Type result) {
     return true;
 }
 
-bool Prefix::rhs_operator_possible(std::string_view partial) const {
-    for (const auto & op : binary_operations) {
-        if (op.left == rhs_lhs_type_ && op.result == new_type_ &&
-            starts_with(op.name, partial) && has_atom(op.right)) return true;
-    }
-    return false;
-}
-
-bool Prefix::begin_rhs_operator(std::string_view token) {
-    for (const auto & op : binary_operations) {
-        if (op.name == token && op.left == rhs_lhs_type_ &&
-            op.result == new_type_ && has_atom(op.right)) {
-            rhs_right_type_ = op.right;
-            phase_ = Phase::RhsRight;
-            return true;
-        }
-    }
-    return false;
-}
-
-bool Prefix::rhs_atom_possible(std::string_view partial) const {
-    if (atom_possible(new_type_, partial)) return true;
-    // A different left type is viable only if an operator can produce the
-    // expected result and its right operand has at least one inhabitant.
-    for (const auto & op : binary_operations) {
-        if (op.result == new_type_ && has_atom(op.right) &&
-            atom_possible(op.left, partial)) return true;
-    }
-    return false;
-}
-
 bool Prefix::close_block() {
     if (blocks_.empty()) return false;
     const Frame frame = blocks_.back();
@@ -250,19 +201,15 @@ bool Prefix::possible(std::string_view p) const {
         case Phase::MainOpen:    return one_of(p, { "{" });
         case Phase::Stmt:
             return one_of(p, { "let", "if", "while" }) ||
+                ((has_atom(Type::RefInt) || has_atom(Type::RefBool)) && one_of(p, { "assign" })) ||
                 (in_loop() && one_of(p, { "break", "continue" })) ||
                 (has_atom(return_type_) && one_of(p, { "return" })) ||
-                (!blocks_.empty() && one_of(p, { "}" })) ||
-                symbol_prefix(Type::RefInt, p) || symbol_prefix(Type::RefBool, p);
+                (!blocks_.empty() && one_of(p, { "}" }));
         case Phase::LetName:     return identifier_prefix(p);
         case Phase::LetColon:    return one_of(p, { ":" });
         case Phase::LetType:     return one_of(p, { "Int64", "Bool", "RefInt64", "RefBool" });
         case Phase::LetEqual:    return one_of(p, { "=" });
-        case Phase::Rhs:         return rhs_atom_possible(p) || operation_possible(new_type_, p);
-        case Phase::RhsAfterAtom:
-            return (rhs_lhs_type_ == new_type_ && one_of(p, { ";" })) ||
-                rhs_operator_possible(p);
-        case Phase::RhsRight:    return atom_possible(rhs_right_type_, p);
+        case Phase::Rhs:         return atom_possible(new_type_, p) || operation_possible(new_type_, p);
         case Phase::CallOpen:    return one_of(p, { "(" });
         case Phase::CallArg:
             return argument_ < call_arguments_.size() && atom_possible(call_arguments_[argument_], p);
@@ -273,7 +220,11 @@ bool Prefix::possible(std::string_view p) const {
         }
         case Phase::CallClose:      return one_of(p, { ")" });
         case Phase::LetSemi:        return one_of(p, { ";" });
-        case Phase::AssignOperator: return one_of(p, { ":=" });
+        case Phase::AssignOpen:     return one_of(p, { "(" });
+        case Phase::AssignTarget:   return symbol_prefix(Type::RefInt, p) || symbol_prefix(Type::RefBool, p);
+        case Phase::AssignComma:    return one_of(p, { "," });
+        case Phase::AssignValue:    return atom_possible(new_type_, p);
+        case Phase::AssignClose:    return one_of(p, { ")" });
         case Phase::LoopControlSemi:return one_of(p, { ";" });
         case Phase::IfOpenParen:    return one_of(p, { "(" });
         case Phase::IfCondition:    return atom_possible(Type::Bool, p);
@@ -372,6 +323,11 @@ bool Prefix::commit(std::string_view token) {
             }
             if (token == "if")     { phase_ = Phase::IfOpenParen; return true; }
             if (token == "while") { phase_ = Phase::WhileOpenParen; return true; }
+            if (token == "assign") {
+                assignment_ = true;
+                phase_ = Phase::AssignOpen;
+                return true;
+            }
             if ((token == "break" || token == "continue") && in_loop()) {
                 phase_ = Phase::LoopControlSemi;
                 return true;
@@ -381,13 +337,6 @@ bool Prefix::commit(std::string_view token) {
                 return true;
             }
             if (token == "}") return close_block();
-            if (const auto * symbol = find(token); symbol && (symbol->type == Type::RefInt || symbol->type == Type::RefBool)) {
-                new_name_ = std::string(token);
-                new_type_ = symbol->type == Type::RefInt ? Type::Int : Type::Bool;
-                assignment_ = true;
-                phase_ = Phase::AssignOperator;
-                return true;
-            }
             return false;
         case Phase::LetName:
             if (!name_available(token)) return false;
@@ -406,29 +355,7 @@ bool Prefix::commit(std::string_view token) {
         case Phase::LetEqual: if (token != "=") return false; phase_ = Phase::Rhs; return true;
         case Phase::Rhs:
             if (begin_operation(token, new_type_)) return true;
-            if (atom_complete(new_type_, token)) rhs_lhs_type_ = new_type_;
-            else {
-                bool found = false;
-                for (const auto & op : binary_operations) {
-                    if (op.result == new_type_ && has_atom(op.right) && atom_complete(op.left, token)) {
-                        rhs_lhs_type_ = op.left;
-                        found = true;
-                        break;
-                    }
-                }
-                if (!found) return false;
-            }
-            phase_ = Phase::RhsAfterAtom;
-            return true;
-        case Phase::RhsAfterAtom:
-            if (token == ";" && rhs_lhs_type_ == new_type_) {
-                if (!assignment_) symbols_.push_back({ new_name_, new_type_ });
-                phase_ = Phase::Stmt;
-                return true;
-            }
-            return begin_rhs_operator(token);
-        case Phase::RhsRight:
-            if (!atom_complete(rhs_right_type_, token)) return false;
+            if (!atom_complete(new_type_, token)) return false;
             phase_ = Phase::LetSemi;
             return true;
         case Phase::CallOpen:
@@ -461,9 +388,28 @@ bool Prefix::commit(std::string_view token) {
             if (!assignment_) symbols_.push_back({ new_name_, new_type_ });
             phase_ = Phase::Stmt;
             return true;
-        case Phase::AssignOperator:
-            if (token != ":=") return false;
-            phase_ = Phase::Rhs;
+        case Phase::AssignOpen:
+            if (token != "(") return false;
+            phase_ = Phase::AssignTarget;
+            return true;
+        case Phase::AssignTarget: {
+            const auto * symbol = find(token);
+            if (!symbol || (symbol->type != Type::RefInt && symbol->type != Type::RefBool)) return false;
+            new_type_ = symbol->type == Type::RefInt ? Type::Int : Type::Bool;
+            phase_ = Phase::AssignComma;
+            return true;
+        }
+        case Phase::AssignComma:
+            if (token != ",") return false;
+            phase_ = Phase::AssignValue;
+            return true;
+        case Phase::AssignValue:
+            if (!atom_complete(new_type_, token)) return false;
+            phase_ = Phase::AssignClose;
+            return true;
+        case Phase::AssignClose:
+            if (token != ")") return false;
+            phase_ = Phase::LetSemi;
             return true;
         case Phase::LoopControlSemi:
             if (token != ";") return false;
@@ -522,10 +468,6 @@ bool Prefix::step(unsigned char ch) {
         return commit(token);
     }
     if (ch < 0x21 || ch > 0x7e) return false;
-    if (ch == '=' && pending_ == ":") {
-        pending_.clear();
-        return commit(":=");
-    }
     if (ch == '!') {
         if (!pending_.empty()) {
             const std::string token = std::move(pending_);
@@ -535,26 +477,14 @@ bool Prefix::step(unsigned char ch) {
         pending_ = "!";
         return possible(pending_);
     }
-    if ((ch == '=' && pending_ == "=") ||
-        (ch == '&' && pending_ == "&") ||
-        (ch == '|' && pending_ == "|")) {
-        const std::string token(2, static_cast<char>(ch));
-        pending_.clear();
-        return commit(token);
-    }
-    if (ch == '+' || ch == '-' || ch == '*' || ch == '<' ||
-        ch == '=' || ch == '&' || ch == '|') {
+    if (ch == '-' || ch == '=') {
         if (!pending_.empty()) {
             const std::string token = std::move(pending_);
             pending_.clear();
             if (!commit(token)) return false;
         }
-        if ((ch == '=' || ch == '&' || ch == '|') && phase_ == Phase::RhsAfterAtom) {
-            pending_.push_back(static_cast<char>(ch));
-            return possible(pending_);
-        }
-        if (ch == '-' && (phase_ == Phase::Rhs || phase_ == Phase::RhsRight ||
-                          phase_ == Phase::CallArg ||
+        if (ch == '-' && (phase_ == Phase::Rhs ||
+                          phase_ == Phase::CallArg || phase_ == Phase::AssignValue ||
                           phase_ == Phase::ReturnValue)) {
             pending_ = "-";
             return possible(pending_);
@@ -567,10 +497,6 @@ bool Prefix::step(unsigned char ch) {
             const std::string token = std::move(pending_);
             pending_.clear();
             if (!commit(token)) return false;
-        }
-        if (ch == ':' && phase_ == Phase::AssignOperator) {
-            pending_ = ":";
-            return true;
         }
         return commit(std::string(1, static_cast<char>(ch)));
     }
@@ -685,13 +611,9 @@ std::string Prefix::completion_token() const {
             if (has_atom(return_type_)) {
                 if (const auto token = fixed({ "return" }); !token.empty()) return token;
             }
-            if (const auto token = fixed({ "let", "if", "while" }); !token.empty()) return token;
+            if (const auto token = fixed({ "let", "if", "while", "assign" }); !token.empty()) return token;
             if (in_loop()) {
                 if (const auto token = fixed({ "break", "continue" }); !token.empty()) return token;
-            }
-            for (const auto & symbol : symbols_) {
-                if ((symbol.type == Type::RefInt || symbol.type == Type::RefBool) &&
-                    starts_with(symbol.name, pending_)) return symbol.name;
             }
             return {};
         case Phase::LetName:     return fresh_name();
@@ -706,11 +628,6 @@ std::string Prefix::completion_token() const {
         case Phase::LetEqual:    return fixed({ "=" });
         case Phase::Rhs: {
             if (const auto atom = completion_atom(new_type_); !atom.empty()) return atom;
-            for (const auto & op : binary_operations) {
-                if (op.result == new_type_ && has_atom(op.right)) {
-                    if (const auto atom = completion_atom(op.left); !atom.empty()) return atom;
-                }
-            }
             for (const auto & op : operations) {
                 if (op.result == new_type_ && operation_possible(new_type_, op.name) &&
                     starts_with(op.name, pending_)) return op.name;
@@ -721,23 +638,19 @@ std::string Prefix::completion_token() const {
             }
             return {};
         }
-        case Phase::RhsAfterAtom:
-            if (rhs_lhs_type_ == new_type_) {
-                if (const auto token = fixed({ ";" }); !token.empty()) return token;
-            }
-            for (const auto & op : binary_operations) {
-                if (op.left == rhs_lhs_type_ && op.result == new_type_ &&
-                    has_atom(op.right) && starts_with(op.name, pending_)) return op.name;
-            }
-            return {};
-        case Phase::RhsRight: return completion_atom(rhs_right_type_);
         case Phase::CallOpen:    return fixed({ "(" });
         case Phase::CallArg:
             return argument_ < call_arguments_.size() ? completion_atom(call_arguments_[argument_]) : std::string{};
         case Phase::CallAfterArg:return fixed({ argument_ + 1 < call_arguments_.size() ? "," : ")" });
         case Phase::CallClose:  return fixed({ ")" });
         case Phase::LetSemi:        return fixed({ ";" });
-        case Phase::AssignOperator: return fixed({ ":=" });
+        case Phase::AssignOpen:     return fixed({ "(" });
+        case Phase::AssignTarget:
+            if (const auto atom = completion_atom(Type::RefInt); !atom.empty()) return atom;
+            return completion_atom(Type::RefBool);
+        case Phase::AssignComma:    return fixed({ "," });
+        case Phase::AssignValue:    return completion_atom(new_type_);
+        case Phase::AssignClose:    return fixed({ ")" });
         case Phase::LoopControlSemi:return fixed({ ";" });
         case Phase::IfOpenParen:    return fixed({ "(" });
         case Phase::IfCondition:    return completion_atom(Type::Bool);
@@ -794,14 +707,11 @@ std::string Prefix::expected_for_debug() const {
         case Phase::Stmt: return "statement";
         case Phase::LetName: return "fresh variable name";
         case Phase::Rhs: return std::string(type_name(new_type_)) + " RHS";
-        case Phase::RhsRight: return std::string(type_name(rhs_right_type_)) + " right operand";
-        case Phase::RhsAfterAtom:
-            return std::string("operator from ") + type_name(rhs_lhs_type_) + " to " +
-                type_name(new_type_) + (rhs_lhs_type_ == new_type_ ? " or semicolon" : "");
         case Phase::CallArg:
             return argument_ < call_arguments_.size() ?
                 std::string(type_name(call_arguments_[argument_])) + " argument" : "argument";
-        case Phase::AssignOperator: return "reference assignment :=";
+        case Phase::AssignTarget: return "reference cell argument";
+        case Phase::AssignValue: return std::string(type_name(new_type_)) + " assigned atom";
         case Phase::LoopControlSemi:return "semicolon after break/continue";
         case Phase::IfCondition: return "Bool condition";
         case Phase::WhileCondition: return "Bool condition";

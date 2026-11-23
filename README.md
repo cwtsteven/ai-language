@@ -79,9 +79,11 @@ A [reference program](examples/fibonacci-5-break.typed) uses `while (true)` and 
 ## Language
 
 Immutable `let` bindings; `Int64`, `Bool`, `RefInt64`, and `RefBool`; `!cell` reads
-and `cell := value` writes. Statements require semicolons. Conditions are Boolean
+and `assign(cell, value);` writes an atomic value. Statements require semicolons. Conditions are Boolean
 atoms; `break;` and `continue;` are allowed only inside loops. Typed `func`
 declarations go before `main`; see the [function example](examples/functions.typed).
+Computations use calls such as `add(x, 1)` and `eq(x, 5)`, with atomic arguments;
+infix expressions are not supported.
 
 - [Single language specification](docs/language.md) (also embedded in model prompts at build time)
 - [Model plugin settings](docs/model-plugins.md)

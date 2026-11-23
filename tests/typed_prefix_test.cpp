@@ -45,45 +45,50 @@ int main() {
     complete("main ( ) : Int64 { return 0 ; }");
     complete("main(): Int64 { return 0; }");
     complete("main(): Int64 { let x: Int64 = add(2, 3); return x; }");
-    complete("main(): Int64 { let x: RefInt64 = refInt(2); x := add(!x, 3); return !x; }");
-    complete("main(): Int64 { let x: RefInt64 = refInt(2); x:=!x+3; return ! x; }");
+    complete("main(): Int64 { let x: RefInt64 = refInt(2); let next: Int64 = add(!x, 3); assign(x, next); return !x; }");
+    complete("main(): Int64 { let x: RefInt64 = refInt(2); assign(x,-3); return ! x; }");
+    complete("main(): Int64 { let r: RefInt64 = refInt(0); let ready: RefBool = refBool(true); "
+             "assign(ready,!ready); assign(r,!r); return !r; }");
     complete("main(): Int64 { let x: Int64 = -9223372036854775808; return x; }");
     complete("main(): Int64 { let x: Int64 = 9223372036854775807; return x; }");
-    complete("main(): Int64 { let x: Int64 = 5; let done: Bool = x==5; "
-             "if (done) { let y: Int64 = x*2; } else { } return x; }");
-    complete("main(): Int64 { let x: Int64 = 3; let small: Bool = x<5; "
-             "let yes: Bool = small&&true; return x; }");
-    complete("main(): Int64 { let x: Int64 = 2-1; let y: Int64 = x--1; "
-             "let same: Bool = true==false; let either: Bool = same||true; return y; }");
+    complete("main(): Int64 { let x: Int64 = 5; let done: Bool = eq(x,5); "
+             "if (done) { let y: Int64 = mul(x,2); } else { } return x; }");
+    complete("main(): Int64 { let x: Int64 = 3; let small: Bool = lt(x,5); "
+             "let yes: Bool = and(small,true); return x; }");
+    complete("main(): Int64 { let x: Int64 = sub(2,1); let y: Int64 = sub(x,-1); "
+             "let same: Bool = and(true,false); let either: Bool = or(same,true); "
+             "let opposite: Bool = not(either); return y; }");
     complete("main(): Int64 { let name: Bool = true; let number: Int64 = 2; "
-             "let compared: Bool = number == 1; return number; }");
+             "let compared: Bool = eq(number, 1); return number; }");
     complete("main(): Int64 { let limit: Int64 = 5; let i: RefInt64 = refInt(0); "
              "let a: RefInt64 = refInt(0); let b: RefInt64 = refInt(1); "
              "let running: RefBool = refBool(true); while (!running) { "
-             "let done: Bool = !i == limit; if (done) { running := false; } else { "
-             "let next: Int64 = !a + !b; a := !b; b := next; i := !i + 1; } } return !a; }");
+             "let done: Bool = eq(!i, limit); if (done) { assign(running, false); } else { "
+             "let next: Int64 = add(!a, !b); assign(a, !b); assign(b, next); "
+             "let nextIndex: Int64 = add(!i, 1); assign(i, nextIndex); } } return !a; }");
     complete("main(): Int64 { let flag: RefBool = refBool(true); "
-             "while (!flag) { flag := false; } return 0; }");
+             "while (!flag) { assign(flag, false); } return 0; }");
     complete("main(): Int64 { let cell: RefInt64 = refInt(7); "
-             "let old: Int64 = !cell; let next: Int64 = old + 4; "
-             "cell := next; let result: Int64 = !cell; return result; }");
+             "let old: Int64 = !cell; let next: Int64 = add(old, 4); "
+             "assign(cell, next); let result: Int64 = !cell; return result; }");
     complete("main(): Int64 { let original: RefInt64 = refInt(0); "
-             "let alias: RefInt64 = original; alias := 9; return !original; }");
+             "let alias: RefInt64 = original; assign(alias, 9); return !original; }");
     complete("main(): Int64 { let flag: RefBool = refBool(true); "
-             "let b: Bool = !flag && false; if (!flag) { flag := b; } else {} return 0; }");
+             "let b: Bool = and(!flag, false); if (!flag) { assign(flag, b); } else {} return 0; }");
     complete("main(): Int64 { let flag: Bool = true; if (flag) { "
              "let local: Int64 = 2; } else { let other: Bool = false; } return 0; }");
     complete("main(): Int64 { while(true){break;} return 0; }");
     complete("main(): Int64 { let flag: RefBool = refBool(true); "
-             "while(!flag){flag:=false;continue;} return 0; }");
+             "while(!flag){assign(flag,false);continue;} return 0; }");
     complete("main(): Int64 { while(true){if(true){break;}else{continue;}} return 0; }");
     complete("main(): Int64 { while(true){while(false){continue;break;} "
              "if(false){continue;}else{break;}} return 0; }");
     complete("main(): Int64 { let breakfast: RefInt64 = refInt(0); "
-             "let continued: Int64 = 1; while(true){breakfast:=continued;break;} return !breakfast; }");
+             "let continued: Int64 = 1; while(true){assign(breakfast,continued);break;} return !breakfast; }");
     complete("main(): Int64 { let i: RefInt64 = refInt(0); let a: RefInt64 = refInt(0); "
-             "let b: RefInt64 = refInt(1); while(true){let done: Bool = !i == 5; "
-             "if(done){break;}else{let next: Int64 = !a + !b; a:=!b; b:=next; i:=!i+1;}} return !a; }");
+             "let b: RefInt64 = refInt(1); while(true){let done: Bool = eq(!i, 5); "
+             "if(done){break;}else{let next: Int64 = add(!a, !b); assign(a,!b); assign(b,next); "
+             "let nextIndex: Int64 = add(!i,1); assign(i,nextIndex);}} return !a; }");
 
     rejected("main(): Int64 { ", "break;", "return 0; }");
     rejected("main(): Int64 { ", "continue;", "return 0; }");
@@ -95,8 +100,8 @@ int main() {
     rejected("main(): Int64 { while(true){let local: Int64 = 1; break;} return ", "local;", "0; }");
     rejected("main(): Int64 { let ", "break ", "breakfast: Int64 = 0; return breakfast; }");
     rejected("main(): Int64 { let ", "continue ", "continued: Int64 = 0; return continued; }");
-    rejected("main(): Int64 { let b: RefInt64 = refInt(0); let breakfast: Int64 = 1; b",
-             "reak;", ":=2; return !b; }");
+    rejected("main(): Int64 { let b: RefInt64 = refInt(0); let breakfast: Int64 = 1; assign(b",
+             "reakfast,", ",2); return !b; }");
 
     rejected("main(): Int64 { let name: Bool = true; let number: Int64 = 2; return n",
              "ame ", "umber; }");
@@ -106,24 +111,28 @@ int main() {
              "false ", "2); return x; }");
     rejected("main(): Int64 { let x: Int64 = add(1 ",
              ") ", ", 2); return x; }");
-    rejected("main(): Int64 { let r: RefInt64 = refInt(0); r := ",
-             "true ", "1; return 0; }");
+    rejected("main(): Int64 { let r: RefInt64 = refInt(0); assign(r, ",
+             "true ", "1); return 0; }");
     rejected("main(): Int64 { let x: Int64 = 1; ",
              "x ", "return x; }");
-    rejected("main(): Int64 { let x: RefInt64 = refInt(1); x := ",
-             "true ", "2; return !x; }");
+    rejected("main(): Int64 { let x: RefInt64 = refInt(1); assign(x, ",
+             "true ", "2); return !x; }");
     rejected("main(): Int64 { let x: Int64 = ",
              "9223372036854775808", "9223372036854775807; return x; }");
-    rejected("main(): Int64 { let x: Int64 = 2 ",
-             "< ", "+ 3; return x; }");
-    rejected("main(): Int64 { let done: Bool = 2 < ",
-             "true ", "3; return 0; }");
-    rejected("main(): Int64 { let done: Bool = 2 ",
-             ";", "== 1; return 0; }");
-    rejected("main(): Int64 { let done: Bool = 2 ",
-             "+", "< 1; return 0; }");
-    rejected("main(): Int64 { let x: Int64 = 2 + ",
-             "true", "1; return x; }");
+    // Infix syntax is rejected even if a model token contains the whole RHS,
+    // or ends after just the first character of a former two-character operator.
+    for (auto op : { "+", "-", "*", "<", "=", "==", "&", "&&", "|", "||" }) {
+        rejected("main(): Int64 { let x: Int64 = 2", op, "; return x; }");
+        rejected("main(): Int64 { let x: Int64 = 2 ", op, "; return x; }");
+        rejected("main(): Int64 { let b: Bool = true", op, "; return 0; }");
+        rejected("main(): Int64 { let r: RefInt64 = refInt(0); assign(r,!r", op, "); return !r; }");
+    }
+    rejected("main(): Int64 { let x: Int64 = ", "2+3;", "add(2,3); return x; }");
+    rejected("main(): Int64 { let b: Bool = ", "2", "eq(2,1); return 0; }");
+    rejected("main(): Int64 { let b: Bool = lt(2,", "true", "3); return 0; }");
+    rejected("main(): Int64 { let x: Int64 = add(2,", "true", "1); return x; }");
+    rejected("main(): Int64 { let x: Int64 = ", "add(1, mul(2,3))", "add(1,2); return x; }");
+    rejected("main(): Int64 { let r: RefInt64 = refInt(0); let b: Bool = ", "!r", "eq(!r,0); return 0; }");
     rejected("main(): Int64 { let x: Int64 = -", "9223372036854775809",
              "9223372036854775808; return x; }");
     rejected("main(): Int64 { while (true) { let local: RefInt64 = refInt(0); } ",
@@ -141,8 +150,20 @@ int main() {
              "readInt(", "!x; return v; }");
     rejected("main(): Int64 { let x: Int64 = 1; return ", "!", "x; }");
     rejected("main(): Int64 { let r: RefBool = refBool(true); return ", "!", "0; }");
-    rejected("main(): Int64 { let r: RefInt64 = refInt(0); r", "=", ":=5; return !r; }");
-    rejected("main(): Int64 { let r: RefInt64 = refInt(0); r:", "+", "=5; return !r; }");
+    rejected("main(): Int64 { let r: RefInt64 = refInt(0); ", "r:=5;", "assign(r,5); return !r; }");
+    rejected("main(): Int64 { let r: RefInt64 = refInt(0); ", "r: =5;", "assign(r,5); return !r; }");
+    rejected("main(): Int64 { ", "assign(", "return 0; }");
+    rejected("main(): Int64 { let x: Int64 = 0; ", "assign(", "return x; }");
+    rejected("main(): Int64 { let r: RefInt64 = refInt(0); let x: Int64 = 1; assign(",
+             "x", "r,x); return !r; }");
+    rejected("main(): Int64 { let flag: RefBool = refBool(true); assign(flag,", "0", "false); return 0; }");
+    rejected("main(): Int64 { let r: RefInt64 = refInt(0); assign(r,", "add(", "-1); return !r; }");
+    rejected("main(): Int64 { let r: RefInt64 = refInt(0); assign(r", ")", ",1); return !r; }");
+    rejected("main(): Int64 { let r: RefInt64 = refInt(0); assign(r,1", ",", "); return !r; }");
+    rejected("main(): Int64 { let r: RefInt64 = refInt(0); assign(r,1)", "}", "; return !r; }");
+    rejected("main(): Int64 { let ", "assign ", "assignment: Int64 = 0; return assignment; }");
+    rejected("main(): Int64 { let r: RefInt64 = refInt(0); let x: Int64 = ", "assign(", "0; return x; }");
+    rejected("main(): Int64 { while(true){let r: RefInt64 = refInt(0);} ", "assign(", "return 0; }");
     rejected("main(): Int64 { let n: RefInt64 = refInt(0); let name: RefBool = refBool(true); "
              "let x: Int64 = !n", "a", "; return x; }");
 
@@ -157,10 +178,10 @@ int main() {
     CHECK(multi.append("123 ; }"));
     CHECK(multi.can_end());
 
-    // A model token can end halfway through an operator. Rejection must keep
-    // that partial operator so a later candidate can finish the same prefix.
+    // Rejection in a split call must keep the prefix so another candidate can
+    // finish its atomic argument and the call.
     Prefix split;
-    CHECK(split.append("main(): Int64 { let b: Bool = 2="));
+    CHECK(split.append("main(): Int64 { let b: Bool = eq(2"));
     CHECK(!split.can_append("+"));
     CHECK(!split.append("+"));
     const auto suffix = split.completion();
@@ -168,16 +189,25 @@ int main() {
     Prefix finished = split;
     CHECK(finished.append(*suffix));
     CHECK(finished.can_end());
-    CHECK(split.append("=1; return 0; }"));
+    CHECK(split.append(",1); return 0; }"));
     CHECK(split.can_end());
     // All accepted one-byte candidates from boundary states must retain a
-    // completion, including whitespace after ! and half of := or ==.
+    // completion, including whitespace after !, partial assign calls, and signed literals.
     for (auto seed : {
-        "main(): Int64 { let r: RefInt64 = refInt(0); r",
-        "main(): Int64 { let r: RefInt64 = refInt(0); r:",
-        "main(): Int64 { let r: RefInt64 = refInt(0); r:=!",
-        "main(): Int64 { let r: RefInt64 = refInt(0); let b: Bool = !",
-        "main(): Int64 { let r: RefInt64 = refInt(0); let b: Bool = !r=",
+        "main(): Int64 { let r: RefInt64 = refInt(0); ass",
+        "main(): Int64 { let r: RefInt64 = refInt(0); assign",
+        "main(): Int64 { let r: RefInt64 = refInt(0); assign(",
+        "main(): Int64 { let r: RefInt64 = refInt(0); assign(r",
+        "main(): Int64 { let r: RefInt64 = refInt(0); assign(r,",
+        "main(): Int64 { let r: RefInt64 = refInt(0); assign(r,-",
+        "main(): Int64 { let r: RefInt64 = refInt(0); assign(r,!",
+        "main(): Int64 { let r: RefInt64 = refInt(0); assign(r,0)",
+        "main(): Int64 { let f: RefBool = refBool(true); assign(f,",
+        "main(): Int64 { let r: RefBool = refBool(false); let b: Bool = !",
+        "main(): Int64 { let r: RefInt64 = refInt(0); let b: Bool = eq(!r,",
+        "main(): Int64 { let b: Bool = e",
+        "main(): Int64 { let x: Int64 = -",
+        "main(): Int64 { return -",
         "main(): Int64 { let r: RefBool = refBool(true); while (!",
         "main(): Int64 { while(true){br",
         "main(): Int64 { while(true){continu",

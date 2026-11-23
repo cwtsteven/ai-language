@@ -67,7 +67,7 @@ int main() {
     CHECK(loop_example.append("main(): Int64 { while(true){break;} return 0; }"));
     CHECK(loop_example.can_end());
     typed::Prefix function_example;
-    CHECK(function_example.append("func increment(value: Int64): Int64 { let next: Int64 = value + 1; return next; } "
+    CHECK(function_example.append("func increment(value: Int64): Int64 { let next: Int64 = add(value, 1); return next; } "
                                   "main(): Int64 { let result: Int64 = increment(4); return result; }"));
     CHECK(function_example.can_end());
     const auto assert_grammar = [&](const std::string & prompt) {

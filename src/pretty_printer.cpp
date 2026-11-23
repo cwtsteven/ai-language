@@ -12,9 +12,8 @@ bool word_char(unsigned char ch) {
 }
 
 bool expects_atom(std::string_view previous) {
-    return previous == "=" || previous == ":=" || previous == "(" || previous == "," ||
-        previous == "return" || previous == "+" || previous == "-" || previous == "*" ||
-        previous == "<" || previous == "==" || previous == "&&" || previous == "||";
+    return previous == "=" || previous == "(" || previous == "," ||
+        previous == "return";
 }
 
 } // namespace
@@ -23,18 +22,14 @@ std::optional<std::string> format_program(std::string_view source) {
     Prefix checker;
     if (!checker.append(source) || !checker.can_end()) return std::nullopt;
 
-    // Input is already validated ASCII. Keep signed literals intact so x--1
-    // prints as x - -1, without changing the language's lexical boundaries.
+    // Input is already validated ASCII. Keep signed integer literals intact.
     std::vector<std::string_view> tokens;
     for (size_t i = 0; i < source.size();) {
         if (std::isspace(static_cast<unsigned char>(source[i]))) { ++i; continue; }
         const size_t start = i++;
-        const auto pair = source.substr(start, 2);
-        if (pair == ":=" || pair == "==" || pair == "&&" || pair == "||") {
-            ++i;
-        } else if (word_char(source[start]) ||
-                   (source[start] == '-' && !tokens.empty() && expects_atom(tokens.back()) &&
-                    i < source.size() && std::isdigit(static_cast<unsigned char>(source[i])))) {
+        if (word_char(source[start]) ||
+            (source[start] == '-' && !tokens.empty() && expects_atom(tokens.back()) &&
+             i < source.size() && std::isdigit(static_cast<unsigned char>(source[i])))) {
             while (i < source.size() && word_char(source[i])) ++i;
         }
         tokens.push_back(source.substr(start, i - start));
@@ -78,8 +73,7 @@ std::optional<std::string> format_program(std::string_view source) {
         } else if (token == ":" || token == ",") {
             line += token;
             line += ' ';
-        } else if (token == "=" || token == ":=" || token == "+" || token == "-" ||
-                   token == "*" || token == "<" || token == "==" || token == "&&" || token == "||") {
+        } else if (token == "=") {
             space();
             line += token;
             line += ' ';

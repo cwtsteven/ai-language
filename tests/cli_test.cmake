@@ -44,13 +44,27 @@ if(NOT status EQUAL 1 OR NOT error MATCHES "requires --model")
     message(FATAL_ERROR "Empty model selection was not rejected: ${error}")
 endif()
 
-set(program "main():Int64{let x:Int64=2+3;return x;}")
-set(formatted "main(): Int64 {\n    let x: Int64 = 2 + 3;\n    return x;\n}\n")
+set(program "main():Int64{let x:RefInt64=refInt(0);let next:Int64=add(2,3);assign(x,next);return !x;}")
+set(formatted "main(): Int64 {\n    let x: RefInt64 = refInt(0);\n    let next: Int64 = add(2, 3);\n    assign(x, next);\n    return !x;\n}\n")
 execute_process(COMMAND "${CLI}" check "${program}"
     RESULT_VARIABLE status OUTPUT_VARIABLE output ERROR_VARIABLE error)
 if(NOT status EQUAL 0 OR NOT output MATCHES "viable; complete=yes")
     message(FATAL_ERROR "Checking valid code failed: ${output}${error}")
 endif()
+foreach(example fibonacci-5.typed fibonacci-5-break.typed functions.typed)
+    execute_process(COMMAND "${CLI}" check -
+        INPUT_FILE "${CMAKE_CURRENT_LIST_DIR}/../examples/${example}"
+        RESULT_VARIABLE status OUTPUT_VARIABLE output ERROR_VARIABLE error)
+    if(NOT status EQUAL 0 OR NOT output MATCHES "viable; complete=yes")
+        message(FATAL_ERROR "Example ${example} does not typecheck: ${output}${error}")
+    endif()
+    execute_process(COMMAND "${CLI}" format -
+        INPUT_FILE "${CMAKE_CURRENT_LIST_DIR}/../examples/${example}"
+        RESULT_VARIABLE status OUTPUT_VARIABLE output ERROR_VARIABLE error)
+    if(NOT status EQUAL 0 OR output STREQUAL "")
+        message(FATAL_ERROR "Example ${example} does not format: ${error}")
+    endif()
+endforeach()
 execute_process(COMMAND "${CLI}" check "main(): Int64 { return false; }"
     RESULT_VARIABLE status OUTPUT_VARIABLE output)
 if(NOT status EQUAL 2 OR NOT output MATCHES "invalid")

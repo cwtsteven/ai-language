@@ -9,7 +9,7 @@ in debug mode (`--debug`, also enabled by `--debug-limit`). The plan is included
 with the original request in the code-generation prompt. It is guidance, not a proof of
 correctness. The planning prompt includes the full language specification and
 requires pseudocode and typed statement sketches to obey its ANF, type, and scope
-rules, including atomic operands, call arguments, conditions, and return values.
+rules, including named calls with atomic arguments, conditions, and return values.
 Planning remains unconstrained text generation; these are prompt instructions,
 not a typechecker guarantee for the plan. `--n` limits code tokens independently; `--no-plan` or a raw
 `--prompt` skips planning. When the context fills, it re-evaluates the original

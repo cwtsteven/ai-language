@@ -35,9 +35,9 @@ private:
         TopLevel, OpenParen, CloseParen, Colon, MainType, MainOpen,
         FunctionName, FunctionParen, ParamStart, ParamName, ParamColon, ParamType,
         AfterParam, FunctionColon, FunctionType, FunctionOpen,
-        Stmt, LetName, LetColon, LetType, LetEqual, Rhs, RhsAfterAtom, RhsRight,
+        Stmt, LetName, LetColon, LetType, LetEqual, Rhs,
         CallOpen, CallArg, CallAfterArg, CallClose, LetSemi,
-        AssignOperator, LoopControlSemi,
+        AssignOpen, AssignTarget, AssignComma, AssignValue, AssignClose, LoopControlSemi,
         IfOpenParen, IfCondition, IfCloseParen, IfOpen, Else, ElseOpen,
         WhileOpenParen, WhileCondition, WhileCloseParen, WhileOpen,
         ReturnValue, ReturnSemi, Done,
@@ -62,8 +62,6 @@ private:
     Type return_type_ = Type::Int;
     std::string new_name_;
     Type new_type_ = Type::Int;
-    Type rhs_lhs_type_ = Type::Int;
-    Type rhs_right_type_ = Type::Int;
     bool assignment_ = false;
     bool after_return_ = false; // Prefer a closing brace during deterministic completion.
     std::vector<Type> call_arguments_;
@@ -81,9 +79,6 @@ private:
     const Function * find_function(std::string_view name) const;
     bool operation_possible(Type result, std::string_view partial) const;
     bool begin_operation(std::string_view name, Type result);
-    bool rhs_operator_possible(std::string_view partial) const;
-    bool rhs_atom_possible(std::string_view partial) const;
-    bool begin_rhs_operator(std::string_view token);
     bool close_block();
     bool in_loop() const;
     std::string completion_token() const;
