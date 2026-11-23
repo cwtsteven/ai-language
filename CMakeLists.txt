@@ -39,3 +39,7 @@ add_test(NAME pretty-printer-test COMMAND pretty-printer-test)
 add_executable(model-plugin-test tests/model_plugin_test.cpp)
 target_link_libraries(model-plugin-test PRIVATE model_plugin)
 add_test(NAME model-plugin-test COMMAND model-plugin-test)
+add_test(NAME cli-test COMMAND ${CMAKE_COMMAND}
+    -DCLI=$<TARGET_FILE:typed-llama>
+    -DTEST_DIR=${CMAKE_CURRENT_BINARY_DIR}/cli-test
+    -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/cli_test.cmake)

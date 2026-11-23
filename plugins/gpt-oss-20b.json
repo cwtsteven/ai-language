@@ -1,6 +1,0 @@
-{
-  "name": "GPT-OSS-20B Q4_K_M",
-  "model": "../models/gpt-oss-20b-Q4_K_M.gguf",
-  "gpu_layers": 16,
-  "ubatch": 64
-}

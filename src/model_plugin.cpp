@@ -2,6 +2,8 @@
 #include "llama.h"
 #include "nlohmann/json.hpp"
 
+#include <algorithm>
+#include <cctype>
 #include <filesystem>
 #include <fstream>
 #include <limits>
@@ -78,6 +80,21 @@ Plugin load_plugin(const std::string & path) {
     }
 }
 
+Plugin select_model(const std::string & path) {
+    if (path.empty()) throw std::runtime_error("generation requires --model FILE");
+    auto extension = std::filesystem::path(path).extension().string();
+    std::transform(extension.begin(), extension.end(), extension.begin(),
+                   [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
+    if (extension == ".json") {
+        auto plugin = load_plugin(path);
+        if (plugin.model_path.empty()) throw std::runtime_error("model plugin " + path + " needs a model path");
+        return plugin;
+    }
+    Plugin plugin;
+    plugin.model_path = path;
+    return plugin;
+}
+
 std::string format_prompt(const Plugin & plugin, const char * embedded_template,
                          std::string_view architecture, const std::string & system,
                          const std::string & user) {
@@ -87,13 +104,13 @@ std::string format_prompt(const Plugin & plugin, const char * embedded_template,
     } else {
         const char * tmpl = plugin.chat_template ? plugin.chat_template->c_str() : embedded_template;
         if (!tmpl) throw std::runtime_error(
-            "model has no chat template; supply --model-plugin with a prompt_template or use --prompt");
+            "model has no chat template; use --model FILE.json with a prompt_template or use --prompt");
         const llama_chat_message messages[] = {
             { "system", system.c_str() }, { "user", user.c_str() },
         };
         const int32_t length = llama_chat_apply_template(tmpl, messages, 2, true, nullptr, 0);
         if (length <= 0) throw std::runtime_error(
-            "unsupported chat template; supply --model-plugin with a prompt_template or use --prompt");
+            "unsupported chat template; use --model FILE.json with a prompt_template or use --prompt");
         formatted.resize(static_cast<size_t>(length));
         if (llama_chat_apply_template(tmpl, messages, 2, true, formatted.data(), length) != length)
             throw std::runtime_error("could not format the model's chat template");

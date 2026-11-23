@@ -11,9 +11,8 @@ or guarantee that they implement the requested algorithm.
 - macOS with Apple Silicon (Metal GPU or CPU), or Linux (CPU first).
   Intel Macs can use the CPU build below.
 - A C/C++ compiler supporting C++17, CMake 3.16 or newer, and Git.
-- Python 3.8+ and curl for the optional model download helper. No pip packages.
-- For the default 9B model, allow about 5.68 GB for weights plus build files.
-  Plan for at least 16 GB RAM; actual usage depends on context length.
+- For generation, supply a local GGUF model supported by the bundled llama.cpp.
+  Disk space and RAM requirements depend on your model and context length.
   Checker-only commands and tests need no model or API key.
 
 llama.cpp is built from the pinned Git submodule commit
@@ -34,10 +33,10 @@ xcode-select --install
 With [Homebrew](https://brew.sh/) installed:
 
 ```sh
-brew install cmake git python
+brew install cmake git
 ```
 
-macOS includes curl. For Metal, use Apple's compiler from the command line tools.
+For Metal, use Apple's compiler from the command line tools.
 If shader compilation reports a missing Metal toolchain, install the toolchain
 requested by Xcode, or use the CPU build below.
 
@@ -45,11 +44,11 @@ requested by Xcode, or use the CPU build below.
 
 ```sh
 sudo apt update
-sudo apt install -y build-essential cmake git python3 curl ca-certificates
+sudo apt install -y build-essential cmake git ca-certificates
 ```
 
-Other distributions need the equivalent C/C++ compiler, CMake, Git, Python, and
-curl packages. NVIDIA/CUDA support is optional and outside this initial setup.
+Other distributions need the equivalent C/C++ compiler, CMake, and Git packages.
+NVIDIA/CUDA support is optional and outside this initial setup.
 
 ## Clone and build
 
@@ -86,215 +85,140 @@ Use fewer parallel jobs if memory is limited. Run the commands below from the
 repository root. GitHub Actions builds the CLI and runs checker tests on macOS
 and Linux without downloading a model.
 
-## Check code without a model
+## Generate a program
 
 ```sh
-./build/typed-llama --check 'main(): Int64 { let x: Int64 = 2 + 3; return x; }'
-./build/typed-llama --check 'main(): Int64 { let x: Int64 = 2 +'
-./build/typed-llama --complete 'main(): Int64 { let x: Int64 = 2 +'
+./build/typed-llama --model /path/to/model.gguf --task 'Return the sum of 2 and 3.'
 ```
 
-`--check` reports prefix viability and whether the program is complete. A viable
-but unfinished prefix exits successfully; an invalid prefix exits with code 2.
-`--complete` prints the prefix plus a deterministically constructed valid suffix.
+Generation requires `--model`: supply the path to your own GGUF weights or a
+JSON model plugin. There is no default model, bundled model, or download helper.
+Keep weights wherever you choose, including on an external drive.
 
-## Pretty-print a program
-
-The formatter needs no model. It uses four-space indentation, puts statements
-on separate lines, normalizes operator spacing, and prints dereferences as
-`!cell`. It preserves literal text (including signs and leading zeroes).
-
-```sh
-./build/typed-llama --format 'main():Int64{let x:RefInt64=refInt(5);x:=!x+1;return !x;}'
-./build/typed-llama --format - < program.txt
-```
-
-Output:
+Each task prompt includes the language rules and formal grammar. Generation
+uses type constraints and prints formatted output by default. Output is buffered
+until the program is complete, then printed with four-space indentation:
 
 ```text
 main(): Int64 {
-    let x: RefInt64 = refInt(5);
-    x := !x + 1;
-    return !x;
+    let x: Int64 = 2 + 3;
+    return x;
 }
 ```
 
-To format the model's generated output:
+| Option | Meaning |
+| --- | --- |
+| `--task TEXT` | Describe the program to generate. |
+| `--model FILE` | Required for generation: GGUF weights or a JSON model plugin. |
+
+Use `--help` for basic usage and `--help-advanced` for development options.
+The model can still produce incorrect algorithms or infinite loops; type
+validity does not prove behavior or termination.
+
+## Select a model and its settings
+
+The same `--model` option accepts GGUF weights or a JSON plugin:
 
 ```sh
-./build/typed-llama --task 'Return the sum of 2 and 3.' --n 128 --format
+./build/typed-llama --model /path/to/model.gguf --task 'Return the sum of 2 and 3.'
+./build/typed-llama --model /path/to/my-plugin.json --task 'Return the sum of 2 and 3.'
 ```
 
-`--format` alongside `--task` (or `--model` with a raw prompt) buffers generation
-and prints the formatted program once it is finished. Token selection still
-uses the incremental type checker. Debug messages remain on stderr.
-
-Standalone `--format -` reads stdin; standalone `--format` without an argument
-also reads stdin. Invalid, ill-typed, or unfinished input produces an
-error on stderr and exits with code 2, without printing a formatted program.
-Formatting does not complete or repair input.
-
-## Download a model
-
-The default is [Qwen3.5-9B Q4_K_M from Unsloth](https://huggingface.co/unsloth/Qwen3.5-9B-GGUF).
-The helper downloads a pinned revision, resumes interrupted transfers, and
-verifies the file's SHA-256. It reuses an existing file if its checksum matches.
-The weights have their own model license; see the linked model card.
-
-```sh
-python3 scripts/download_model.py
-```
-
-This creates `models/Qwen3.5-9B-Q4_K_M.gguf`. Weights and build outputs are
-excluded from Git. To store the model on an external SSD instead:
-
-```sh
-# macOS example; choose an existing writable mount on your machine.
-python3 scripts/download_model.py --output-dir /Volumes/MySSD/ai-language-models
-./build/typed-llama --model /Volumes/MySSD/ai-language-models/Qwen3.5-9B-Q4_K_M.gguf --task 'Return the sum of 2 and 3.' --n 128
-```
-
-On Linux, use your SSD's mount path, such as `/mnt/ssd/ai-language-models`, and
-pass that file path to `--model`. The drive must remain mounted during inference.
-Other compatible GGUF models can also be passed with `--model`; `--task` needs
-a supported model chat template. The pinned llama.cpp revision determines
-which model architectures are supported.
-
-To try GPT-OSS-20B with the pinned Q4_K_M weights (approximately 11.62 GB):
-
-```sh
-python3 scripts/download_model.py --model gpt-oss-20b --output-dir /Volumes/MySSD/ai-language-models
-./build/typed-llama --model /Volumes/MySSD/ai-language-models/gpt-oss-20b-Q4_K_M.gguf --task 'Return the sum of 2 and 3.' --n 128 --ngl 99 --ubatch 64
-```
-
-Choose an existing writable mount for `--output-dir`, or omit it to use `models/`.
-On a 16 GB Mac, keep the context short and allow memory for macOS and other apps.
-GPT-OSS uses its Harmony final-answer channel for constrained code generation.
-
-## Model plugins
-
-Supply any local GGUF supported by the bundled llama.cpp with `--model FILE.gguf`.
-The runner reads its chat template and architecture from the file. Model-specific
-prompt adapters live in `src/model_plugin.cpp`, independently of the typed decoder.
-
-For reusable settings or a custom prompt format, supply a JSON plugin:
-
-```sh
-./build/typed-llama --model-plugin plugins/qwen3.5-9b.json --task 'Return the sum of 2 and 3.' --format
-./build/typed-llama --model-plugin plugins/gpt-oss-20b.json --task 'Return the sum of 2 and 3.' --format
-```
-
-The GPT-OSS plugin starts with 16 GPU layers and a 64-token microbatch to reduce
-GPU memory pressure. Adjust these for your hardware. On the tested 16 GB M4,
-full GPU offload failed with insufficient memory; the CPU/GPU split completed
-the sum example but took approximately two minutes, including loading and setup.
-
-Create your own plugin without recompiling:
+Models must be supported by the bundled llama.cpp. The runner reads the chat
+template and architecture from the GGUF. For reusable memory settings or a
+custom prompt format, create a plugin without recompiling:
 
 ```json
 {
   "name": "My local model",
-  "model": "../models/my-model.gguf",
+  "model": "/path/to/model.gguf",
   "gpu_layers": 16,
   "ubatch": 64
 }
 ```
 
-`model` paths are relative to the plugin file's directory. Absolute paths also
-work. `--model`, `--ngl`, and `--ubatch` override the corresponding plugin settings.
-Omit `model` to reuse an adapter with weights supplied through `--model`.
+The `model` field is required when selecting a plugin. Relative model paths
+are resolved against the plugin file's directory; absolute paths also work.
+Set `gpu_layers` to `0` for CPU inference, including CPU builds on macOS.
 
 | Optional field | Meaning |
 | --- | --- |
 | `name` | Descriptive label; defaults to the file's stem. |
-| `chat_template` | A llama.cpp built-in template name, such as `chatml`, or a template recognized by its formatter. Defaults to the GGUF's template. |
-| `prompt_template` | A complete custom prompt containing `{{system}}` and `{{task}}`. Use this when the built-in formatter does not support the model's format. |
-| `assistant_prefix` | Text or special tokens appended before generated code. An empty string disables the automatic Qwen3.5/GPT-OSS prefix. |
-| `gpu_layers` | Number of layers to offload; zero uses the CPU. Defaults to the CLI's platform default. |
-| `ubatch` | Positive physical batch size. Defaults to llama.cpp's setting. |
+| `gpu_layers` | Layers to offload to the GPU. Defaults to 99 on macOS, 0 elsewhere. |
+| `ubatch` | Positive physical batch size. Smaller batches reduce peak prompt memory; defaults to llama.cpp's setting. |
+| `chat_template` | A llama.cpp built-in template name, such as `chatml`, or a recognized template. Defaults to the GGUF's template. |
+| `prompt_template` | A complete custom prompt containing `{{system}}` and `{{task}}`. Use when the built-in formatter does not support the model's format. |
+| `assistant_prefix` | Text or special tokens before generated code. An empty string disables the automatic Qwen3.5/GPT-OSS prefix. |
 
-Choose `chat_template` or `prompt_template`. The custom template inserts the
-language rules and user request once, without evaluating placeholders inside
-either value. Custom templates receive no automatic assistant prefix; specify
-one explicitly if needed. See `plugins/custom.example.json` for a ChatML example.
-`--prompt` continues to accept a fully prepared raw prompt.
+Choose `chat_template` or `prompt_template`. Custom templates receive the
+language rules and grammar through `{{system}}` and the request through
+`{{task}}`. Values are inserted once; placeholders inside them are not evaluated.
+Custom templates receive no automatic assistant prefix. See
+`plugins/custom.example.json` for a ChatML example.
 
-Plugins are data files and do not load executable code. They currently use local
-GGUF inference. A remote provider would need the typed sampler on its server or
-an API with sufficient token selection control to preserve the same guarantee.
-A normal chat API could support generation followed by checking and retries.
+Plugins are data files for local inference. Standard remote chat APIs would
+require generation followed by checking and retries; enforcing types during
+remote generation would require token selection control on the server.
 
-## Ask the model for a program
-
-After the default model download:
-
-Qwen3.5-9B Q4_K_M is the default when no model or plugin is selected. Every
-`--task` prompt includes the language rules and formal grammar, whether type
-constraints are enabled or `--unconstrained` is used. Custom plugins receive
-the same rules and grammar through `{{system}}`.
+## Check code without a model
 
 ```sh
-./build/typed-llama --task 'Return the sum of 2 and 3.' --n 128
+./build/typed-llama --check 'main(): Int64 { let x: Int64 = 2 + 3; return x; }'
+./build/typed-llama --check 'main(): Int64 { let x: Int64 = 2 +'
 ```
 
-Example output:
+`--check` reports prefix viability and whether the program is complete. A viable
+but unfinished prefix exits successfully; an invalid prefix exits with code 2.
 
-```text
-main(): Int64 {
-  let x: Int64 = 2 + 3;
-  return x;
-}
-```
-
-For a CPU build, explicitly set `--ngl 0` (including Intel Macs):
+## Development tools
 
 ```sh
-./build/typed-llama --task 'Return the sum of 2 and 3.' --n 128 --ngl 0
+./build/typed-llama --help-advanced
 ```
 
-| Option | Meaning |
-| --- | --- |
-| `--task TEXT` | Natural-language request, sent with the language rules through the model's chat template. |
-| `--model FILE` | GGUF weights; defaults to `models/Qwen3.5-9B-Q4_K_M.gguf` when using `--task`. |
-| `--n N` | Maximum generated model tokens, default 256. Tokens are text pieces, not words. |
-| `--ngl N` | GPU layers: default 99 on macOS, 0 elsewhere. Use 0 for CPU. |
-| `--ubatch N` | Maximum tokens processed per physical batch; smaller values reduce peak prompt memory. Defaults to llama.cpp's setting. |
-| `--prefix CODE` | Seed the checker and model with an existing valid program prefix. |
-| `--debug` | Print rejected and selected candidates to stderr. Code stays on stdout. |
-| `--debug-limit N` | Maximum rejected candidates printed per step (default 20). Also enables debug. |
-| `--unconstrained` | Use ordinary greedy decoding with the same prompt, then report checker validity. |
-| `--prompt TEXT` | Raw prompt instead of `--task`; requires `--model`. |
-| `--check CODE` | Check a prefix without loading a model. |
-| `--complete CODE` | Construct a valid suffix without loading a model. |
-| `--format [CODE]` | With generation, pretty-print the finished output. Standalone, format CODE or read stdin (`-` or no argument). |
+Advanced options include the token budget (`--n`, default 256), prefix seeding,
+raw prompts, tracing, unconstrained generation, and memory overrides. Store
+GPU layers and batch size in the model plugin for routine use. Raw `--prompt`
+input bypasses automatic task prompting; supply the complete prompt yourself.
 
-The sampler ends generation after a complete program. If `--n` is exhausted,
-it constructs a typed suffix and prints a diagnostic on stderr. That suffix
-may not fulfill your request. Decoding is greedy in both comparison modes.
-
-To watch rejected tokens or compare with prompt-only generation:
+Generation normally buffers and formats the complete program. Use `--raw` to
+stream unformatted model output, including invalid output during experiments:
 
 ```sh
-./build/typed-llama --task 'Return the sum of 2 and 3.' --debug 2> trace.log
-./build/typed-llama --task 'Return the sum of 2 and 3.' --unconstrained
-./build/typed-llama --task 'Create an integer cell containing 5, increase it to 6, and return its contents.' --prefix 'main(): Int64 { '
+./build/typed-llama --model /path/to/model.gguf --task 'Return the sum of 2 and 3.' --debug 2> trace.log
+./build/typed-llama --model /path/to/model.gguf --task 'Return the sum of 2 and 3.' --unconstrained --raw
 ```
 
-For Qwen3.5, the CLI prefills a completed thinking block before code generation.
-For GPT-OSS, it prefills the Harmony final-answer header.
-The model can still produce logically incorrect programs, including incorrect
-or infinite loops; type validity does not prove behavior or termination.
+Both constrained and unconstrained `--task` prompts contain the same rules and
+grammar. Decoding is greedy in both modes. If the token budget is exhausted,
+constrained generation constructs a typed suffix and reports this on stderr;
+that suffix may not fulfill the request. Qwen3.5 uses a completed thinking
+block before code generation; GPT-OSS uses its Harmony final-answer header.
+
+The standalone formatter and prefix completion utility need no model:
+
+```sh
+./build/typed-llama --format 'main():Int64{let x:RefInt64=refInt(5);x:=!x+1;return !x;}'
+./build/typed-llama --format - < program.txt
+./build/typed-llama --complete 'main(): Int64 { let x: Int64 = 2 +'
+```
+
+Standalone `--format` with no argument also reads stdin. Invalid, ill-typed,
+or unfinished input exits with code 2 and produces no formatted program.
+Formatting preserves literal text and does not complete or repair input.
+`--complete` prints the supplied prefix plus a deterministically constructed
+valid suffix.
 
 ## Fibonacci prompt example
 
-A more explicit algorithm prompt is saved in [prompts/fibonacci-5.txt](prompts/fibonacci-5.txt).
+A more explicit algorithm prompt is saved in [examples/fibonacci-5-prompt.txt](examples/fibonacci-5-prompt.txt).
 It specifies F(0)=0, F(1)=1, the loop invariant, and the update order. In a local
 Qwen3.5-9B trial it generated the intended loop; the checker accepted it, and
 inspection shows it returns 5. This supplies the algorithm to the model, so it
 does not demonstrate that the model can discover Fibonacci's algorithm unaided.
 
 ```sh
-./build/typed-llama --task "$(cat prompts/fibonacci-5.txt)" --n 512 --format
+./build/typed-llama --model /path/to/model.gguf --task "$(cat examples/fibonacci-5-prompt.txt)" --n 512
 ./build/typed-llama --format - < examples/fibonacci-5.typed
 ```
 
@@ -307,12 +231,10 @@ was checked by inspection, not by executing the generated program.
 - **Missing llama.cpp:** run `git submodule update --init --recursive`.
 - **Cannot load the model:** download it first, check the path, and ensure any
   external SSD is mounted. Use an absolute `--model` path from another directory.
-- **Metal initialization error:** use `--ngl 0`; if necessary, reconfigure with
+- **Metal initialization error:** set `gpu_layers` to `0` in your model plugin; if necessary, reconfigure with
   `-DGGML_METAL=OFF -DGGML_BLAS=OFF` and rebuild for CPU.
 - **Memory pressure:** shorten `--n` and prompts, close other large applications,
   or supply a smaller compatible GGUF using `--model`.
-- **SHA-256 mismatch:** move or delete the file named in the error and retry the
-  helper. Do not use the file until verification succeeds.
 
 ## Language core
 

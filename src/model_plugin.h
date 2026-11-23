@@ -22,6 +22,8 @@ struct Plugin {
 // Relative model paths are resolved against the descriptor's directory.
 // Loading and formatting throw std::runtime_error with a user-facing reason.
 Plugin load_plugin(const std::string & path);
+// Accept GGUF weights or a JSON plugin. Empty selections are rejected.
+Plugin select_model(const std::string & path);
 std::string format_prompt(const Plugin & plugin, const char * embedded_template,
                          std::string_view architecture, const std::string & system,
                          const std::string & user);

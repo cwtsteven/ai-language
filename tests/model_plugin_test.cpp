@@ -28,6 +28,8 @@ static void fails(Action action, const std::string & reason) {
 
 int main() {
     using models::format_prompt;
+    fails([] { models::select_model(""); }, "requires --model");
+    CHECK(models::select_model("weights/my-model.gguf").model_path == "weights/my-model.gguf");
     models::Plugin plugin;
     const std::string chatml = "<|im_start|>system\nrules<|im_end|>\n"
                                "<|im_start|>user\nrequest<|im_end|>\n"
@@ -88,10 +90,18 @@ int main() {
     CHECK(plugin.ubatch && *plugin.ubatch == 64);
     CHECK(plugin.chat_template && *plugin.chat_template == "chatml");
     CHECK(plugin.assistant_prefix && plugin.assistant_prefix->empty());
-    // An adapter may omit weights so the user can supply --model separately.
+    const auto selected = models::select_model(path.string());
+    CHECK(selected.model_path == plugin.model_path);
+    CHECK(selected.gpu_layers == plugin.gpu_layers);
+    CHECK(selected.ubatch == plugin.ubatch);
+    const auto uppercase = directory / "uppercase.JSON";
+    std::filesystem::copy_file(path, uppercase);
+    CHECK(models::select_model(uppercase.string()).model_path == plugin.model_path);
+    // Prompt adapters can be loaded alone, but CLI selection requires weights.
     plugin = load(R"({"name":"mine","prompt_template":"{{system}}\n{{task}}"})");
     CHECK(plugin.name == "mine");
     CHECK(plugin.model_path.empty());
+    fails([&] { models::select_model(path.string()); }, "needs a model path");
     plugin = load(R"({"model":"/absolute/weights.gguf"})");
     CHECK(plugin.model_path == "/absolute/weights.gguf");
     fails([&] { load("{"); }, "model plugin");
