@@ -8,8 +8,10 @@ https://github.com/SunriseSummer/CangjieSkills branch `cangjie-1.0.5`, under
 specification: functions, bindings, conditions, loops, integers, Booleans,
 operators, and `main`.
 
-Generator comments and parent navigation links are omitted. The remaining text,
-including the Chinese prose and examples, is the upstream documentation. Those
+Generator comments and parent navigation links are omitted. One upstream page
+included a complete `main` that reassigns a `let`; that program is omitted here
+so this prompt does not contain a whole program. The remaining text, including
+the Chinese prose and shorter examples, is the upstream documentation. Those
 pages describe Cangjie 1.0.5. The local compiler used for scoring may be newer.
 
 Source pages:
@@ -114,23 +116,7 @@ func add(a: Int64, b: Int64): Int64 {
 - 全局/静态变量须初始化
 - 局部变量可延迟初始化，但使用前必须赋值
 
-## 已验证反例
-
-`let` 绑定不可重新赋值；以下完整程序应由 1.0.5 编译器拒绝。
-
-```cangjie cjtest=compile id=language-let-reassignment-invalid exit=1
-package example
-
-main(): Int64 {
-    let answer = 41
-    answer = 42
-    return answer
-}
-```
-
-```text cjtest=expect for=language-let-reassignment-invalid stream=stderr match=contains
-cannot assign to immutable value
-```
+`let` 绑定不可重新赋值。`let answer = 41` 之后再写 `answer = 42` 会被拒绝，诊断为 `cannot assign to immutable value`。`var` 绑定可以赋值。
 
 
 ## Source: `references/language/basic_concepts/3-表达式/3-2-if-条件判断.md`

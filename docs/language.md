@@ -98,19 +98,6 @@ signed 64-bit integers; this prototype checks code but does not execute it.
 | `Int64` | `add(Int64, Int64)`, `sub(Int64, Int64)`, `mul(Int64, Int64)` |
 | `Bool` | `eq(Int64, Int64)`, `lt(Int64, Int64)`, `not(Bool)`, `and(Bool, Bool)`, `or(Bool, Bool)` |
 
-Examples: [Fibonacci with break](../examples/fibonacci-5-break.typed),
+Full programs are not included here. See [Fibonacci with break](../examples/fibonacci-5-break.typed),
 [Fibonacci with a flag](../examples/fibonacci-5.typed),
-[typed functions](../examples/functions.typed).
-
-For example, this complete program returns `5`:
-
-```text
-func increment(value: Int64): Int64 {
-    let next: Int64 = add(value, 1);
-    return next;
-}
-main(): Int64 {
-    let result: Int64 = increment(4);
-    return result;
-}
-```
+and [typed functions](../examples/functions.typed).
