@@ -41,7 +41,7 @@ target_link_libraries(pretty-printer-test PRIVATE typed_prefix)
 add_test(NAME pretty-printer-test COMMAND pretty-printer-test)
 
 add_executable(model-plugin-test tests/model_plugin_test.cpp)
-target_link_libraries(model-plugin-test PRIVATE model_plugin)
+target_link_libraries(model-plugin-test PRIVATE model_plugin typed_prefix)
 add_test(NAME model-plugin-test COMMAND model-plugin-test)
 add_executable(cli-options-test tests/cli_options_test.cpp)
 target_link_libraries(cli-options-test PRIVATE cli_options)

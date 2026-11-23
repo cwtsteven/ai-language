@@ -14,7 +14,7 @@ struct Symbol {
     Type type;
 };
 
-// The accepted language is specified in README.md. Each public operation is
+// The accepted language is specified in docs/language.md. Each public operation is
 // transactional: a rejected model token never changes the checker state.
 class Prefix {
 public:

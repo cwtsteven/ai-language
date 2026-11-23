@@ -1,5 +1,6 @@
 #include "model_plugin.h"
 #include "language_prompt.h"
+#include "typed_prefix.h"
 
 #include <chrono>
 #include <cstdio>
@@ -63,8 +64,12 @@ int main() {
     // Both built-in chat formatting and a custom plugin must carry the full
     // grammar, including the restriction to atomic loop conditions.
     const auto & rules = language::system_prompt();
+    typed::Prefix loop_example;
+    CHECK(loop_example.append(language::break_example));
+    CHECK(loop_example.can_end());
     const auto assert_grammar = [&](const std::string & prompt) {
         CHECK(prompt.find(language::grammar) != std::string::npos);
+        CHECK(prompt.find(language::break_example) != std::string::npos);
         CHECK(prompt.find("\"while\" \"(\" bool_atom") != std::string::npos);
         CHECK(prompt.find("\"let\" identifier") != std::string::npos);
         CHECK(prompt.find("\"break\" \";\"") != std::string::npos);

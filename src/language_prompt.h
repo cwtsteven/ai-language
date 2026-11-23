@@ -5,6 +5,10 @@
 
 namespace language {
 
+inline constexpr std::string_view break_example =
+    "main ( ) : Int64 { let i : RefInt64 = refInt ( 0 ) ; while ( true ) { "
+    "let done : Bool = ! i == 3 ; if ( done ) { break ; } else { i := ! i + 1 ; } } return ! i ; }";
+
 inline constexpr std::string_view grammar = R"GRAMMAR(
 
 Formal grammar (EBNF; quoted text is literal, * means zero or more):
@@ -60,7 +64,8 @@ inline const std::string & system_prompt() {
         "then exit the loop if done or update the counter. Return only after the loop, not inside it. "
         "Arithmetic example: main ( ) : Int64 { let x : Int64 = 2 + 3 ; return x ; } "
         "Mutable cell example: main ( ) : Int64 { let x : RefInt64 = refInt ( 5 ) ; "
-        "x := ! x + 1 ; return ! x ; }" + std::string(grammar);
+        "x := ! x + 1 ; return ! x ; } "
+        "Loop example (returns 3): " + std::string(break_example) + std::string(grammar);
     return prompt;
 }
 
