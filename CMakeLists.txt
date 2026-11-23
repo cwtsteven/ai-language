@@ -20,8 +20,13 @@ target_compile_features(typed_prefix PUBLIC cxx_std_17)
 add_executable(typed-prefix-test tests/typed_prefix_test.cpp)
 target_link_libraries(typed-prefix-test PRIVATE typed_prefix)
 
+add_library(model_plugin src/model_plugin.cpp)
+target_include_directories(model_plugin PUBLIC src PRIVATE llama.cpp/vendor)
+target_link_libraries(model_plugin PUBLIC llama)
+target_compile_features(model_plugin PUBLIC cxx_std_17)
+
 add_executable(typed-llama src/main.cpp src/typed_sampler.cpp)
-target_link_libraries(typed-llama PRIVATE typed_prefix llama)
+target_link_libraries(typed-llama PRIVATE typed_prefix model_plugin)
 target_compile_features(typed-llama PRIVATE cxx_std_17)
 
 enable_testing()
@@ -30,3 +35,7 @@ add_test(NAME typed-prefix-test COMMAND typed-prefix-test)
 add_executable(pretty-printer-test tests/pretty_printer_test.cpp)
 target_link_libraries(pretty-printer-test PRIVATE typed_prefix)
 add_test(NAME pretty-printer-test COMMAND pretty-printer-test)
+
+add_executable(model-plugin-test tests/model_plugin_test.cpp)
+target_link_libraries(model-plugin-test PRIVATE model_plugin)
+add_test(NAME model-plugin-test COMMAND model-plugin-test)

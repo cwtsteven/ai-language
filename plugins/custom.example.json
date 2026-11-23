@@ -1,0 +1,6 @@
+{
+  "name": "My local model",
+  "model": "../models/my-model.gguf",
+  "prompt_template": "<|im_start|>system\n{{system}}<|im_end|>\n<|im_start|>user\n{{task}}<|im_end|>\n<|im_start|>assistant\n",
+  "assistant_prefix": ""
+}

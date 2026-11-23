@@ -160,9 +160,78 @@ Other compatible GGUF models can also be passed with `--model`; `--task` needs
 a supported model chat template. The pinned llama.cpp revision determines
 which model architectures are supported.
 
+To try GPT-OSS-20B with the pinned Q4_K_M weights (approximately 11.62 GB):
+
+```sh
+python3 scripts/download_model.py --model gpt-oss-20b --output-dir /Volumes/MySSD/ai-language-models
+./build/typed-llama --model /Volumes/MySSD/ai-language-models/gpt-oss-20b-Q4_K_M.gguf --task 'Return the sum of 2 and 3.' --n 128 --ngl 99 --ubatch 64
+```
+
+Choose an existing writable mount for `--output-dir`, or omit it to use `models/`.
+On a 16 GB Mac, keep the context short and allow memory for macOS and other apps.
+GPT-OSS uses its Harmony final-answer channel for constrained code generation.
+
+## Model plugins
+
+Supply any local GGUF supported by the bundled llama.cpp with `--model FILE.gguf`.
+The runner reads its chat template and architecture from the file. Model-specific
+prompt adapters live in `src/model_plugin.cpp`, independently of the typed decoder.
+
+For reusable settings or a custom prompt format, supply a JSON plugin:
+
+```sh
+./build/typed-llama --model-plugin plugins/qwen3.5-9b.json --task 'Return the sum of 2 and 3.' --format
+./build/typed-llama --model-plugin plugins/gpt-oss-20b.json --task 'Return the sum of 2 and 3.' --format
+```
+
+The GPT-OSS plugin starts with 16 GPU layers and a 64-token microbatch to reduce
+GPU memory pressure. Adjust these for your hardware. On the tested 16 GB M4,
+full GPU offload failed with insufficient memory; the CPU/GPU split completed
+the sum example but took approximately two minutes, including loading and setup.
+
+Create your own plugin without recompiling:
+
+```json
+{
+  "name": "My local model",
+  "model": "../models/my-model.gguf",
+  "gpu_layers": 16,
+  "ubatch": 64
+}
+```
+
+`model` paths are relative to the plugin file's directory. Absolute paths also
+work. `--model`, `--ngl`, and `--ubatch` override the corresponding plugin settings.
+Omit `model` to reuse an adapter with weights supplied through `--model`.
+
+| Optional field | Meaning |
+| --- | --- |
+| `name` | Descriptive label; defaults to the file's stem. |
+| `chat_template` | A llama.cpp built-in template name, such as `chatml`, or a template recognized by its formatter. Defaults to the GGUF's template. |
+| `prompt_template` | A complete custom prompt containing `{{system}}` and `{{task}}`. Use this when the built-in formatter does not support the model's format. |
+| `assistant_prefix` | Text or special tokens appended before generated code. An empty string disables the automatic Qwen3.5/GPT-OSS prefix. |
+| `gpu_layers` | Number of layers to offload; zero uses the CPU. Defaults to the CLI's platform default. |
+| `ubatch` | Positive physical batch size. Defaults to llama.cpp's setting. |
+
+Choose `chat_template` or `prompt_template`. The custom template inserts the
+language rules and user request once, without evaluating placeholders inside
+either value. Custom templates receive no automatic assistant prefix; specify
+one explicitly if needed. See `plugins/custom.example.json` for a ChatML example.
+`--prompt` continues to accept a fully prepared raw prompt.
+
+Plugins are data files and do not load executable code. They currently use local
+GGUF inference. A remote provider would need the typed sampler on its server or
+an API with sufficient token selection control to preserve the same guarantee.
+A normal chat API could support generation followed by checking and retries.
+
 ## Ask the model for a program
 
 After the default model download:
+
+Qwen3.5-9B Q4_K_M is the default when no model or plugin is selected. Every
+`--task` prompt includes the language rules and formal grammar, whether type
+constraints are enabled or `--unconstrained` is used. Custom plugins receive
+the same rules and grammar through `{{system}}`.
 
 ```sh
 ./build/typed-llama --task 'Return the sum of 2 and 3.' --n 128
@@ -189,6 +258,7 @@ For a CPU build, explicitly set `--ngl 0` (including Intel Macs):
 | `--model FILE` | GGUF weights; defaults to `models/Qwen3.5-9B-Q4_K_M.gguf` when using `--task`. |
 | `--n N` | Maximum generated model tokens, default 256. Tokens are text pieces, not words. |
 | `--ngl N` | GPU layers: default 99 on macOS, 0 elsewhere. Use 0 for CPU. |
+| `--ubatch N` | Maximum tokens processed per physical batch; smaller values reduce peak prompt memory. Defaults to llama.cpp's setting. |
 | `--prefix CODE` | Seed the checker and model with an existing valid program prefix. |
 | `--debug` | Print rejected and selected candidates to stderr. Code stays on stdout. |
 | `--debug-limit N` | Maximum rejected candidates printed per step (default 20). Also enables debug. |
@@ -211,6 +281,7 @@ To watch rejected tokens or compare with prompt-only generation:
 ```
 
 For Qwen3.5, the CLI prefills a completed thinking block before code generation.
+For GPT-OSS, it prefills the Harmony final-answer header.
 The model can still produce logically incorrect programs, including incorrect
 or infinite loops; type validity does not prove behavior or termination.
 

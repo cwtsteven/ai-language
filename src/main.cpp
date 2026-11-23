@@ -1,11 +1,14 @@
 #include "typed_prefix.h"
 #include "pretty_printer.h"
 #include "typed_sampler.h"
+#include "model_plugin.h"
+#include "language_prompt.h"
 #include "llama.h"
 
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <exception>
 #include <string>
 #include <vector>
 
@@ -20,59 +23,16 @@ void usage(const char * executable) {
         "usage: %s --check TEXT\n"
         "       %s --complete TEXT\n"
         "       %s --format TEXT|-\n"
+        "       %s --model-plugin FILE.json --task REQUEST [--model MODEL.gguf] [--format]\n"
         "       %s --task REQUEST [--model MODEL.gguf] [--n 256] [--prefix CODE] [--debug] [--unconstrained] [--format]\n"
-        "       %s --model MODEL.gguf [--prefix CODE] [--prompt TEXT] [--n 256] [--ngl N] [--format]\n",
-        executable, executable, executable, executable, executable);
+        "       %s --model MODEL.gguf [--prefix CODE] [--prompt TEXT] [--n 256] [--ngl N] [--ubatch N] [--format]\n",
+        executable, executable, executable, executable, executable, executable);
 }
 
-std::string task_prompt(const llama_model * model, const std::string & task) {
-    const char * tmpl = llama_model_chat_template(model, nullptr);
-    if (!tmpl) return {};
-
-    const std::string system =
-        "Write exactly one program in the following small Cangjie-inspired typed language. Output code only: no Markdown or explanation. "
-        "Put whitespace between every token, including punctuation. "
-        "Start with: main ( ) : Int64 { . End with: return INT_ATOM ; } . "
-        "The body may use let name : Type = rhs ;, cell := rhs ;, "
-        "if ( bool_atom ) { statements } else { statements }, or "
-        "while ( bool_atom ) { statements }. "
-        "Types are Int64, Bool, RefInt64, RefBool. Atoms are integer literals, true, false, in-scope variables, or !cell to dereference a cell. Whitespace after ! is allowed. Keep := together. "
-        "Right-hand sides may be atoms, one binary expression of atomic operands, or these calls with atomic arguments. "
-        "Binary operators: Int64 + Int64, Int64 - Int64, Int64 * Int64 produce Int64; "
-        "Int64 < Int64 and Int64 == Int64 produce Bool; Bool && Bool, Bool || Bool, and Bool == Bool produce Bool. "
-        "add(Int64,Int64):Int64, sub(Int64,Int64):Int64, mul(Int64,Int64):Int64, "
-        "eq(Int64,Int64):Bool, lt(Int64,Int64):Bool, not(Bool):Bool, and(Bool,Bool):Bool, or(Bool,Bool):Bool, "
-        "refInt(Int64):RefInt64, refBool(Bool):RefBool. "
-        "Every computed intermediate value must be bound by let or assigned to a cell. Do not nest operations. "
-        "All let bindings are immutable. For mutation, allocate a RefInt64 or RefBool cell. "
-        "Read it with !cell and update its contents with cell := value. Never use var, write(), readInt(), or readBool(). "
-        "A while (!flag) loop rereads a RefBool cell on each iteration. "
-        "Initialize its flag with refBool(true) to enter the loop; use flag := false to stop it. "
-        "For a counter loop, compare the current counter with the limit inside the loop, "
-        "then stop or update the counter. Return only after the loop, not inside it. "
-        "Arithmetic example: main ( ) : Int64 { let x : Int64 = 2 + 3 ; return x ; } "
-        "Mutable cell example: main ( ) : Int64 { let x : RefInt64 = refInt ( 5 ) ; "
-        "x := ! x + 1 ; return ! x ; }";
+std::string task_prompt(const llama_model * model, const models::Plugin & plugin, const std::string & task) {
+    const std::string & system = language::system_prompt();
     const std::string user = "Produce a program for this request: " + task;
-    const llama_chat_message messages[] = {
-        { "system", system.c_str() },
-        { "user", user.c_str() },
-    };
-    const int32_t length = llama_chat_apply_template(tmpl, messages, 2, true, nullptr, 0);
-    if (length <= 0) return {};
-    std::string formatted(static_cast<size_t>(length), '\0');
-    const int32_t written = llama_chat_apply_template(tmpl, messages, 2, true,
-        formatted.data(), static_cast<int32_t>(formatted.size()));
-    if (written != length) return {};
-    char architecture[64] = {};
-    if (llama_model_meta_val_str(model, "general.architecture", architecture, sizeof(architecture)) > 0 &&
-        std::strcmp(architecture, "qwen35") == 0) {
-        // The Qwen3.5 chat template enters thinking mode by default. Start the
-        // final answer explicitly so the code sampler does not have to reject
-        // the model's preferred <think> token as its first candidate.
-        formatted += "<think>\n\n</think>\n\n";
-    }
-    return formatted;
+    return models::task_prompt(model, plugin, system, user);
 }
 
 std::string token_piece(const llama_vocab * vocab, llama_token token) {
@@ -101,16 +61,20 @@ void batch_set(llama_batch_ext * batch, const llama_token * tokens, int count, l
 
 int main(int argc, char ** argv) {
     std::string model_path;
+    std::string plugin_path;
+    models::Plugin model_plugin;
     std::string check;
     std::string prefix;
     std::string task;
     std::string prompt = "Write only code in the typed Cangjie-inspired language. Start with main ( ) : Int64 { . ";
     int n_predict = 256;
+    int n_ubatch = 0;
 #ifdef __APPLE__
     int n_gpu_layers = 99;
 #else
     int n_gpu_layers = 0;
 #endif
+    bool gpu_layers_set = false;
     bool checking = false;
     bool completing = false;
     bool formatting = false;
@@ -141,24 +105,29 @@ int main(int argc, char ** argv) {
         const std::string value = argv[++i];
         try {
             if (arg == "--model") model_path = value;
+            else if (arg == "--model-plugin") plugin_path = value;
             else if (arg == "--check") { check = value; checking = true; }
             else if (arg == "--complete") { check = value; completing = true; }
             else if (arg == "--task") task = value;
             else if (arg == "--prefix") prefix = value;
             else if (arg == "--prompt") prompt = value;
             else if (arg == "--n") n_predict = std::stoi(value);
-            else if (arg == "--ngl") n_gpu_layers = std::stoi(value);
+            else if (arg == "--ubatch") {
+                n_ubatch = std::stoi(value);
+                if (n_ubatch < 1) { usage(argv[0]); return 1; }
+            }
+            else if (arg == "--ngl") { n_gpu_layers = std::stoi(value); gpu_layers_set = true; }
             else if (arg == "--debug-limit") { debug_limit = std::stoul(value); debug = true; }
             else { usage(argv[0]); return 1; }
         } catch (...) { usage(argv[0]); return 1; }
     }
 
     if (formatting && (checking || completing ||
-        (format_text && (!task.empty() || !model_path.empty())))) {
+        (format_text && (!task.empty() || !model_path.empty() || !plugin_path.empty())))) {
         usage(argv[0]);
         return 1;
     }
-    if (formatting && (format_text || (task.empty() && model_path.empty()))) {
+    if (formatting && (format_text || (task.empty() && model_path.empty() && plugin_path.empty()))) {
         if (!format_text) check = "-";
         if (check == "-") {
             check.clear();
@@ -192,6 +161,21 @@ int main(int argc, char ** argv) {
         std::printf("%s; complete=%s\n", viable ? "viable" : "invalid", viable && checker.can_end() ? "yes" : "no");
         return viable ? 0 : 2;
     }
+    if (!plugin_path.empty()) {
+        try {
+            model_plugin = models::load_plugin(plugin_path);
+        } catch (const std::exception & error) {
+            std::fprintf(stderr, "%s\n", error.what());
+            return 1;
+        }
+        if (model_path.empty()) model_path = model_plugin.model_path;
+        if (!gpu_layers_set && model_plugin.gpu_layers) n_gpu_layers = *model_plugin.gpu_layers;
+        if (!n_ubatch && model_plugin.ubatch) n_ubatch = *model_plugin.ubatch;
+        if (model_path.empty()) {
+            std::fputs("model plugin needs a model path or --model MODEL.gguf\n", stderr);
+            return 1;
+        }
+    }
     if (model_path.empty() && !task.empty()) {
         model_path = "models/Qwen3.5-9B-Q4_K_M.gguf";
     }
@@ -214,9 +198,10 @@ int main(int argc, char ** argv) {
 
     std::string full_prompt;
     if (!task.empty()) {
-        full_prompt = task_prompt(model, task);
-        if (full_prompt.empty()) {
-            std::fputs("model has no supported chat template; use --prompt instead\n", stderr);
+        try {
+            full_prompt = task_prompt(model, model_plugin, task);
+        } catch (const std::exception & error) {
+            std::fprintf(stderr, "%s\n", error.what());
             llama_model_free(model);
             llama_backend_free();
             return 1;
@@ -236,6 +221,7 @@ int main(int argc, char ** argv) {
     llama_context_params context_params = llama_context_default_params();
     context_params.n_ctx = token_count + n_predict + 8;
     context_params.n_batch = token_count;
+    if (n_ubatch > 0) context_params.n_ubatch = n_ubatch;
     llama_context * context = llama_init_from_model(model, context_params);
     if (!context) { std::fputs("failed to create context\n", stderr); return 1; }
     llama_batch_ext * batch = llama_batch_ext_init(context);
