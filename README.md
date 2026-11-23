@@ -73,10 +73,13 @@ is set. If `--n` runs out, generation stops on the sampled prefix.
 `--force-postfix` appends a typed postfix that closes the program and reports
 that on stderr. The postfix is constructed, so it may not fulfill the task.
 
-To compare code generation with the same plan, save it once with
-`task TEXT --model FILE --plan-only > plan.txt`, then use
-`task TEXT --model FILE --plan-file plan.txt` in each mode. The benchmark runner
-does this automatically.
+To reuse one typed plan, save it with
+`task TEXT --model FILE --plan-only > plan.txt`, then pass
+`task TEXT --model FILE --plan-file plan.txt` to each typed generation.
+The [benchmark](benchmarks/README.md) does not share that plan. It runs two arms
+with the same task, seed, temperature, and token budget: `typed-llama` plans and
+generates in this language, and `plain-llama` plans and generates Cangjie from
+[its own excerpt](docs/cangjie-subset.md).
 
 ## Fibonacci example
 
@@ -105,8 +108,9 @@ declarations go before `main`; see the [function example](examples/functions.typ
 Computations use calls such as `add(x, 1)` and `eq(x, 5)`, with atomic arguments;
 infix expressions are not supported.
 
-- [Single language specification](docs/language.md) (also embedded in model prompts at build time)
+- [Typed language specification](docs/language.md) (embedded in `typed-llama` prompts at build time)
+- [Cangjie prompt excerpt](docs/cangjie-subset.md) (appended by the benchmark's Cangjie arm)
 - [Model plugin settings](docs/model-plugins.md)
-- [Cangjie generation](docs/cangjie.md)
+- [Cangjie translation](docs/cangjie.md) (`cj` turns a checked typed program into Cangjie)
 - [Checker and decoder internals](docs/decoder.md)
-- [Constrained vs unconstrained benchmarks](benchmarks/README.md) (compilation and functional correctness through Cangjie)
+- [Typed pipeline vs direct Cangjie](benchmarks/README.md)

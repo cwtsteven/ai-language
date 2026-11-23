@@ -1,7 +1,9 @@
-# Language specification
+# Typed language specification
 
-This is the single language specification. The build embeds this file verbatim
-in the generation and planning prompts; the C++ prefix checker implements it.
+This is the specification of the typed ANF language. The build embeds this file
+verbatim in `typed-llama` planning and code prompts, and the C++ prefix checker
+implements it. The benchmark's direct Cangjie arm does not use this file; it
+appends [docs/cangjie-subset.md](cangjie-subset.md) instead.
 
 The syntax follows Cangjie's `main(): Int64 { ... }`, typed `let`
 declarations and braced control flow, with reference cells and explicit `assign` statements. This is a small

@@ -1,18 +1,19 @@
 # Checker and decoder
 
-`task` starts with an unconstrained planning pass using the supplied
-model, continuing until the model emits an end token with no output token cap.
+`task` starts with a planning pass that does not use the code checker. It uses the supplied
+model and continues until the model emits an end token, with no output token cap.
 It requests an implementation plan: expected
 behavior, typed helper signatures, function-body steps, mutations, loop exits,
 and recursion base cases. Planning messages and the plan text go to stderr only
 in debug mode (`--debug`, also enabled by `--debug-limit`). The plan is included
 with the original request in the code-generation prompt. It is guidance, not a proof of
-correctness. The planning prompt includes the full language specification and
+correctness. The planning prompt includes the full typed language specification and
 requires pseudocode and typed statement sketches to obey its ANF, type, and scope
 rules, including named calls with atomic arguments, conditions, and return values.
-Planning remains unconstrained text generation; these are prompt instructions,
-not a typechecker guarantee for the plan. `--n` limits code tokens independently; `--skip-plan`
-skips planning. When the context fills, it re-evaluates the original
+Those rules are prompt instructions, not a typechecker guarantee for the plan.
+Code generation streams each sampled token. `--format` instead buffers the
+program and pretty-prints it when it is complete and well-typed. `--n` limits
+code tokens independently. `--skip-plan` skips planning. When the context fills, it re-evaluates the original
 planning request plus recent output while retaining the entire plan text for
 code generation. Empty plans or planner failures stop generation. The planning context is freed before creating a fresh
 code-generation context, while model weights remain loaded.
@@ -34,8 +35,9 @@ records one located diagnostic (line, column, message) for `check`, `complete`,
 An end token is accepted only when the whole program has closed. The checker
 can also construct a postfix from every viable prefix. `--force-postfix` appends
 that constructed ending when the token budget leaves the program open. The
-default leaves the sampled prefix as it is, and the benchmark runner does not
-pass the flag.
+default leaves the sampled prefix as it is. The benchmark's typed arm does not
+pass `--force-postfix` or `--format`. Its Cangjie arm is `plain-llama`, which
+has neither flag.
 
 Both passes use temperature sampling (`--temperature`, default `0.8`). Code
 sampling conditions the temperature-scaled model distribution on type-valid

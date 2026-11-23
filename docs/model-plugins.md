@@ -33,8 +33,10 @@ Set `gpu_layers` to `0` for CPU inference, including CPU builds on macOS.
 | `prompt_template` | A complete custom prompt containing `{{system}}` and `{{task}}`. Use when the built-in formatter does not support the model's format. |
 | `assistant_prefix` | Text or special tokens before generated code. An empty string disables the automatic Qwen3.5/GPT-OSS prefix. |
 
-Choose `chat_template` or `prompt_template`. Custom templates receive the
-language specification through `{{system}}` and the request through
-`{{task}}`. Values are inserted once; placeholders inside them are not evaluated.
+Choose `chat_template` or `prompt_template`. `typed-llama` puts the typed
+language specification in `{{system}}` and the request in `{{task}}`.
+`plain-llama` uses the same fields for the system and user files it is given;
+the benchmark's Cangjie arm supplies the Cangjie excerpt as that system text.
+Values are inserted once; placeholders inside them are not evaluated.
 Custom templates receive no automatic assistant prefix. See
 [plugins/custom.example.json](../plugins/custom.example.json) for a ChatML example.

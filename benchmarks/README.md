@@ -70,13 +70,16 @@ Strings, lists, floats, and tuples cannot be expressed by the current grammar.
 The selected tasks use bounded Int64 input domains stated in their prompts, with
 all expected results fitting Int64. Inputs with zero, negative values, repeated
 factors, sequence boundaries, and large results are included where applicable.
-The entry point is renamed to `solve`, since names such as `add` are reserved.
-Helpers are allowed before `solve`; a dummy `main` completes the source program.
+Both arms are asked for `solve`. The typed language reserves names such as `add`,
+and the checked-in tests call `typed_fn_solve`. The Cangjie harness rewrites
+that call to `solve`. Helpers may precede `solve`, and a dummy `main` completes
+the program.
 
-The model receives the function signature and problem description, along with
-the normal language specification. Test inputs, answers, and reference solutions
-are not included in its prompt. Reference programs are positive controls for the
-suite and backend; they are never supplied to the model.
+Both arms receive the same function signature and problem description. The typed
+arm then receives [docs/language.md](../docs/language.md), and the Cangjie arm
+receives [docs/cangjie-subset.md](../docs/cangjie-subset.md). Test inputs,
+answers, and reference solutions are not included. Reference programs are
+positive controls for the typed evaluator; they are never supplied to the model.
 
 ## Experimental controls
 
@@ -89,14 +92,16 @@ suite and backend; they are never supplied to the model.
   `docs/cangjie-subset.md`, a verbatim excerpt from CangjieSkills covering functions, bindings,
   conditions, loops, integers, Booleans, operators, and `main`.
 - Planning is enabled by default and is separate for each arm. Both planners see the same task,
-  seed, and temperature, and each sees only its own specification. `--no-plan` skips planning
-  for both arms. A failed plan fails that arm only.
+  seed, and temperature, and each sees only its own specification.
+  `benchmarks/run.py --no-plan` skips planning for both arms. That passes
+  `--skip-plan` to `typed-llama` and runs `plain-llama` with no plan. A failed
+  plan fails that arm only.
 - Mode order alternates between pairs. Generations run sequentially to avoid
   loading multiple model instances simultaneously.
 - Defaults: one sample per task/mode, 2048 code tokens, temperature 0.8, seed 42,
   physical batch size 64. `--ngl 0` selects CPU inference.
 - Fibonacci and FibFib require at least **2048 code tokens**, even if a lower
-  `--n` is requested. Each pair gets the same effective budget, recorded in
+  `--n` is requested. Both arms use that same budget, recorded in
   `code_tokens_by_task` and the per-attempt results.
 - Planning, code generation, compilation, and execution have separate wall-clock
   limits (`600`, `300`, `20`, and `5` seconds by default). The execution limit is
@@ -112,22 +117,21 @@ outputs across different hardware or numerical backends.
 
 ## Measurements
 
-| Measurement | Numerator / denominator |
-| --- | --- |
-| Translation rate | Complete, well-typed sources accepted by `cj` / all attempts |
-| **Compilation success rate** | Successful translation and standalone `cjc` compilation / all attempts |
-| **Functional correctness rate** | Candidates passing every test input / all attempts |
-| Correct given compiled | Candidates passing every test / successfully compiled candidates |
-| Native compile given translated | Successful standalone `cjc` compilation / successful translations |
+| Measurement | Typed arm | Cangjie arm |
+| --- | --- | --- |
+| Translation rate | Programs accepted by `cj` / all attempts | Not applicable; the source is already Cangjie |
+| **Compilation success rate** | `cj` accepts the program and standalone `cjc` succeeds / all attempts | Standalone `cjc` succeeds / all attempts |
+| **Functional correctness rate** | Every test passes / all attempts | Every test passes / all attempts |
+| Correct given compiled | Every test passes / compiled candidates | Every test passes / compiled candidates |
 
-The primary compilation metric measures the whole language-to-executable
-pipeline. A front-end rejection counts as a compilation failure, even though
-`cjc` is not invoked. Separate translation and native compilation counts make
-that distinction visible. No failures disappear from the primary denominators.
+A typed program that `cj` rejects counts as a compilation failure, and `cjc` is
+not invoked. The Cangjie arm has no translation step, so its translation cell
+in the report is `n/a`. No failures disappear from the primary denominators.
 
-Functional evaluation compiles the translated candidate together with the
-checked-in `*_test.cj` file under `cjc --test`. Each input is its own `@Test`
-calling `typed_fn_solve`, so a throw or wrong answer does not stop later cases.
+Functional evaluation compiles the candidate with the checked-in `*_test.cj`
+file under `cjc --test`. Each input is its own `@Test`. The typed arm calls
+`typed_fn_solve`. The Cangjie arm calls `solve`. A throw or wrong answer does
+not stop later cases.
 The generated dummy `main` is renamed to `benchmarkOriginalMain` and not
 executed; `test_entry` is the process entry. A missing entry point or wrong
 signature fails harness compilation; the candidate's standalone compilation
@@ -173,8 +177,8 @@ active child process group. Engine failures such as GPU out-of-memory errors
 invalidate the comparison and stop the run; they are not reported as bad model
 code or ordinary compilation failures.
 Execution has CPU, file-size, and core-dump limits in addition to process-group
-timeouts. The existing typed-language gate is applied before any generated
-Cangjie is compiled.
+timeouts. The typed arm passes through `cj` before `cjc`. The Cangjie arm is
+compiled as generated.
 
 `ctest` includes model-free harness tests when Python is available. With `cjc`,
 these also run all reference cases and check rejection, wrong answers, missing

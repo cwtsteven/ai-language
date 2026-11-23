@@ -1,7 +1,14 @@
-# Cangjie generation
+# Cangjie translation
 
-`cj` translates a complete program in [our grammar](language.md) to standalone
-Cangjie source. It needs no model or Cangjie SDK to generate the source.
+`cj` translates a complete, well-typed program in the [typed language](language.md)
+to standalone Cangjie source. Emitting that source needs no model and no Cangjie SDK.
+This is not the benchmark's
+direct Cangjie arm: that arm samples Cangjie with `plain-llama` and the
+[Cangjie excerpt](cangjie-subset.md). `cj` only translates a program the checker
+has already accepted.
+
+`task` writes the sampled token stream unless `--format` is set. `cj` accepts
+that stream when the program is complete and well-typed.
 
 ```sh
 ./build/typed-llama cj - < examples/fibonacci-5-break.typed > fibonacci.cj

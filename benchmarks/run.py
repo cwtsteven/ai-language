@@ -558,7 +558,7 @@ def main(argv=None):
                         help="plan in each arm's own language; --no-plan skips planning for both")
     parser.add_argument("--ngl", type=int, help="GPU layer override for both modes")
     parser.add_argument("--ubatch", type=positive, default=64, help="physical prompt batch size for both modes")
-    parser.add_argument("--planning-timeout", type=float, default=600, help="wall seconds for the shared planning stage")
+    parser.add_argument("--planning-timeout", type=float, default=600, help="wall seconds for each arm's planning stage")
     parser.add_argument("--generation-timeout", type=float, default=300, help="wall seconds per code generation attempt")
     parser.add_argument("--compile-timeout", type=float, default=20, help="wall seconds per translation/compilation")
     parser.add_argument("--run-timeout", type=float, default=5,

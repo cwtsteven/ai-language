@@ -1,9 +1,16 @@
 # Cangjie specification excerpt
-This file is the Cangjie counterpart of `docs/language.md` in the generation and planning prompts.
-It is copied from CangjieSkills, https://github.com/SunriseSummer/CangjieSkills branch `cangjie-1.0.5`, under `references/language`.
-The pages cover the same kind of fragment as the typed specification: functions, bindings, conditions, loops, integers, Booleans, operators, and `main`.
-Generator comments and parent navigation links are omitted. The remaining text, including the Chinese prose and examples, is the upstream documentation.
-Those pages describe Cangjie 1.0.5. The local compiler used for scoring may be newer.
+
+This file is the Cangjie counterpart of [docs/language.md](language.md).
+`plain-llama` appends it to the benchmark's Cangjie planning and code prompts.
+`typed-llama` does not. The pages are copied from CangjieSkills,
+https://github.com/SunriseSummer/CangjieSkills branch `cangjie-1.0.5`, under
+`references/language`. They cover the same kind of fragment as the typed
+specification: functions, bindings, conditions, loops, integers, Booleans,
+operators, and `main`.
+
+Generator comments and parent navigation links are omitted. The remaining text,
+including the Chinese prose and examples, is the upstream documentation. Those
+pages describe Cangjie 1.0.5. The local compiler used for scoring may be newer.
 
 Source pages:
 - `references/language/function/1-函数定义/1-1-基本语法.md`
