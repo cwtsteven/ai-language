@@ -90,7 +90,7 @@ positive controls for the typed evaluator; they are never supplied to the model.
   extract code, reformat output, repair errors, or append a deterministic suffix.
 - The request text is the same problem statement. Each arm then adds its own output instructions.
   The typed system message appends `docs/language.md`. The Cangjie system message appends
-  `docs/cangjie-subset.md`, a verbatim excerpt from CangjieSkills covering functions, bindings,
+  `docs/cangjie-subset.md`, an English translation of a CangjieSkills excerpt covering functions, bindings,
   conditions, loops, integers, Booleans, operators, and `main`.
 - Planning is enabled by default and is separate for each arm. Both planners see the same task,
   seed, and temperature, and each sees only its own specification.
