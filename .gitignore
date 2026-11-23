@@ -1,0 +1,12 @@
+/build/
+/build-*/
+/models/
+/.cache/
+/.cursorrules
+.DS_Store
+__pycache__/
+*.pyc
+*.gguf
+*.log
+.env
+.env.*
