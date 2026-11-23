@@ -10,7 +10,7 @@ namespace typed {
 namespace {
 
 struct Atom {
-    enum class Kind { Literal, Name, Dereference } kind;
+    enum class Kind { Literal, Name } kind;
     std::string text;
 };
 
@@ -21,7 +21,7 @@ struct Expression {
 };
 
 struct Statement {
-    enum class Kind { Let, Assign, If, While, Return, Break, Continue } kind;
+    enum class Kind { Let, Var, Assign, If, While, Return, Break, Continue } kind;
     std::string name;
     Type type = Type::Int;
     Expression value;
@@ -36,8 +36,8 @@ struct Function {
     std::vector<Statement> body;
 };
 
-// Parsing is deliberately separate from emission: ! reads a cell, it is not
-// Cangjie's Boolean negation, and aliases must retain object identity.
+// Parsing is separate from emission. A name reads its current value; assignment
+// updates a var and does not alias an earlier let binding.
 class Parser {
 public:
     explicit Parser(std::string_view source) {
@@ -79,15 +79,9 @@ private:
         const auto name = take();
         if (name == "Int64") return Type::Int;
         if (name == "Bool") return Type::Bool;
-        if (name == "RefInt64") return Type::RefInt;
-        if (name == "RefBool") return Type::RefBool;
         throw std::logic_error("unknown type in checked source");
     }
     Atom atom() {
-        if (peek("!")) {
-            take();
-            return {Atom::Kind::Dereference, take()};
-        }
         auto text = take();
         if (text == "true" || text == "false") return {Atom::Kind::Literal, std::move(text)};
         if (text.front() == '-' || std::isdigit(static_cast<unsigned char>(text.front()))) {
@@ -123,20 +117,13 @@ private:
     Statement statement() {
         const auto keyword = take();
         Statement result;
-        if (keyword == "let") {
-            result.kind = Statement::Kind::Let;
+        if (keyword == "let" || keyword == "var") {
+            result.kind = keyword == "var" ? Statement::Kind::Var : Statement::Kind::Let;
             result.name = take();
             expect(":");
             result.type = type();
             expect("=");
             result.value = expression();
-        } else if (keyword == "assign") {
-            result.kind = Statement::Kind::Assign;
-            expect("(");
-            result.name = take();
-            expect(",");
-            result.value.atom = atom();
-            expect(")");
         } else if (keyword == "if" || keyword == "while") {
             result.kind = keyword == "if" ? Statement::Kind::If : Statement::Kind::While;
             expect("(");
@@ -151,9 +138,14 @@ private:
         } else if (keyword == "return") {
             result.kind = Statement::Kind::Return;
             result.value.atom = atom();
-        } else if (keyword == "break") result.kind = Statement::Kind::Break;
+        }         else if (keyword == "break") result.kind = Statement::Kind::Break;
         else if (keyword == "continue") result.kind = Statement::Kind::Continue;
-        else throw std::logic_error("unknown statement in checked source");
+        else {
+            result.kind = Statement::Kind::Assign;
+            result.name = keyword;
+            expect("=");
+            result.value.atom = atom();
+        }
         expect(";");
         return result;
     }
@@ -182,17 +174,12 @@ class Emitter {
 public:
     std::string program(const std::vector<Function> & functions) {
         for (const auto & function : functions) emit_function(function);
-        std::string result;
-        if (int_cells_) result += cell_class("TypedIntCell", "Int64");
-        if (bool_cells_) result += cell_class("TypedBoolCell", "Bool");
-        return result + output_;
+        return output_;
     }
 
 private:
     std::string output_;
     size_t depth_ = 0;
-    bool int_cells_ = false;
-    bool bool_cells_ = false;
 
     // Disjoint prefixes avoid collisions with Cangjie keywords, runtime classes,
     // and later function names that an earlier body used as a local variable.
@@ -202,19 +189,13 @@ private:
         switch (value) {
             case Type::Int: return "Int64";
             case Type::Bool: return "Bool";
-            case Type::RefInt: int_cells_ = true; return "TypedIntCell";
-            case Type::RefBool: bool_cells_ = true; return "TypedBoolCell";
         }
         throw std::logic_error("unknown checked type");
-    }
-    static std::string cell_class(const std::string & name, const std::string & value_type) {
-        return "class " + name + " {\n    public var value: " + value_type +
-            "\n    public init(value: " + value_type + ") {\n        this.value = value\n    }\n}\n\n";
     }
     void line(const std::string & text) { output_ += std::string(depth_ * 4, ' ') + text + '\n'; }
     static std::string atom(const Atom & value) {
         if (value.kind == Atom::Kind::Literal) return value.text;
-        return variable(value.text) + (value.kind == Atom::Kind::Dereference ? ".value" : "");
+        return variable(value.text);
     }
     std::string expression(const Expression & value) {
         if (value.atom) return atom(*value.atom);
@@ -225,14 +206,6 @@ private:
                           name == "and" ? "&&" : name == "or" ? "||" : nullptr;
         if (op) return "(" + atom(args.at(0)) + " " + op + " " + atom(args.at(1)) + ")";
         if (name == "not") return "(!" + atom(args.at(0)) + ")";
-        if (name == "refInt") {
-            int_cells_ = true;
-            return "TypedIntCell(" + atom(args.at(0)) + ")";
-        }
-        if (name == "refBool") {
-            bool_cells_ = true;
-            return "TypedBoolCell(" + atom(args.at(0)) + ")";
-        }
         std::string result = callable(name) + "(";
         for (size_t i = 0; i < args.size(); ++i) result += (i ? ", " : "") + atom(args[i]);
         return result + ")";
@@ -244,14 +217,16 @@ private:
         for (const auto & statement : statements) {
             bool continues = true;
             switch (statement.kind) {
-                case Statement::Kind::Let: {
+                case Statement::Kind::Let:
+                case Statement::Kind::Var: {
                     const auto declared_type = type(statement.type);
                     const auto rhs = expression(statement.value);
-                    line("let " + variable(statement.name) + ": " + declared_type + " = " + rhs);
+                    const char * keyword = statement.kind == Statement::Kind::Var ? "var " : "let ";
+                    line(std::string(keyword) + variable(statement.name) + ": " + declared_type + " = " + rhs);
                     break;
                 }
                 case Statement::Kind::Assign:
-                    line(variable(statement.name) + ".value = " + expression(statement.value));
+                    line(variable(statement.name) + " = " + expression(statement.value));
                     break;
                 case Statement::Kind::If: {
                     line("if (" + expression(statement.value) + ") {");

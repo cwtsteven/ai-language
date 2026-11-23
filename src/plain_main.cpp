@@ -65,7 +65,7 @@ struct Options {
 void print_help(const char * executable) {
     std::fprintf(stdout,
         "usage: %s --model FILE --system-file FILE --user-file FILE [OPTIONS]\n\n"
-        "Sample unconstrained text with the same chat wrapper as typed-llama.\n"
+        "Sample unconstrained text with the same chat wrapper as typed-cangjie.\n"
         "This command does not load the typed-language specification or checker.\n\n"
         "  --model FILE         Required GGUF weights or JSON model plugin.\n"
         "  --system-file FILE   System message, including the language specification.\n"

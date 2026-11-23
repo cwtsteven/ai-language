@@ -59,12 +59,12 @@ int main() {
               "    return 0;\n}\n");
     formatted("main ( ) : Int64 { return 0 ; }",
               "main(): Int64 {\n    return 0;\n}\n");
-    formatted("main():Int64{let x:RefInt64=refInt(5);let next:Int64=add(! x,1);assign(x,next);return !x;}",
+    formatted("main():Int64{var x:Int64=5;let next:Int64=add(x,1);x=next;return x;}",
               "main(): Int64 {\n"
-              "    let x: RefInt64 = refInt(5);\n"
-              "    let next: Int64 = add(!x, 1);\n"
-              "    assign(x, next);\n"
-              "    return !x;\n}\n");
+              "    var x: Int64 = 5;\n"
+              "    let next: Int64 = add(x, 1);\n"
+              "    x = next;\n"
+              "    return x;\n}\n");
     formatted("main():Int64{let x:Int64=sub(2,1);let y:Int64=sub(x,-1);"
               "let z:Int64=mul(y,-9223372036854775808);return z;}",
               "main(): Int64 {\n"
@@ -72,13 +72,13 @@ int main() {
               "    let y: Int64 = sub(x, -1);\n"
               "    let z: Int64 = mul(y, -9223372036854775808);\n"
               "    return z;\n}\n");
-    formatted("\tmain():Int64{let f:RefBool=refBool(true);while(!f){"
-              "if(!f){assign(f,false);}else{}}return 0;}\r\n",
+    formatted("\tmain():Int64{var f:Bool=true;while(f){"
+              "if(f){f=false;}else{}}return 0;}\r\n",
               "main(): Int64 {\n"
-              "    let f: RefBool = refBool(true);\n"
-              "    while (!f) {\n"
-              "        if (!f) {\n"
-              "            assign(f, false);\n"
+              "    var f: Bool = true;\n"
+              "    while (f) {\n"
+              "        if (f) {\n"
+              "            f = false;\n"
               "        } else {\n"
               "        }\n"
               "    }\n"
@@ -91,11 +91,11 @@ int main() {
               "    let d: Bool = and(c, true);\n"
               "    return -0001;\n}\n");
     for (auto invalid : { "", "main(): Int64 {", "main(): Int64 { return true; }",
-                          "main(): Int64 { var x: Int64 = 0; return x; }",
-                          "main(): Int64 { let x: RefInt64 = refInt(0); x: =1; return !x; }",
-                          "main(): Int64 { let x: RefInt64 = refInt(0); x:=1; return !x; }",
+                          "main(): Int64 { let x: Int64 = 0; x = 1; return x; }",
+                          "main(): Int64 { var x: Int64 = 0; x: =1; return x; }",
+                          "main(): Int64 { var x: Int64 = 0; x:=1; return x; }",
                           "main(): Int64 { let x: Int64 = 2+3; return x; }",
-                          "main(): Int64 { let x: RefInt64 = refInt(0); assign(x,add(1,2)); return !x; }",
+                          "main(): Int64 { var x: Int64 = 0; x = add(1,2); return x; }",
                           "main(): Int64 { break; return 0; }",
                           "func bad(): Bool { return 0; } main(): Int64 { return 0; }",
                           "main(): Int64 { if(true){return false;}else{return 1;} }",

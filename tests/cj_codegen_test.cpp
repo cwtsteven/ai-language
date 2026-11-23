@@ -29,16 +29,18 @@ int main() {
     CHECK(typed::generate_cangjie(source) == expected);
     CHECK(typed::generate_cangjie(source) == typed::generate_cangjie(source));
 
-    const auto cells = typed::generate_cangjie(
-        "main(): Int64 { let r: RefInt64 = refInt(1); let alias: RefInt64 = r; "
-        "let flag: RefBool = refBool(true); assign(alias,-2); assign(flag,false); return !r; }");
-    CHECK(cells);
-    CHECK(cells->find("class TypedIntCell") != std::string::npos);
-    CHECK(cells->find("class TypedBoolCell") != std::string::npos);
-    CHECK(cells->find("let typed_var_alias: TypedIntCell = typed_var_r") != std::string::npos);
-    CHECK(cells->find("typed_var_alias.value = -2") != std::string::npos);
-    CHECK(cells->find("return typed_var_r.value") != std::string::npos);
-    CHECK(cells->find(":=") == std::string::npos);
+    const auto variables = typed::generate_cangjie(
+        "main(): Int64 { var r: Int64 = 1; let copy: Int64 = r; "
+        "var flag: Bool = true; r = -2; flag = false; return copy; }");
+    CHECK(variables);
+    CHECK(variables->find("class Typed") == std::string::npos);
+    CHECK(variables->find("var typed_var_r: Int64 = 1") != std::string::npos);
+    CHECK(variables->find("let typed_var_copy: Int64 = typed_var_r") != std::string::npos);
+    CHECK(variables->find("typed_var_r = -2") != std::string::npos);
+    CHECK(variables->find("var typed_var_flag: Bool = true") != std::string::npos);
+    CHECK(variables->find("typed_var_flag = false") != std::string::npos);
+    CHECK(variables->find("return typed_var_copy") != std::string::npos);
+    CHECK(variables->find(":=") == std::string::npos);
 
     CHECK(typed::generate_cangjie("main(): Int64 { return -0000; }") ==
           "main(): Int64 {\n    return 0\n}\n");
@@ -49,8 +51,8 @@ int main() {
         "", "main(): Int64 {", "main(): Int64 { return true; }",
         "main(): Int64 { let x: Int64 = 1+2; return x; }",
         "main(): Int64 { let x: Int64 = add(1,mul(2,3)); return x; }",
-        "main(): Int64 { let r: RefInt64 = refInt(0); r:=1; return !r; }",
-        "main(): Int64 { let r: RefInt64 = refInt(0); assign(r,true); return !r; }",
+        "main(): Int64 { var r: Int64 = 0; r:=1; return r; }",
+        "main(): Int64 { var r: Int64 = 0; r = true; return r; }",
         "main(): Int64 { break; }",
         "main(): Int64 { if(true){let x: Int64 = 0;}else{} return x; }",
         "func a(): Int64 { let r: Int64 = b(); return r; } func b(): Int64 {return 1;} main(): Int64 {}"

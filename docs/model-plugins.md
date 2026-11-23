@@ -3,8 +3,8 @@
 The same `--model` option accepts GGUF weights or a JSON plugin:
 
 ```sh
-./build/typed-llama task 'Return the sum of 2 and 3.' --model /path/to/model.gguf
-./build/typed-llama task 'Return the sum of 2 and 3.' --model /path/to/my-plugin.json
+./build/typed-cangjie task 'Return the sum of 2 and 3.' --model /path/to/model.gguf
+./build/typed-cangjie task 'Return the sum of 2 and 3.' --model /path/to/my-plugin.json
 ```
 
 Models must be supported by the bundled llama.cpp. The runner reads the chat
@@ -33,7 +33,7 @@ Set `gpu_layers` to `0` for CPU inference, including CPU builds on macOS.
 | `prompt_template` | A complete custom prompt containing `{{system}}` and `{{task}}`. Use when the built-in formatter does not support the model's format. |
 | `assistant_prefix` | Text or special tokens before generated code. An empty string disables the automatic Qwen3.5/GPT-OSS prefix. |
 
-Choose `chat_template` or `prompt_template`. `typed-llama` puts the typed
+Choose `chat_template` or `prompt_template`. `typed-cangjie` puts the typed
 language specification in `{{system}}` and the request in `{{task}}`.
 `plain-llama` uses the same fields for the system and user files it is given;
 the benchmark's Cangjie arm supplies the Cangjie excerpt as that system text.

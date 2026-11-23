@@ -85,7 +85,7 @@ int main() {
     assert_grammar(format_prompt(plugin, "gpt-oss", "gpt-oss", rules, "sum 2 and 3"));
 
     const auto directory = std::filesystem::temp_directory_path() /
-        ("ai-language-plugin-test-" + std::to_string(
+        ("typed-cangjie-plugin-test-" + std::to_string(
             std::chrono::steady_clock::now().time_since_epoch().count()));
     CHECK(std::filesystem::create_directory(directory));
     const auto path = directory / "custom.json";

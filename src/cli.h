@@ -7,7 +7,7 @@
 
 namespace cli {
 
-enum class Command { Help, Task, Check, Complete, Format, Cj };
+enum class Command { Help, Task, Check, Complete, Format };
 
 struct Options {
     Command command = Command::Help;
@@ -21,7 +21,6 @@ struct Options {
     std::optional<uint32_t> seed;
     int ubatch = 0;
     std::optional<int> gpu_layers;
-    bool format = false;
     bool constrained = true;
     bool plan = true;
     bool force_postfix = false;

@@ -8,11 +8,12 @@
 
 namespace typed {
 
-enum class Type { Int, Bool, RefInt, RefBool };
+enum class Type { Int, Bool };
 
 struct Symbol {
     std::string name;
     Type type;
+    bool mutable_binding = false;
 };
 
 struct Diagnostic {
@@ -55,7 +56,7 @@ private:
         AfterParam, FunctionColon, FunctionType, FunctionOpen,
         Stmt, LetName, LetColon, LetType, LetEqual, Rhs,
         CallOpen, CallArg, CallAfterArg, CallClose, LetSemi,
-        AssignOpen, AssignTarget, AssignComma, AssignValue, AssignClose, LoopControlSemi,
+        AssignEqual, AssignValue, LoopControlSemi,
         IfOpenParen, IfCondition, IfCloseParen, IfOpen, Else, ElseOpen,
         WhileOpenParen, WhileCondition, WhileCloseParen, WhileOpen,
         ReturnValue, ReturnSemi, Done,
@@ -81,6 +82,7 @@ private:
     std::string new_name_;
     Type new_type_ = Type::Int;
     bool assignment_ = false;
+    bool mutable_binding_ = false;
     bool after_return_ = false; // Prefer a closing brace during deterministic completion.
     std::vector<Type> call_arguments_;
     size_t argument_ = 0;
@@ -98,6 +100,7 @@ private:
     bool atom_possible(Type type, std::string_view partial) const;
     bool atom_complete(Type type, std::string_view token) const;
     bool symbol_prefix(Type type, std::string_view partial) const;
+    bool mutable_prefix(std::string_view partial) const;
     bool has_atom(Type type) const;
     bool name_available(std::string_view name) const;
     const Symbol * find(std::string_view name) const;

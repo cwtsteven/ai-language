@@ -1,7 +1,8 @@
 # Typed pipeline vs direct Cangjie
 
 Compare the same local model, task, token budget, temperature, and seed.
-The typed arm plans and generates with `typed-llama`, which appends `docs/language.md`.
+The typed arm plans and generates with `typed-cangjie`, which appends `docs/language.md`
+and writes Cangjie.
 The Cangjie arm plans and generates with `plain-llama`, which appends `docs/cangjie-subset.md`
 and does not run the typed checker. Requires Python 3.10+, both built binaries, and the Cangjie SDK.
 
@@ -25,10 +26,10 @@ interrupted run retains completed measurements. An existing directory is never
 overwritten. `--validate` checks reference solutions without loading any model.
 Every generation run also validates its selected reference solutions first.
 
-A normal run plans once per arm. The typed planner is `typed-llama task --plan-only`.
+A normal run plans once per arm. The typed planner is `typed-cangjie task --plan-only`.
 The Cangjie planner is `plain-llama` with the Cangjie specification and no token cap.
-Each arm then generates from its own plan. Typed programs are translated with `cj`
-before `cjc`. Cangjie programs are compiled as generated. Both are scored with the
+Each arm then generates from its own plan. The typed arm's stdout is already Cangjie.
+Cangjie-arm programs are compiled as generated. Both are scored with the
 checked-in `std.unittest` files under [cjtests/](cjtests/); the Cangjie arm calls
 `solve` where the translated arm calls `typed_fn_solve`. The 366 `@Test` cases are
 inputs for the 12 generated functions, not 366 separate prompts. Reference validation
@@ -85,7 +86,7 @@ positive controls for the typed evaluator; they are never supplied to the model.
 
 - Each task/sample uses the same seed in both arms. Sample index `i` uses
   `--seed + i`, wrapping within the unsigned 32-bit range.
-- Both arms leave formatting and the forced postfix off. The evaluator does not remove Markdown,
+- Both arms leave the forced postfix off. The evaluator does not remove Markdown,
   extract code, reformat output, repair errors, or append a deterministic suffix.
 - The request text is the same problem statement. Each arm then adds its own output instructions.
   The typed system message appends `docs/language.md`. The Cangjie system message appends
@@ -94,7 +95,7 @@ positive controls for the typed evaluator; they are never supplied to the model.
 - Planning is enabled by default and is separate for each arm. Both planners see the same task,
   seed, and temperature, and each sees only its own specification.
   `benchmarks/run.py --no-plan` skips planning for both arms. That passes
-  `--skip-plan` to `typed-llama` and runs `plain-llama` with no plan. A failed
+  `--skip-plan` to `typed-cangjie` and runs `plain-llama` with no plan. A failed
   plan fails that arm only.
 - Mode order alternates between pairs. Generations run sequentially to avoid
   loading multiple model instances simultaneously.
@@ -119,12 +120,12 @@ outputs across different hardware or numerical backends.
 
 | Measurement | Typed arm | Cangjie arm |
 | --- | --- | --- |
-| Translation rate | Programs accepted by `cj` / all attempts | Not applicable; the source is already Cangjie |
-| **Compilation success rate** | `cj` accepts the program and standalone `cjc` succeeds / all attempts | Standalone `cjc` succeeds / all attempts |
+| Translation rate | Complete typed programs translated to Cangjie / all attempts | Not applicable; the source is already Cangjie |
+| **Compilation success rate** | Translated Cangjie compiles with standalone `cjc` / all attempts | Standalone `cjc` succeeds / all attempts |
 | **Functional correctness rate** | Every test passes / all attempts | Every test passes / all attempts |
 | Correct given compiled | Every test passes / compiled candidates | Every test passes / compiled candidates |
 
-A typed program that `cj` rejects counts as a compilation failure, and `cjc` is
+An unfinished typed program counts as a translation failure, and `cjc` is
 not invoked. The Cangjie arm has no translation step, so its translation cell
 in the report is `n/a`. No failures disappear from the primary denominators.
 
@@ -160,11 +161,10 @@ of general model quality.
 - `summary.json` and `report.md`: aggregate rates, failure categories, per-task
   results, pass@k, and paired comparisons. Partial runs are marked incomplete.
 - `references.json` and `references/`: positive-control results and artifacts.
-- Each attempt directory contains its system and user messages, raw output, translated
-  or direct `.cj`, renamed candidate for testing, copied `*_test.cj`, unittest binary,
-  stage commands, return codes, timings, stdout, and stderr. Budget-limited raw
-  output is evaluated even if the generator exits 2; a complete source can still
-  compile without a final end token.
+- Each attempt directory contains its system and user messages, raw output, Cangjie
+  source, renamed candidate for testing, copied `*_test.cj`, unittest binary,
+  stage commands, return codes, timings, stdout, and stderr. A typed attempt that
+  exits 2 did not produce Cangjie, so `cjc` is not run.
 
 If one arm's planning fails, that attempt is recorded as a planning failure and
 `code_generation_attempted` is false. Those failures remain in the end-to-end
@@ -177,8 +177,8 @@ active child process group. Engine failures such as GPU out-of-memory errors
 invalidate the comparison and stop the run; they are not reported as bad model
 code or ordinary compilation failures.
 Execution has CPU, file-size, and core-dump limits in addition to process-group
-timeouts. The typed arm passes through `cj` before `cjc`. The Cangjie arm is
-compiled as generated.
+timeouts. The typed arm writes Cangjie directly. Checked-in typed references are
+translated with `emit-cangjie` before `cjc`. The Cangjie arm is compiled as generated.
 
 `ctest` includes model-free harness tests when Python is available. With `cjc`,
 these also run all reference cases and check rejection, wrong answers, missing

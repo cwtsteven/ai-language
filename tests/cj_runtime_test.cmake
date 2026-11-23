@@ -5,7 +5,7 @@ file(MAKE_DIRECTORY "${TEST_DIR}")
 
 function(run_case name source expected)
     file(WRITE "${TEST_DIR}/${name}.typed" "${source}")
-    execute_process(COMMAND "${CLI}" cj - INPUT_FILE "${TEST_DIR}/${name}.typed"
+    execute_process(COMMAND "${CLI}" INPUT_FILE "${TEST_DIR}/${name}.typed"
         RESULT_VARIABLE status OUTPUT_VARIABLE generated ERROR_VARIABLE error)
     if(NOT status EQUAL 0 OR NOT error STREQUAL "")
         message(FATAL_ERROR "${name}: translation failed: ${error}")
@@ -50,37 +50,30 @@ run_case(builtins "main(): Int64 {
     if(either){return product;}else{return 0;}
 }" 12)
 
-run_case(aliases "func identity(r: RefInt64): RefInt64 { return r; }
-func bump(r: RefInt64): Int64 {
-    let next: Int64 = add(!r,1); assign(r,next); return !r;
-}
-main(): Int64 {
-    let original: RefInt64 = refInt(7); let alias: RefInt64 = identity(original);
-    let updated: Int64 = bump(alias); return !original;
-}" 8)
+run_case(copies "main(): Int64 {
+    var original: Int64 = 7; let copy: Int64 = original;
+    let next: Int64 = add(original,1); original = next; return copy;
+}" 7)
 
-run_case(bool_cells "func identity(r: RefBool): RefBool { return r; }
-func create(): RefBool { let flag: RefBool = refBool(true); return flag; }
-main(): Int64 {
-    let flag: RefBool = create(); let alias: RefBool = identity(flag);
-    let count: RefInt64 = refInt(0);
-    while(!flag){
-        let next: Int64 = add(!count,1); assign(count,next);
-        let done: Bool = eq(next,3); if(done){assign(alias,false);}else{}
+run_case(bool_vars "main(): Int64 {
+    var flag: Bool = true; var count: Int64 = 0;
+    while(flag){
+        let next: Int64 = add(count,1); count = next;
+        let done: Bool = eq(next,3); if(done){flag = false;}else{}
     }
-    return !count;
+    return count;
 }" 3)
 
 run_case(loop_control "main(): Int64 {
-    let i: RefInt64 = refInt(0); let total: RefInt64 = refInt(0);
+    var i: Int64 = 0; var total: Int64 = 0;
     while(true){
-        let done: Bool = eq(!i,3); if(done){break;}else{}
-        let next: Int64 = add(!i,1); assign(i,next);
-        while(true){let incremented: Int64 = add(!total,2); assign(total,incremented); break;}
+        let done: Bool = eq(i,3); if(done){break;}else{}
+        let next: Int64 = add(i,1); i = next;
+        while(true){let incremented: Int64 = add(total,2); total = incremented; break;}
         let skip: Bool = eq(next,2); if(skip){continue;}else{}
-        let incremented: Int64 = add(!total,1); assign(total,incremented);
+        let incremented: Int64 = add(total,1); total = incremented;
     }
-    return !total;
+    return total;
 }" 8)
 
 run_case(loop_return "main(): Int64 {
@@ -101,14 +94,14 @@ run_case(sibling_scopes "main(): Int64 {
     if(true){let same: Int64 = -001; return same;}else{let same: Int64 = 2; return same;}
 }" -1)
 run_case(minimum "main(): Int64 { return -0009223372036854775808; }" -9223372036854775808)
-run_case(maximum "main(): Int64 { let r: RefInt64 = refInt(9223372036854775807); return ! r; }" 9223372036854775807)
+run_case(maximum "main(): Int64 { var r: Int64 = 9223372036854775807; return r; }" 9223372036854775807)
 run_case(zero "main(): Int64 { return -0000000000; }" 0)
 run_case(unreachable "main(): Int64 { return 1; let unused: Int64 = 2; return unused; }" 1)
 run_case(empty "main(): Int64 {}" THROWS)
-run_case(fallthrough "func maybe(flag: Bool): RefInt64 {
-    if(flag){let r: RefInt64 = refInt(1); return r;}else{}
+run_case(fallthrough "func maybe(flag: Bool): Int64 {
+    if(flag){return 1;}else{}
 }
-main(): Int64 { let r: RefInt64 = maybe(false); return !r; }" THROWS)
+main(): Int64 { let r: Int64 = maybe(false); return r; }" THROWS)
 
 set(parameters "")
 set(arguments "")

@@ -1,15 +1,15 @@
 func solve(n: Int64): Bool {
     let small: Bool = lt(n, 8);
     if (small) { return false; } else {}
-    let r: RefInt64 = refInt(n);
+    var r: Int64 = n;
     while (true) {
-        let done: Bool = lt(!r, 2);
+        let done: Bool = lt(r, 2);
         if (done) {
-            let even: Bool = eq(!r, 0);
+            let even: Bool = eq(r, 0);
             return even;
         } else {}
-        let next: Int64 = sub(!r, 2);
-        assign(r, next);
+        let next: Int64 = sub(r, 2);
+        r = next;
     }
 }
 main(): Int64 { return 0; }

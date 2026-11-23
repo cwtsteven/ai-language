@@ -24,4 +24,4 @@ jobs:
         run: ctest --test-dir build --output-on-failure
       - name: Check CLI
         run: |
-          ./build/typed-llama check 'main(): Int64 { let x: Int64 = 2 + 3; return x; }'
+          ./build/typed-cangjie check 'main(): Int64 { let x: Int64 = add(2, 3); return x; }'

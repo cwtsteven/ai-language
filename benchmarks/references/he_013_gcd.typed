@@ -1,18 +1,18 @@
 func solve(a: Int64, b: Int64): Int64 {
-    let x: RefInt64 = refInt(a);
-    let y: RefInt64 = refInt(b);
+    var x: Int64 = a;
+    var y: Int64 = b;
     while (true) {
-        let xZero: Bool = eq(!x, 0);
-        if (xZero) { return !y; } else {}
-        let yZero: Bool = eq(!y, 0);
-        if (yZero) { return !x; } else {}
-        let smaller: Bool = lt(!x, !y);
+        let xZero: Bool = eq(x, 0);
+        if (xZero) { return y; } else {}
+        let yZero: Bool = eq(y, 0);
+        if (yZero) { return x; } else {}
+        let smaller: Bool = lt(x, y);
         if (smaller) {
-            let next: Int64 = sub(!y, !x);
-            assign(y, next);
+            let next: Int64 = sub(y, x);
+            y = next;
         } else {
-            let next: Int64 = sub(!x, !y);
-            assign(x, next);
+            let next: Int64 = sub(x, y);
+            x = next;
         }
     }
 }

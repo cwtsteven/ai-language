@@ -17,12 +17,14 @@ from benchmarks import run as bench
 
 SUITE = bench.load_suite(bench.ROOT / "benchmarks/tasks.json")
 ADD = next(task for task in SUITE["tasks"] if task["id"] == "he_053_add")
-CLI = os.environ.get("BENCHMARK_CLI", str(bench.ROOT / "build/typed-llama"))
+CLI = os.environ.get("BENCHMARK_CLI", str(bench.ROOT / "build/typed-cangjie"))
+TRANSLATOR = os.environ.get("BENCHMARK_TRANSLATOR", str(bench.ROOT / "build/emit-cangjie"))
 CJC = shutil.which(os.environ.get("BENCHMARK_CJC") or "cjc")
 
 
 def settings(**overrides):
-    values = dict(cli=CLI, plain=Path("plain-llama"), cjc=CJC, compile_timeout=20, run_timeout=5,
+    values = dict(cli=CLI, translator=Path(TRANSLATOR), plain=Path("plain-llama"), cjc=CJC,
+                  compile_timeout=20, run_timeout=5,
                   model=Path("supplied model.gguf"), n=512, temperature=0.8,
                   plan=False, ngl=0, ubatch=64, compile_only=False)
     values.update(overrides)
@@ -70,10 +72,12 @@ class BenchmarkTests(unittest.TestCase):
             output = temporary / "results"
             with patch.object(bench, "execute", side_effect=fake_execute), \
                  patch.object(bench, "evaluate", side_effect=fake_evaluate), \
+                 patch.object(bench, "score_translated", side_effect=fake_evaluate), \
                  patch.object(bench, "evaluate_cangjie", side_effect=fake_evaluate), \
                  patch.object(bench, "model_lock", return_value=contextlib.nullcontext()), \
                  contextlib.redirect_stdout(io.StringIO()):
-                arguments = ["--model", str(model), "--cli", sys.executable, "--plain", sys.executable,
+                arguments = ["--model", str(model), "--cli", sys.executable, "--translator", sys.executable,
+                             "--plain", sys.executable,
                              "--cjc", sys.executable, "--output", str(output)]
                 status = bench.main(arguments)
             self.assertEqual(status, 0)
@@ -322,7 +326,8 @@ class BenchmarkTests(unittest.TestCase):
                     self.assertEqual(result["tests_passed"], 40)
 
 
-@unittest.skipUnless(CJC and Path(CLI).is_file(), "requires the built CLI and a Cangjie compiler")
+@unittest.skipUnless(CJC and Path(CLI).is_file() and Path(TRANSLATOR).is_file(),
+                     "requires the built generator, translator, and a Cangjie compiler")
 class NativeBenchmarkTests(unittest.TestCase):
     def test_all_reference_solutions(self):
         with tempfile.TemporaryDirectory(prefix="ai language benchmarks ") as temporary:

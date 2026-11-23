@@ -1,13 +1,13 @@
 func solve(n: Int64): Int64 {
-    let total: RefInt64 = refInt(0);
-    let i: RefInt64 = refInt(0);
+    var total: Int64 = 0;
+    var i: Int64 = 0;
     while (true) {
-        let done: Bool = eq(!i, n);
-        if (done) { return !total; } else {}
-        let nextIndex: Int64 = add(!i, 1);
-        assign(i, nextIndex);
-        let nextTotal: Int64 = add(!total, nextIndex);
-        assign(total, nextTotal);
+        let done: Bool = eq(i, n);
+        if (done) { return total; } else {}
+        let nextIndex: Int64 = add(i, 1);
+        i = nextIndex;
+        let nextTotal: Int64 = add(total, nextIndex);
+        total = nextTotal;
     }
 }
 main(): Int64 { return 0; }

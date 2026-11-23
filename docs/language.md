@@ -1,12 +1,13 @@
 # Typed language specification
 
 This is the specification of the typed ANF language. The build embeds this file
-verbatim in `typed-llama` planning and code prompts, and the C++ prefix checker
+verbatim in `typed-cangjie` planning and code prompts, and the C++ prefix checker
 implements it. The benchmark's direct Cangjie arm does not use this file; it
 appends [docs/cangjie-subset.md](cangjie-subset.md) instead.
 
-The syntax follows Cangjie's `main(): Int64 { ... }`, typed `let`
-declarations and braced control flow, with reference cells and explicit `assign` statements. This is a small
+The syntax follows Cangjie's `main(): Int64 { ... }`, typed `let` and `var`
+declarations, and braced control flow. A name reads the binding's current value.
+`var` bindings can be updated with `name = atom;`. This is a small
 Cangjie-inspired language, not a complete Cangjie parser or compiler.
 Punctuation may touch surrounding tokens: `add(x, 1)` and `main()` are
 accepted, as are spaced versions. Whitespace may contain spaces, tabs, or
@@ -19,20 +20,21 @@ function      ::= "func" identifier "(" [parameter ("," parameter)*] ")" ":" Typ
                   "{" statement* "}"
 parameter     ::= identifier ":" Type
 statement     ::= "let" identifier ":" Type "=" rhs ";"
-                | "assign" "(" ref_identifier "," atom ")" ";"
+                | "var" identifier ":" Type "=" rhs ";"
+                | mutable_identifier "=" atom ";"
                 | "if" "(" bool_atom ")" "{" statement* "}" "else" "{" statement* "}"
                 | "while" "(" bool_atom ")" "{" statement* "}"
                 | "break" ";" | "continue" ";"
                 | "return" typed_atom ";"
-Type          ::= "Int64" | "Bool" | "RefInt64" | "RefBool"
-atom          ::= integer | "true" | "false" | in_scope_identifier | "!" ref_identifier
+Type          ::= "Int64" | "Bool"
+atom          ::= integer | "true" | "false" | in_scope_identifier
 rhs           ::= atom | call
 call          ::= callable "(" [atom ("," atom)*] ")"
 callable      ::= a built-in operation name or a visible user function name
 int_atom      ::= an atom of type Int64
 bool_atom     ::= an atom of type Bool
 typed_atom    ::= an atom of the enclosing function's declared return type
-ref_identifier ::= an in-scope identifier of type RefInt64 or RefBool
+mutable_identifier ::= an in-scope var of the assigned atom's type
 identifier    ::= lowercase ASCII letter followed by ASCII letters, digits, or underscores
 integer       ::= optional "-" followed by one or more decimal digits, within signed 64-bit range
 ```
@@ -41,8 +43,8 @@ Quoted strings are literal tokens, `*` means zero or more, and square brackets
 mark an optional part. This grammar describes structure; the type and scope
 rules below determine which atoms, calls, and operators are valid.
 
-Functions are declared before `main`. Parameters and return values may use any
-of the four types. Each helper sees earlier helpers and itself, so self recursion
+Functions are declared before `main`. Parameters and return values are `Int64`
+or `Bool`. Each helper sees earlier helpers and itself, so self recursion
 is allowed; forward calls, mutual recursion, nested functions, and overloading
 are not supported. `main` takes no parameters and returns `Int64`.
 
@@ -59,17 +61,17 @@ example](../examples/functions.typed).
 Arithmetic, comparisons, and Boolean computations use named calls:
 `add`, `sub`, `mul`, `eq`, `lt`, `not`, `and`, and `or`. Infix expressions are not
 supported. Every call argument must be atomic; bind intermediate call results
-with typed `let` declarations. `RefInt64`, `RefBool`, and the ref
-operations are custom extensions, not Cangjie standard library types. `!cell`
-is treated as an atom, so it also works in calls, conditions,
-and returns. `! cell` is accepted too. `assign(cell, value);` writes an atom
-matching the cell's stored type: `Int64` for `RefInt64`, or `Bool` for `RefBool`.
-It is a statement with no result, not an expression. Bind a computed value first,
-then pass that atom to `assign`; nested calls are not allowed in its arguments.
+with typed `let` or `var` declarations. `let` bindings and parameters cannot be
+assigned. `var count: Int64 = 0;` introduces a mutable `Int64`. Using `count`
+reads its current value; there is no dereference operator. `count = next;`
+stores an atom of the same type. Assignment is a statement with no result.
+Bind a computed value first; the right-hand side cannot be a call.
 
 Conditions and return values currently accept atoms only. Bind comparisons
-before `if`, and use `while (!flag)` with a `RefBool` cell for an updatable loop condition.
-For example, bind `let done: Bool = eq(!counter, limit);` before `if (done)`.
+before `if`. A `while` condition that should change must be a `Bool` var updated
+in the body, as in `while (running)`. An immutable `Bool` bound before the loop
+does not change. For example, bind `let done: Bool = eq(counter, limit);` before
+`if (done)`.
 
 `break;` exits the nearest enclosing `while`. `continue;` skips the remaining
 statements in that loop's current iteration and rechecks its condition. Both
@@ -81,23 +83,20 @@ does not execute the control flow or prove termination.
 
 `Int64` literals are signed 64-bit decimal integers, optionally prefixed
 with `-`; leading zeroes are allowed. Names start with a lowercase ASCII letter,
-then contain ASCII letters, digits, or underscores. Keywords (including `assign`), built-in operation
-names, `var`, `write`, `readInt`, and `readBool` are reserved. Variables cannot be redefined in an active
-scope; parameters and locals do not leak between functions, and names introduced
-inside `if` or `while` blocks disappear at the closing
-brace. All bindings are immutable. References can be aliased by another binding;
-`assign(cell, value);` mutates the shared cell without changing its type. Dereferencing
-`!cell` produces `Int64` for a `RefInt64`, or `Bool` for a `RefBool`. There is no
-`var`, `:=`, plain assignment, `write()`, `readInt()`, or `readBool()` syntax. The intended runtime model has signed
-64-bit integers and garbage-collected reference cells; this prototype checks code
-but does not execute it.
+then contain ASCII letters, digits, or underscores. Keywords, built-in operation
+names, `assign`, `refInt`, `refBool`, `write`, `readInt`, and `readBool` are reserved.
+Variables cannot be redefined in an active scope; parameters and locals do not
+leak between functions, and names introduced inside `if` or `while` blocks
+disappear at the closing brace. `let` and parameters are immutable. `var` stores
+a value, so `let copy: Int64 = count;` keeps the value `count` had at that
+statement; a later assignment to `count` does not change `copy`. There is no
+`:=`, `assign()`, reference cell, or `!` syntax. The intended runtime model has
+signed 64-bit integers; this prototype checks code but does not execute it.
 
 | Result | Operations |
 | --- | --- |
-| `Int64` | `add(Int64, Int64)`, `sub(Int64, Int64)`, `mul(Int64, Int64)`, `!cell` for `cell: RefInt64` |
-| `Bool` | `eq(Int64, Int64)`, `lt(Int64, Int64)`, `not(Bool)`, `and(Bool, Bool)`, `or(Bool, Bool)`, `!cell` for `cell: RefBool` |
-| `RefInt64` | `refInt(Int64)` |
-| `RefBool` | `refBool(Bool)` |
+| `Int64` | `add(Int64, Int64)`, `sub(Int64, Int64)`, `mul(Int64, Int64)` |
+| `Bool` | `eq(Int64, Int64)`, `lt(Int64, Int64)`, `not(Bool)`, `and(Bool, Bool)`, `or(Bool, Bool)` |
 
 Examples: [Fibonacci with break](../examples/fibonacci-5-break.typed),
 [Fibonacci with a flag](../examples/fibonacci-5.typed),

@@ -1,15 +1,15 @@
 func solve(n: Int64): Int64 {
-    let a: RefInt64 = refInt(0);
-    let b: RefInt64 = refInt(1);
-    let i: RefInt64 = refInt(0);
+    var a: Int64 = 0;
+    var b: Int64 = 1;
+    var i: Int64 = 0;
     while (true) {
-        let done: Bool = eq(!i, n);
-        if (done) { return !a; } else {}
-        let next: Int64 = add(!a, !b);
-        assign(a, !b);
-        assign(b, next);
-        let nextIndex: Int64 = add(!i, 1);
-        assign(i, nextIndex);
+        let done: Bool = eq(i, n);
+        if (done) { return a; } else {}
+        let next: Int64 = add(a, b);
+        a = b;
+        b = next;
+        let nextIndex: Int64 = add(i, 1);
+        i = nextIndex;
     }
 }
 main(): Int64 { return 0; }

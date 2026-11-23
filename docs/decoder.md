@@ -11,8 +11,9 @@ correctness. The planning prompt includes the full typed language specification 
 requires pseudocode and typed statement sketches to obey its ANF, type, and scope
 rules, including named calls with atomic arguments, conditions, and return values.
 Those rules are prompt instructions, not a typechecker guarantee for the plan.
-Code generation streams each sampled token. `--format` instead buffers the
-program and pretty-prints it when it is complete and well-typed. `--n` limits
+Code generation keeps the typed sample in memory. When the program is complete
+and well-typed, `task` translates it to Cangjie and writes that program.
+An unfinished sample produces no Cangjie source. `--n` limits
 code tokens independently. `--skip-plan` skips planning. When the context fills, it re-evaluates the original
 planning request plus recent output while retaining the entire plan text for
 code generation. Empty plans or planner failures stop generation. The planning context is freed before creating a fresh
@@ -31,12 +32,12 @@ stack, typed local symbols, visible function signatures, and a partial lexical t
 accepted if every byte keeps the current state extendable to a valid typed
 program. The check is transactional: rejection leaves the state unchanged and
 records one located diagnostic (line, column, message) for `check`, `complete`,
-`format`, `cj`, and unconstrained `task` to print like a compiler error.
+`format`, and unconstrained `task` to print like a compiler error.
 An end token is accepted only when the whole program has closed. The checker
 can also construct a postfix from every viable prefix. `--force-postfix` appends
 that constructed ending when the token budget leaves the program open. The
 default leaves the sampled prefix as it is. The benchmark's typed arm does not
-pass `--force-postfix` or `--format`. Its Cangjie arm is `plain-llama`, which
+pass `--force-postfix`. Its Cangjie arm is `plain-llama`, which
 has neither flag.
 
 Both passes use temperature sampling (`--temperature`, default `0.8`). Code
@@ -66,11 +67,9 @@ type. Leaving a function clears its parameters and locals. A function body
 cannot end the program: a complete `main` is still required.
 
 Completeness here means exact prefix viability **for this defined language**.
-Every checker state has a completion: `Int64` and `Bool` have literals; reference
-types can be created from those literals; a block can close; and the main
-body can return `0`. For a reference-returning helper, completion can allocate
-a cell before returning it. Calls with unavailable reference arguments are never
-offered. This does not yet implement algebraic data
+Every checker state has a completion: `Int64` and `Bool` have literals, a block
+can close, and the main body can return `0`. Calls whose argument types are not
+available are never offered. This does not yet implement algebraic data
 types, general polymorphism, execution, or a general-purpose compiler. The
 checker validates syntax and types; it does not prove termination or freedom
 from runtime errors.

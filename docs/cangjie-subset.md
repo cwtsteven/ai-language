@@ -2,7 +2,7 @@
 
 This file is the Cangjie counterpart of [docs/language.md](language.md).
 `plain-llama` appends it to the benchmark's Cangjie planning and code prompts.
-`typed-llama` does not. The pages are copied from CangjieSkills,
+`typed-cangjie` does not. The pages are copied from CangjieSkills,
 https://github.com/SunriseSummer/CangjieSkills branch `cangjie-1.0.5`, under
 `references/language`. They cover the same kind of fragment as the typed
 specification: functions, bindings, conditions, loops, integers, Booleans,

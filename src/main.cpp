@@ -133,28 +133,19 @@ int main(int argc, char ** argv) {
             else if (viable)
                 typed::print_diagnostic(stderr, source_path, check, checker.end_diagnostic());
         };
-        if (options.command == cli::Command::Format || options.command == cli::Command::Cj) {
+        if (options.command == cli::Command::Format) {
             typed::Prefix checker;
             const bool viable = checker.append(check);
             if (!viable || !checker.can_end()) {
                 report_check_error(checker, viable);
                 return 2;
             }
-            if (options.command == cli::Command::Format) {
-                const auto formatted = typed::format_program(check);
-                if (!formatted) {
-                    std::fputs("format requires a complete, well-typed program\n", stderr);
-                    return 2;
-                }
-                std::fwrite(formatted->data(), 1, formatted->size(), stdout);
-                return 0;
-            }
-            const auto generated = typed::generate_cangjie(check);
-            if (!generated) {
-                std::fputs("cj requires a complete, well-typed program\n", stderr);
+            const auto formatted = typed::format_program(check);
+            if (!formatted) {
+                std::fputs("format requires a complete, well-typed program\n", stderr);
                 return 2;
             }
-            std::fwrite(generated->data(), 1, generated->size(), stdout);
+            std::fwrite(formatted->data(), 1, formatted->size(), stdout);
             return 0;
         }
         typed::Prefix checker;
@@ -194,7 +185,6 @@ int main(int argc, char ** argv) {
 #endif
     const int n_gpu_layers = options.gpu_layers.value_or(model_plugin.gpu_layers.value_or(platform_gpu_layers));
     const bool constrained = options.constrained;
-    const bool formatting = options.format;
     const bool debug = options.debug;
     const size_t debug_limit = options.debug_limit;
 
@@ -300,10 +290,6 @@ int main(int argc, char ** argv) {
             break;
         }
         generated += text;
-        if (!formatting) {
-            std::fwrite(text.data(), 1, text.size(), stdout);
-            std::fflush(stdout);
-        }
         batch_set(batch, &token, 1, position);
         batch_count = 1;
     }
@@ -311,36 +297,48 @@ int main(int argc, char ** argv) {
     if (constrained && options.force_postfix && !complete && !failed) {
         const auto suffix = emitted.completion();
         if (suffix && emitted.append(*suffix) && emitted.can_end()) {
-            if (!formatting) std::fwrite(suffix->data(), 1, suffix->size(), stdout);
             generated += *suffix;
             complete = true;
             std::fputs("model token budget exhausted; appended a typed postfix\n", stderr);
         }
     }
-    if (!formatting) std::fputc('\n', stdout);
-    if (formatting && !failed) {
-        const auto formatted = typed::format_program(generated);
-        if (formatted) {
-            std::fwrite(formatted->data(), 1, formatted->size(), stdout);
+    bool translated = false;
+    bool finished = false;
+    if (!failed) {
+        if (constrained) {
+            finished = emitted.can_end();
         } else {
-            std::fputs("cannot format generated output: program is invalid or incomplete\n", stderr);
-            failed = true;
+            typed::Prefix validator;
+            const bool viable = validator.append(generated);
+            finished = viable && validator.can_end();
+            std::fprintf(stderr, "typed-check=%s\n", !viable ? "invalid" : finished ? "pass" : "incomplete");
+            if (!viable && validator.diagnostic())
+                typed::print_diagnostic(stderr, "<generated>", generated, *validator.diagnostic());
+            else if (viable && !finished)
+                typed::print_diagnostic(stderr, "<generated>", generated, validator.end_diagnostic());
+        }
+        if (finished) {
+            const auto cangjie = typed::generate_cangjie(generated);
+            if (!cangjie) {
+                std::fputs("could not translate the typed program to Cangjie\n", stderr);
+                failed = true;
+            } else {
+                std::fwrite(cangjie->data(), 1, cangjie->size(), stdout);
+                translated = !std::ferror(stdout);
+                failed = !translated;
+            }
         }
     }
-    if (!constrained) {
-        typed::Prefix validator;
-        const bool viable = validator.append(generated);
-        std::fprintf(stderr, "typed-check=%s\n", !viable ? "invalid" : validator.can_end() ? "pass" : "incomplete");
-        if (!viable && validator.diagnostic())
-            typed::print_diagnostic(stderr, "<generated>", generated, *validator.diagnostic());
+    if (!translated && !inference_failed && !finished) {
+        if (constrained) std::fputs("unable to finish the generated prefix\n", stderr);
+        else if (!complete) std::fputs("model stopped before an end token\n", stderr);
+        else std::fputs("generated text is not a complete typed program, so no Cangjie was written\n", stderr);
     }
-    if (!complete) std::fputs(constrained ? "unable to finish the generated prefix\n" :
-        "model stopped before an end token\n", stderr);
 
     llama_sampler_free(sampler);
     llama_batch_ext_free(batch);
     llama_free(context);
     llama_model_free(model);
     llama_backend_free();
-    return inference_failed ? 1 : complete && !failed ? 0 : 2;
+    return inference_failed ? 1 : translated && !failed ? 0 : 2;
 }

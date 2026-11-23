@@ -159,7 +159,7 @@ def load_suite(path):
 
 
 def task_prompt(task):
-    """Typed-arm request text. typed-llama appends the language specification itself."""
+    """Typed-arm request text. typed-cangjie appends the language specification itself."""
     return task_text(task, "constrained")
 
 
@@ -280,21 +280,30 @@ def timeout_each(seconds):
 
 
 def evaluate(task, source, directory, args):
-    """Compile the candidate, then score it with a checked-in std.unittest file."""
+    """Translate a checked-in typed program, then compile and score the Cangjie."""
     directory = Path(directory).resolve()
     directory.mkdir(parents=True, exist_ok=True)
     (directory / "candidate.typed").write_text(source)
     result = {"task_id": task["id"], "translation_success": False, "compilation_success": False,
               "harness_compile_success": False, "functional_success": False,
               "tests_passed": 0, "tests_total": task["tests_total"], "artifact_dir": str(directory)}
-    translated = execute([args.cli, "cj", "-"], args.compile_timeout, stdin=source, cwd=directory)
+    translated = execute([str(args.translator)], args.compile_timeout, stdin=source, cwd=directory)
     save_process(directory, "translation", translated)
     if translated.timed_out or translated.returncode != 0:
         result["status"] = "translation_timeout" if translated.timed_out else "translation_failed"
         return result
-    result["translation_success"] = True
+    return score_translated(task, translated.stdout, directory, args)
+
+
+def score_translated(task, cangjie, directory, args):
+    """Compile Cangjie that already uses typed_fn_ names, then run its unittest file."""
+    directory = Path(directory).resolve()
+    directory.mkdir(parents=True, exist_ok=True)
+    result = {"task_id": task["id"], "translation_success": True, "compilation_success": False,
+              "harness_compile_success": False, "functional_success": False,
+              "tests_passed": 0, "tests_total": task["tests_total"], "artifact_dir": str(directory)}
     native = directory / "candidate.cj"
-    native.write_text(translated.stdout)
+    native.write_text(cangjie)
 
     compiled = execute([args.cjc, native, "-o", directory / "candidate", "--set-runtime-rpath",
                         "--diagnostic-format", "noColor"], args.compile_timeout, cwd=directory)
@@ -309,7 +318,7 @@ def evaluate(task, source, directory, args):
         return result
 
     harness_source = directory / "candidate_for_test.cj"
-    harness_source.write_text(rename_candidate_main(translated.stdout))
+    harness_source.write_text(rename_candidate_main(cangjie))
     unittest_file = Path(task["unittest"])
     shutil.copyfile(unittest_file, directory / unittest_file.name)
     tests_binary = directory / "tests"
@@ -491,7 +500,7 @@ def write_report(output, config, records):
             "This run skips planning. Both arms receive the task and their own language specification only."
             if config["plan_source"] == "none" else
             "Each arm plans in its own language from the same task, seed, and temperature. The plans are not shared.",
-            "The typed arm is compiled only after `cj` translation and standalone `cjc` both succeed.",
+            "The typed arm writes Cangjie. An unfinished typed program is a translation failure, and `cjc` is not invoked.",
             "The Cangjie arm is compiled as generated. It has no translation step.",
             "Functional tests were not executed for this run." if config.get("compile_only") else
             "Functional success requires every std.unittest @Test case to pass with no FAILED, ERROR, or SKIPPED results.",
@@ -544,7 +553,9 @@ def main(argv=None):
     parser.add_argument("--model", type=Path, help="GGUF file or JSON model plugin; required for generation")
     parser.add_argument("--validate", action="store_true", help="compile and execute reference solutions only; no model")
     parser.add_argument("--suite", type=Path, default=ROOT / "benchmarks/tasks.json", help="task manifest JSON")
-    parser.add_argument("--cli", type=Path, default=ROOT / "build/typed-llama", help="built typed-language runner")
+    parser.add_argument("--cli", type=Path, default=ROOT / "build/typed-cangjie", help="typed constrained Cangjie generator")
+    parser.add_argument("--translator", type=Path, default=ROOT / "build/emit-cangjie",
+                        help="translator for checked-in typed references; task output is already Cangjie")
     parser.add_argument("--plain", type=Path, default=ROOT / "build/plain-llama",
                         help="unconstrained sampler used only for the Cangjie arm")
     parser.add_argument("--cjc", default="cjc", help="Cangjie compiler path or command")
@@ -585,6 +596,7 @@ def main(argv=None):
         if selected != {t["id"] for t in tasks}:
             raise ValueError("unknown task ID; inspect benchmarks/tasks.json for available IDs")
         args.cli = args.cli.resolve(strict=True)
+        args.translator = args.translator.resolve(strict=True)
         if not args.validate:
             args.plain = args.plain.resolve(strict=True)
         compiler = shutil.which(args.cjc)
@@ -594,7 +606,7 @@ def main(argv=None):
         help_result = execute([args.cli, "task", "--help"], 10)
         if help_result.returncode != 0 or any(option not in help_result.stdout for option in
                                             ("--force-postfix", "--plan-only", "--plan-file")):
-            raise ValueError("rebuild typed-llama: benchmark runs require a binary whose forced postfix is opt-in (--force-postfix, --plan-only, --plan-file)")
+            raise ValueError("rebuild typed-cangjie: benchmark runs require a binary whose forced postfix is opt-in (--force-postfix, --plan-only, --plan-file)")
         model_files = []
         if not args.validate:
             resources.enter_context(model_lock())
@@ -695,8 +707,11 @@ def main(argv=None):
                                 row = failed_result(task, directory, "generation_timeout" if generation.timed_out else "generation_error")
                             elif mode == "cangjie":
                                 row = evaluate_cangjie(task, generation.stdout, directory, args)
+                            elif generation.returncode != 0 or not generation.stdout.strip():
+                                row = failed_result(task, directory, "translation_failed")
+                                (directory / "candidate.cj").write_text(generation.stdout)
                             else:
-                                row = evaluate(task, generation.stdout, directory, args)
+                                row = score_translated(task, generation.stdout, directory, args)
                         row.update(mode=mode, sample_index=sample, seed=seed,
                                    code_tokens=code_budget(args, task),
                                    plan_file=str(plan_file) if plan_file is not None else None,

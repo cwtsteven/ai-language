@@ -14,7 +14,7 @@
 } while (false)
 
 static cli::Options parse(std::initializer_list<const char *> arguments) {
-    std::vector<const char *> argv{ "typed-llama" };
+    std::vector<const char *> argv{ "typed-cangjie" };
     argv.insert(argv.end(), arguments);
     return cli::parse(static_cast<int>(argv.size()), argv.data());
 }
@@ -32,7 +32,7 @@ static void fails(std::initializer_list<const char *> arguments, const std::stri
 int main() {
     CHECK(parse({}).help);
     CHECK(parse({"--help"}).command == cli::Command::Help);
-    for (auto command : {"task", "check", "complete", "format", "cj"}) {
+    for (auto command : {"task", "check", "complete", "format"}) {
         CHECK(parse({command, "--help"}).help);
         CHECK(parse({command, "-h"}).help);
     }
@@ -41,7 +41,7 @@ int main() {
     CHECK(options.command == cli::Command::Task);
     CHECK(options.input == "Compute Fibonacci(5)");
     CHECK(options.model_path == "weights.gguf");
-    CHECK(options.tokens == 256 && options.constrained && !options.format && options.plan);
+    CHECK(options.tokens == 256 && options.constrained && options.plan);
     CHECK(!options.force_postfix);
     CHECK(options.temperature == 0.8f && !options.seed);
     CHECK(!options.gpu_layers && options.ubatch == 0);
@@ -58,9 +58,9 @@ int main() {
     CHECK(*parse({"task", "request", "--model", "x", "--seed", "4294967295"}).seed == 4294967295u);
     CHECK(*parse({"task", "request", "--model", "x", "--seed", "0"}).seed == 0);
     options = parse({"task", "request", "--model", "x",
-                     "--format", "--unconstrained", "--debug-limit", "0", "--ngl", "0", "--ubatch", "64"});
+                     "--unconstrained", "--debug-limit", "0", "--ngl", "0", "--ubatch", "64"});
     CHECK(options.input == "request");
-    CHECK(options.format && !options.constrained && options.debug && options.debug_limit == 0);
+    CHECK(!options.constrained && options.debug && options.debug_limit == 0);
     CHECK(options.gpu_layers && *options.gpu_layers == 0 && options.ubatch == 64);
     CHECK(parse({"task", "request", "--model", "x", "--debug"}).debug);
     CHECK(parse({"task", "--model", "x", "--", "--help"}).input == "--help");
@@ -69,11 +69,6 @@ int main() {
     CHECK(parse({"check", "-"}).input == "-");
     CHECK(parse({"format"}).input == "-");
     CHECK(parse({"format", "--", "--help"}).input == "--help");
-    CHECK(parse({"cj"}).command == cli::Command::Cj);
-    CHECK(parse({"cj"}).input == "-");
-    CHECK(parse({"cj", "-"}).input == "-");
-    CHECK(parse({"cj", "main(): Int64 { return 5; }"}).input == "main(): Int64 { return 5; }");
-    CHECK(parse({"cj", "--", "--help"}).input == "--help");
 
     fails({"task", "request", "--model", "x", "-n", "512"}, "unknown task option");
     fails({"--task", "request"}, "unknown command");
@@ -110,8 +105,8 @@ int main() {
     fails({"complete"}, "requires CODE");
     fails({"check", "code", "--model", "x"}, "does not accept option");
     fails({"format", "code", "--format"}, "does not accept option");
-    fails({"cj", "--model", "x"}, "does not accept option");
-    fails({"cj", "code", "other"}, "one quoted text");
+    fails({"cj", "main(): Int64 { return 0; }"}, "unknown command");
+    fails({"task", "request", "--model", "x", "--format"}, "unknown task option");
     fails({"check", "code", "complete", "code"}, "one quoted text");
     std::puts("CLI argument tests passed");
 }
