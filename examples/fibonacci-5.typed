@@ -1,0 +1,18 @@
+main(): Int64 {
+    let i: RefInt64 = refInt(0);
+    let a: RefInt64 = refInt(0);
+    let b: RefInt64 = refInt(1);
+    let running: RefBool = refBool(true);
+    while (!running) {
+        let done: Bool = !i == 5;
+        if (done) {
+            running := false;
+        } else {
+            let next: Int64 = !a + !b;
+            a := !b;
+            b := next;
+            i := !i + 1;
+        }
+    }
+    return !a;
+}

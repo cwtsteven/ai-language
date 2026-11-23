@@ -209,6 +209,23 @@ For Qwen3.5, the CLI prefills a completed thinking block before code generation.
 The model can still produce logically incorrect programs, including incorrect
 or infinite loops; type validity does not prove behavior or termination.
 
+## Fibonacci prompt example
+
+A more explicit algorithm prompt is saved in [prompts/fibonacci-5.txt](prompts/fibonacci-5.txt).
+It specifies F(0)=0, F(1)=1, the loop invariant, and the update order. In a local
+Qwen3.5-9B trial it generated the intended loop; the checker accepted it, and
+inspection shows it returns 5. This supplies the algorithm to the model, so it
+does not demonstrate that the model can discover Fibonacci's algorithm unaided.
+
+```sh
+./build/typed-llama --task "$(cat prompts/fibonacci-5.txt)" --n 512 | ./build/typed-llama --format -
+./build/typed-llama --format - < examples/fibonacci-5.typed
+```
+
+The generated example is in [examples/fibonacci-5.typed](examples/fibonacci-5.typed).
+There is no runtime interpreter in this project yet; behavioral correctness here
+was checked by inspection, not by executing the generated program.
+
 ## Troubleshooting
 
 - **Missing llama.cpp:** run `git submodule update --init --recursive`.
