@@ -44,6 +44,8 @@ A viable unfinished prefix passes `check` with `complete=no`.
 | --- | --- |
 | `--model FILE` | Required GGUF weights or JSON plugin. |
 | `--n N` | Maximum generated code tokens; default **256**. |
+| `--temperature T` | Both passes sample at **0.8** by default; **0** selects greedy. |
+| `--seed N` | Repeat a sampling seed (0–4294967295); default random, printed to stderr. |
 | `--no-plan` | Skip the default unconstrained planning pass. |
 | `--prefix CODE` | Seed with a valid prefix; default empty. |
 | `--prompt TEXT` | Prepared raw prompt instead of the positional task description. |
@@ -60,6 +62,9 @@ then generate code using that plan and the language specification. `--no-plan` s
 pass; `--prompt` bypasses planning and task formatting. If the code budget runs
 out, constrained decoding constructs
 a typed suffix and reports this on stderr; the suffix may not fulfill the task.
+
+Code sampling selects only type-valid tokens. Use `--seed 42` to repeat a run
+with the same model, prompt, and settings; `--temperature 0` uses greedy decoding.
 
 ## Fibonacci example
 

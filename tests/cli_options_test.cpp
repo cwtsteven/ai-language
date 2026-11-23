@@ -42,11 +42,17 @@ int main() {
     CHECK(options.input == "Compute Fibonacci(5)");
     CHECK(options.model_path == "weights.gguf");
     CHECK(options.tokens == 256 && options.constrained && !options.raw && options.plan);
+    CHECK(options.temperature == 0.8f && !options.seed);
     CHECK(!options.gpu_layers && options.ubatch == 0 && !options.prompt);
     options = parse({"task", "--model", "plugin.json", "--n", "512", "request"});
     CHECK(options.model_path == "plugin.json" && options.tokens == 512);
     CHECK(parse({"task", "request", "--model", "x", "--n", "32"}).tokens == 32);
     CHECK(!parse({"task", "request", "--model", "x", "--no-plan"}).plan);
+    options = parse({"task", "request", "--model", "x", "--temperature", "0.6", "--seed", "42"});
+    CHECK(options.temperature == 0.6f && options.seed && *options.seed == 42);
+    CHECK(parse({"task", "request", "--model", "x", "--temperature", "0"}).temperature == 0);
+    CHECK(*parse({"task", "request", "--model", "x", "--seed", "4294967295"}).seed == 4294967295u);
+    CHECK(*parse({"task", "request", "--model", "x", "--seed", "0"}).seed == 0);
     options = parse({"task", "--model", "x", "--prompt", "raw prompt", "--prefix", "main",
                      "--raw", "--unconstrained", "--debug-limit", "0", "--ngl", "0", "--ubatch", "64"});
     CHECK(options.prompt && *options.prompt == "raw prompt");
@@ -79,6 +85,12 @@ int main() {
     fails({"task", "request", "--model", "x", "--ubatch", "0"}, "positive integer");
     fails({"task", "request", "--model", "x", "--ngl", "-1"}, "nonnegative integer");
     fails({"task", "request", "--model", "x", "--debug-limit", "-1"}, "nonnegative integer");
+    for (auto value : {"-0.1", "nan", "inf", "1e100", "1e-100", "0.8oops", "", " 0.8"})
+        fails({"task", "request", "--model", "x", "--temperature", value}, "finite nonnegative");
+    for (auto value : {"-1", "4294967296", "42oops", "", "1.5"})
+        fails({"task", "request", "--model", "x", "--seed", value}, "integer from 0");
+    fails({"task", "request", "--model", "x", "--temperature"}, "requires a value");
+    fails({"task", "request", "--model", "x", "--seed"}, "requires a value");
     fails({"task", "request", "--unknown"}, "unknown task option");
     fails({"check"}, "requires CODE");
     fails({"complete"}, "requires CODE");

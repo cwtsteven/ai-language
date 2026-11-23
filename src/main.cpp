@@ -5,6 +5,7 @@
 #include "language_prompt.h"
 #include "cli.h"
 #include "planning.h"
+#include "sampling.h"
 #include "llama.h"
 
 #include <cstdio>
@@ -12,6 +13,7 @@
 #include <exception>
 #include <limits>
 #include <memory>
+#include <random>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -45,7 +47,7 @@ void batch_set(llama_batch_ext * batch, const llama_token * tokens, int count, l
 }
 
 planning::Plan run_planner(llama_model * model, const models::Plugin & plugin,
-                           const planning::Request & request, int ubatch) {
+                           const planning::Request & request, int ubatch, float temperature, uint32_t seed) {
     const auto prompt = models::task_prompt(model, plugin, request.system, request.user);
     const auto * vocab = llama_model_get_vocab(model);
     if (prompt.size() > static_cast<size_t>(std::numeric_limits<int>::max()))
@@ -64,7 +66,8 @@ planning::Plan run_planner(llama_model * model, const models::Plugin & plugin,
     std::unique_ptr<llama_context, decltype(&llama_free)> context(llama_init_from_model(model, params), llama_free);
     if (!context) throw std::runtime_error("failed to create planning context");
     std::unique_ptr<llama_batch_ext, decltype(&llama_batch_ext_free)> batch(llama_batch_ext_init(context.get()), llama_batch_ext_free);
-    std::unique_ptr<llama_sampler, decltype(&llama_sampler_free)> sampler(llama_sampler_init_greedy(), llama_sampler_free);
+    std::unique_ptr<llama_sampler, decltype(&llama_sampler_free)> sampler(
+        sampling::sampler_init(temperature, seed), llama_sampler_free);
     if (!batch || !sampler) throw std::runtime_error("failed to allocate planning batch or sampler");
     batch_set(batch.get(), tokens.data(), count, 0);
     planning::Plan plan;
@@ -173,6 +176,9 @@ int main(int argc, char ** argv) {
         return 1;
     }
 
+    const uint32_t seed = options.seed ? *options.seed : std::random_device{}();
+    std::fprintf(stderr, "Sampling: temperature=%g seed=%u\n", options.temperature, seed);
+
     llama_log_set(quiet_log, nullptr);
     ggml_log_set(quiet_log, nullptr);
     llama_backend_init();
@@ -188,7 +194,7 @@ int main(int argc, char ** argv) {
             const auto prepared = planning::prepare(task, prefix, options.plan, [&](const planning::Request & request) {
                 std::fputs("Planning implementation...\n", stderr);
                 std::fflush(stderr);
-                return run_planner(model, model_plugin, request, n_ubatch);
+                return run_planner(model, model_plugin, request, n_ubatch, options.temperature, seed);
             });
             if (prepared.plan) {
                 std::fprintf(stderr, "Implementation plan:\n%s\n\n", prepared.plan->text.c_str());
@@ -221,7 +227,9 @@ int main(int argc, char ** argv) {
     llama_batch_ext * batch = llama_batch_ext_init(context);
     batch_set(batch, prompt_tokens.data(), token_count, 0);
 
-    llama_sampler * sampler = constrained ? typed_sampler_init(vocab, initial, debug, debug_limit) : llama_sampler_init_greedy();
+    llama_sampler * sampler = constrained
+        ? typed_sampler_init(vocab, initial, debug, debug_limit, options.temperature, seed)
+        : sampling::sampler_init(options.temperature, seed);
     typed::Prefix emitted = initial;
     std::string generated = prefix;
     if (!formatting) std::fwrite(prefix.data(), 1, prefix.size(), stdout);

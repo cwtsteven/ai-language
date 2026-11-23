@@ -1,10 +1,10 @@
 #include "typed_sampler.h"
+#include "sampling.h"
 
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>
 #include <limits>
-#include <numeric>
 #include <string>
 #include <vector>
 
@@ -17,6 +17,7 @@ struct Context {
     bool debug;
     size_t debug_limit;
     size_t step;
+    sampling::Selector selector;
 };
 
 std::string printable(std::string_view bytes) {
@@ -52,7 +53,7 @@ std::string piece(const llama_vocab * vocab, llama_token token) {
     return result;
 }
 
-const char * name(const llama_sampler *) { return "typed-greedy"; }
+const char * name(const llama_sampler *) { return "typed-temperature"; }
 
 void accept(llama_sampler * sampler, llama_token token) {
     auto * ctx = static_cast<Context *>(sampler->ctx);
@@ -73,7 +74,7 @@ void accept(llama_sampler * sampler, llama_token token) {
 
 void apply(llama_sampler * sampler, llama_token_data_array * candidates) {
     auto * ctx = static_cast<Context *>(sampler->ctx);
-    // Once the program is complete, end immediately. Otherwise a greedy model
+    // Once the program is complete, end immediately. Otherwise the model
     // may prefer legal trailing whitespace forever.
     if (ctx->state.can_end()) {
         size_t end = candidates->size;
@@ -93,23 +94,12 @@ void apply(llama_sampler * sampler, llama_token_data_array * candidates) {
         std::fputs("typed sampler: complete program but no end token in candidates\n", stderr);
         std::abort();
     }
-    std::vector<size_t> order(candidates->size);
-    std::iota(order.begin(), order.end(), size_t{0});
-    const auto higher_logit = [candidates](size_t a, size_t b) {
-        return candidates->data[a].logit < candidates->data[b].logit;
-    };
-    std::make_heap(order.begin(), order.end(), higher_logit);
-
-    size_t winner = candidates->size;
     size_t rejected = 0;
-    while (!order.empty()) {
-        std::pop_heap(order.begin(), order.end(), higher_logit);
-        const size_t i = order.back();
-        order.pop_back();
+    const size_t winner = ctx->selector.choose(*candidates, [&](size_t i) {
         const llama_token token = candidates->data[i].id;
         const bool eog = llama_vocab_is_eog(ctx->vocab, token);
         const std::string text = eog ? std::string{} : piece(ctx->vocab, token);
-        if (!eog && !text.empty() && ctx->state.can_append(text)) { winner = i; break; }
+        if (!eog && !text.empty() && ctx->state.can_append(text)) return true;
         if (ctx->debug && rejected < ctx->debug_limit) {
             const typed::Prefix failure_state = eog || text.empty() ? ctx->state :
                 ctx->state.state_before_rejection_for_debug(text);
@@ -122,7 +112,8 @@ void apply(llama_sampler * sampler, llama_token_data_array * candidates) {
                 failure_state.expected_for_debug().c_str(), partial.c_str());
         }
         ++rejected;
-    }
+        return false;
+    });
 
     if (winner == candidates->size) {
         std::fputs("typed sampler: no viable candidate in vocabulary\n", stderr);
@@ -148,6 +139,7 @@ void reset(llama_sampler * sampler) {
     auto * ctx = static_cast<Context *>(sampler->ctx);
     ctx->state = ctx->initial;
     ctx->step = 0;
+    ctx->selector.reset();
 }
 
 llama_sampler * clone(const llama_sampler * sampler);
@@ -166,6 +158,7 @@ llama_sampler * clone(const llama_sampler * sampler) {
 } // namespace
 
 llama_sampler * typed_sampler_init(const llama_vocab * vocab, const typed::Prefix & initial,
-                                  bool debug, size_t debug_limit) {
-    return llama_sampler_init(&interface, new Context{ vocab, initial, initial, debug, debug_limit, 0 });
+                                  bool debug, size_t debug_limit, float temperature, uint32_t seed) {
+    return llama_sampler_init(&interface, new Context{
+        vocab, initial, initial, debug, debug_limit, 0, sampling::Selector(temperature, seed) });
 }

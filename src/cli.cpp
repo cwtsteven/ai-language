@@ -1,6 +1,7 @@
 #include "cli.h"
 
 #include <charconv>
+#include <cmath>
 #include <stdexcept>
 #include <string_view>
 
@@ -13,6 +14,24 @@ int number(const std::string & option, const std::string & value, int minimum) {
     if (parsed.ec != std::errc{} || parsed.ptr != value.data() + value.size() || result < minimum)
         throw std::runtime_error(option + " requires " + (minimum ? "a positive" : "a nonnegative") +
                                  " integer within the 32-bit signed range");
+    return result;
+}
+
+float temperature(const std::string & value) {
+    try {
+        size_t consumed = 0;
+        const float result = std::stof(value, &consumed);
+        if (consumed == value.size() && value.find_first_of(" \t\r\n") == std::string::npos &&
+            std::isfinite(result) && result >= 0) return result;
+    } catch (const std::exception &) {}
+    throw std::runtime_error("--temperature requires a finite nonnegative number (0 selects greedy)");
+}
+
+uint32_t seed(const std::string & value) {
+    uint32_t result = 0;
+    const auto parsed = std::from_chars(value.data(), value.data() + value.size(), result);
+    if (parsed.ec != std::errc{} || parsed.ptr != value.data() + value.size())
+        throw std::runtime_error("--seed requires an integer from 0 to 4294967295");
     return result;
 }
 
@@ -48,7 +67,8 @@ Options parse(int argc, const char * const * argv) {
             if (arg == "--no-plan") { options.plan = false; continue; }
             if (arg == "--debug") { options.debug = true; continue; }
             if (arg != "--model" && arg != "--n" && arg != "--prefix" &&
-                arg != "--prompt" && arg != "--debug-limit" && arg != "--ngl" && arg != "--ubatch")
+                arg != "--prompt" && arg != "--debug-limit" && arg != "--ngl" && arg != "--ubatch" &&
+                arg != "--temperature" && arg != "--seed")
                 throw std::runtime_error("unknown task option: " + arg);
             if (i + 1 >= argc) throw std::runtime_error(arg + " requires a value");
             const std::string value = argv[++i];
@@ -56,6 +76,8 @@ Options parse(int argc, const char * const * argv) {
             else if (arg == "--prefix") options.prefix = value;
             else if (arg == "--prompt") options.prompt = value;
             else if (arg == "--n") options.tokens = number(arg, value, 1);
+            else if (arg == "--temperature") options.temperature = temperature(value);
+            else if (arg == "--seed") options.seed = seed(value);
             else if (arg == "--ubatch") options.ubatch = number(arg, value, 1);
             else if (arg == "--ngl") options.gpu_layers = number(arg, value, 0);
             else if (arg == "--debug-limit") {
@@ -101,6 +123,8 @@ void print_help(FILE * output, const char * executable, Command command) {
             "Options:\n"
             "  --model FILE      Required: GGUF weights or a JSON model plugin.\n"
             "  --n N             Maximum generated code tokens (default 256).\n"
+            "  --temperature T   Sampling temperature for both passes (default 0.8; 0 = greedy).\n"
+            "  --seed N          Reuse a sampling seed (0..4294967295; default random, printed to stderr).\n"
             "  --no-plan         Skip the default unconstrained implementation-planning pass.\n"
             "  --prefix CODE     Seed generation with a valid program prefix.\n"
             "  --prompt TEXT     Use a raw prompt instead of a task description; skips planning.\n"

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdio>
+#include <cstdint>
 #include <optional>
 #include <string>
 
@@ -16,6 +17,8 @@ struct Options {
     std::string prefix;
     std::optional<std::string> prompt;
     int tokens = 256;
+    float temperature = 0.8f;
+    std::optional<uint32_t> seed;
     int ubatch = 0;
     std::optional<int> gpu_layers;
     bool raw = false;

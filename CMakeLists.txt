@@ -37,8 +37,12 @@ add_library(cli_options src/cli.cpp)
 target_include_directories(cli_options PUBLIC src)
 target_compile_features(cli_options PUBLIC cxx_std_17)
 
-add_executable(typed-llama src/main.cpp src/typed_sampler.cpp)
-target_link_libraries(typed-llama PRIVATE typed_prefix model_plugin cli_options language_spec)
+add_library(token_sampling src/sampling.cpp src/typed_sampler.cpp)
+target_link_libraries(token_sampling PUBLIC typed_prefix llama)
+target_compile_features(token_sampling PUBLIC cxx_std_17)
+
+add_executable(typed-llama src/main.cpp)
+target_link_libraries(typed-llama PRIVATE token_sampling model_plugin cli_options language_spec)
 target_compile_features(typed-llama PRIVATE cxx_std_17)
 
 enable_testing()
@@ -63,6 +67,9 @@ target_link_libraries(planning-test PRIVATE language_spec)
 target_compile_definitions(planning-test PRIVATE LANGUAGE_SPEC_SOURCE="${CMAKE_CURRENT_SOURCE_DIR}/docs/language.md")
 target_compile_features(planning-test PRIVATE cxx_std_17)
 add_test(NAME planning-test COMMAND planning-test)
+add_executable(sampling-test tests/sampling_test.cpp)
+target_link_libraries(sampling-test PRIVATE token_sampling)
+add_test(NAME sampling-test COMMAND sampling-test)
 add_test(NAME cli-test COMMAND ${CMAKE_COMMAND}
     -DCLI=$<TARGET_FILE:typed-llama>
     -DTEST_DIR=${CMAKE_CURRENT_BINARY_DIR}/cli-test

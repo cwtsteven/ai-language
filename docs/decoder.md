@@ -1,12 +1,16 @@
 # Checker and decoder
 
-`task` starts with an unconstrained greedy planning pass using the supplied
+`task` starts with an unconstrained planning pass using the supplied
 model, continuing until the model emits an end token with no output token cap.
 It requests an implementation plan: expected
 behavior, typed helper signatures, function-body steps, mutations, loop exits,
 and recursion base cases. The plan goes to stderr and is included with the
 original request in the code-generation prompt. It is guidance, not a proof of
-correctness. `--n` limits code tokens independently; `--no-plan` or a raw
+correctness. The planning prompt includes the full language specification and
+requires pseudocode and typed statement sketches to obey its ANF, type, and scope
+rules, including atomic operands, call arguments, conditions, and return values.
+Planning remains unconstrained text generation; these are prompt instructions,
+not a typechecker guarantee for the plan. `--n` limits code tokens independently; `--no-plan` or a raw
 `--prompt` skips planning. When the context fills, it re-evaluates the original
 planning request plus recent output while retaining the entire plan text for
 code generation. Empty plans or planner failures stop generation. The planning context is freed before creating a fresh
@@ -22,10 +26,22 @@ can also construct a completion from every viable prefix. This prevents a
 model that keeps extending a literal or identifier from leaving the output
 unfinished at the token budget.
 
-The sampler builds a max heap of candidates by model logit and tests them in
-that order, choosing the first viable one. This is **greedy constrained
-decoding**. It does not preserve the original sampling distribution. For a
-vocabulary of size `V` and `R` rejected high-logit candidates, heap creation
+Both passes use temperature sampling (`--temperature`, default `0.8`). Code
+sampling conditions the temperature-scaled model distribution on type-valid
+tokens. It assigns each candidate a random Gumbel priority
+`logit + temperature * Gumbel(0, 1)`, builds a max heap, and tests candidates
+in that order until one is viable. This has the same distribution as masking
+all invalid tokens before softmax sampling, while checking only the candidates
+that precede the winner. Rejected candidates never advance the checker.
+No top-k or top-p truncation is applied. A complete program forces an end token.
+
+`--temperature 0` removes the random perturbation and restores greedy decoding.
+`--seed` fixes the random seed; the default seed is random and printed to stderr.
+The planner and code pass each start a fresh random stream from that seed.
+Repeating a run requires the same model, inputs, settings, and numerical backend;
+a seed does not guarantee identical results across different hardware.
+
+For a vocabulary of size `V` and `R` rejected candidates, heap creation
 and masking cost `O(V)`, heap removals cost `O(R log V)`, and each prefix test
 cost grows with piece length, live symbols, and visible function signatures in
 this implementation. A typed trie would speed up identifier checks.
