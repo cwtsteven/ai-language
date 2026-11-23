@@ -170,7 +170,7 @@ To watch rejected tokens or compare with prompt-only generation:
 ```sh
 ./build/typed-llama --task 'Return the sum of 2 and 3.' --debug 2> trace.log
 ./build/typed-llama --task 'Return the sum of 2 and 3.' --unconstrained
-./build/typed-llama --task 'Increase a mutable integer from 5 to 6 and return it.' --prefix 'main(): Int64 { '
+./build/typed-llama --task 'Create an integer cell containing 5, increase it to 6, and return its contents.' --prefix 'main(): Int64 { '
 ```
 
 For Qwen3.5, the CLI prefills a completed thinking block before code generation.
@@ -191,8 +191,8 @@ or infinite loops; type validity does not prove behavior or termination.
 
 ## Language core
 
-The syntax follows Cangjie's `main(): Int64 { ... }`, typed `let` and `var`
-declarations, assignment, and braced control flow. This is a small
+The syntax follows Cangjie's `main(): Int64 { ... }`, typed `let`
+declarations and braced control flow, with OCaml-style reference operators. This is a small
 Cangjie-inspired language, not a complete Cangjie parser or compiler.
 Punctuation may touch surrounding tokens: `add(x, 1)` and `main()` are
 accepted, as are spaced versions. Whitespace may contain spaces, tabs, or
@@ -202,13 +202,11 @@ recognize their ends without relying on line breaks.
 ```text
 program  ::= main ( ) : Int64 { statement* return int_atom ; }
 statement::= let identifier : Type = rhs ;
-           | var identifier : Type = rhs ;
-           | mutable_identifier = rhs ;
-           | write ( ref_identifier , matching_atom ) ;
+           | ref_identifier := rhs ;
            | if ( bool_atom ) { statement* } else { statement* }
            | while ( bool_atom ) { statement* }
 Type     ::= Int64 | Bool | RefInt64 | RefBool
-atom     ::= integer | true | false | in_scope_identifier
+atom     ::= integer | true | false | in_scope_identifier | ! ref_identifier
 rhs      ::= atom | atom binary_op atom | operation ( atom [, atom] )
 ```
 
@@ -216,7 +214,10 @@ Binary operators are `+`, `-`, `*` on `Int64`, `<` and `==` for comparison,
 and `&&`, `||`, and `==` on `Bool`. Each operand must be atomic; bind a
 subexpression first if needed. The named operations remain available for
 compatibility with earlier examples. `RefInt64`, `RefBool`, and the ref
-operations are custom extensions, not Cangjie standard library types.
+operations are custom extensions, not Cangjie standard library types. `!cell`
+is treated as an atom, so it also works in calls, infix operands, conditions,
+and returns. `! cell` is accepted too. The two characters of `:=` must be adjacent,
+though a model token may split between them.
 
 Infix checking uses a fixed table of operator signatures. At the start of a
 right-hand side, an atom is viable if it has the expected result type, or if
@@ -229,23 +230,24 @@ the whole expression (`2+1`). No complete program is generated to make these
 decisions.
 
 Conditions and return values currently accept atoms only. Bind comparisons
-before `if`, and use a Boolean `var` for a loop that updates its condition.
+before `if`, and use `while (!flag)` with a `RefBool` cell for an updatable loop condition.
 There are no chained infix expressions or precedence rules yet.
 
 `Int64` literals are signed 64-bit decimal integers, optionally prefixed
 with `-`. Variable names start with a lowercase ASCII letter, then contain
 letters, digits, or underscores. Variables cannot be redefined in an active
 scope; names introduced inside `if` or `while` blocks disappear at the closing
-brace. `let` bindings cannot be assigned; `var` bindings can. References can be
-aliased by another binding, and `write` mutates the
-shared cell without changing its type. The intended runtime model has signed
+brace. All bindings are immutable. References can be aliased by another binding;
+`cell := rhs` mutates the shared cell without changing its type. Dereferencing
+`!cell` produces `Int64` for a `RefInt64`, or `Bool` for a `RefBool`. There is no
+`var`, plain assignment, `write()`, `readInt()`, or `readBool()` syntax. The intended runtime model has signed
 64-bit integers and garbage-collected reference cells; this prototype checks code
 but does not execute it.
 
 | Result | Operations |
 | --- | --- |
-| `Int64` | `+`, `-`, `*`; `add(Int64, Int64)`, `sub(Int64, Int64)`, `mul(Int64, Int64)`, `readInt(RefInt64)` |
-| `Bool` | `<`, `==`, `&&`, `||`; `eq(Int64, Int64)`, `lt(Int64, Int64)`, `not(Bool)`, `and(Bool, Bool)`, `or(Bool, Bool)`, `readBool(RefBool)` |
+| `Int64` | `+`, `-`, `*`; `add(Int64, Int64)`, `sub(Int64, Int64)`, `mul(Int64, Int64)`, `!cell` for `cell: RefInt64` |
+| `Bool` | `<`, `==`, `&&`, `||`; `eq(Int64, Int64)`, `lt(Int64, Int64)`, `not(Bool)`, `and(Bool, Bool)`, `or(Bool, Bool)`, `!cell` for `cell: RefBool` |
 | `RefInt64` | `refInt(Int64)` |
 | `RefBool` | `refBool(Bool)` |
 
@@ -253,38 +255,38 @@ Example:
 
 ```text
 main(): Int64 {
-  var flag: Bool = true;
-  var counter: Int64 = 0;
-  while (flag) {
-    counter = counter + 1;
-    flag = false;
+  let flag: RefBool = refBool(true);
+  let counter: RefInt64 = refInt(0);
+  while (!flag) {
+    counter := !counter + 1;
+    flag := false;
   }
-  return counter;
+  return !counter;
 }
 ```
 
 The Fibonacci(5) example from the conversation has a terminating loop in this
-syntax. `a` holds F(i), `b` holds F(i+1), and it returns `5` after five updates:
+syntax. `a` holds F(!i), `b` holds F(!i+1), and it returns `5` after five updates:
 
 ```text
 main(): Int64 {
   let limit: Int64 = 5;
-  var i: Int64 = 0;
-  var a: Int64 = 0;
-  var b: Int64 = 1;
-  var running: Bool = true;
-  while (running) {
-    let done: Bool = i == limit;
+  let i: RefInt64 = refInt(0);
+  let a: RefInt64 = refInt(0);
+  let b: RefInt64 = refInt(1);
+  let running: RefBool = refBool(true);
+  while (!running) {
+    let done: Bool = !i == limit;
     if (done) {
-      running = false;
+      running := false;
     } else {
-      let next: Int64 = a + b;
-      a = b;
-      b = next;
-      i = i + 1;
+      let next: Int64 = !a + !b;
+      a := !b;
+      b := next;
+      i := !i + 1;
     }
   }
-  return a;
+  return !a;
 }
 ```
 

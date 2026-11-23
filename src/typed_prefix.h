@@ -12,7 +12,6 @@ enum class Type { Int, Bool, RefInt, RefBool };
 struct Symbol {
     std::string name;
     Type type;
-    bool mutable_binding = false;
 };
 
 // The accepted language is specified in README.md. Each public operation is
@@ -36,7 +35,7 @@ private:
         Main, OpenParen, CloseParen, Colon, MainType, MainOpen,
         Stmt, LetName, LetColon, LetType, LetEqual, Rhs, RhsAfterAtom, RhsRight,
         CallOpen, CallArg, CallAfterArg, LetSemi,
-        WriteOpen, WriteRef, WriteComma, WriteValue, WriteClose, WriteSemi,
+        AssignOperator,
         IfOpenParen, IfCondition, IfCloseParen, IfOpen, Else, ElseOpen,
         WhileOpenParen, WhileCondition, WhileCloseParen, WhileOpen,
         ReturnValue, ReturnSemi, MainClose, Done,
@@ -55,9 +54,7 @@ private:
     Type new_type_ = Type::Int;
     Type rhs_lhs_type_ = Type::Int;
     Type rhs_right_type_ = Type::Int;
-    bool new_mutable_ = false;
     bool assignment_ = false;
-    Type value_type_ = Type::Int;
     std::string operation_;
     size_t argument_ = 0;
 
@@ -67,9 +64,7 @@ private:
     bool atom_possible(Type type, std::string_view partial) const;
     bool atom_complete(Type type, std::string_view token) const;
     bool symbol_prefix(Type type, std::string_view partial) const;
-    bool mutable_symbol_prefix(std::string_view partial) const;
     bool has_atom(Type type) const;
-    bool has_reference() const;
     bool name_available(std::string_view name) const;
     const Symbol * find(std::string_view name) const;
     bool operation_possible(Type result, std::string_view partial) const;

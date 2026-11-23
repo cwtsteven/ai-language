@@ -45,8 +45,8 @@ int main() {
     complete("main ( ) : Int64 { return 0 ; }");
     complete("main(): Int64 { return 0; }");
     complete("main(): Int64 { let x: Int64 = add(2, 3); return x; }");
-    complete("main(): Int64 { var x: Int64 = 2; x = add(x, 3); return x; }");
-    complete("main(): Int64 { var x: Int64 = 2; x=x+3; return x; }");
+    complete("main(): Int64 { let x: RefInt64 = refInt(2); x := add(!x, 3); return !x; }");
+    complete("main(): Int64 { let x: RefInt64 = refInt(2); x:=!x+3; return ! x; }");
     complete("main(): Int64 { let x: Int64 = -9223372036854775808; return x; }");
     complete("main(): Int64 { let x: Int64 = 9223372036854775807; return x; }");
     complete("main(): Int64 { let x: Int64 = 5; let done: Bool = x==5; "
@@ -57,18 +57,20 @@ int main() {
              "let same: Bool = true==false; let either: Bool = same||true; return y; }");
     complete("main(): Int64 { let name: Bool = true; let number: Int64 = 2; "
              "let compared: Bool = number == 1; return number; }");
-    complete("main(): Int64 { let limit: Int64 = 5; var i: Int64 = 0; "
-             "var a: Int64 = 0; var b: Int64 = 1; var running: Bool = true; "
-             "while (running) { let done: Bool = i == limit; if (done) { "
-             "running = false; } else { let next: Int64 = a + b; a = b; "
-             "b = next; i = i + 1; } } return a; }");
-    complete("main(): Int64 { var flag: Bool = true; while (flag) { flag = false; } return 0; }");
+    complete("main(): Int64 { let limit: Int64 = 5; let i: RefInt64 = refInt(0); "
+             "let a: RefInt64 = refInt(0); let b: RefInt64 = refInt(1); "
+             "let running: RefBool = refBool(true); while (!running) { "
+             "let done: Bool = !i == limit; if (done) { running := false; } else { "
+             "let next: Int64 = !a + !b; a := !b; b := next; i := !i + 1; } } return !a; }");
+    complete("main(): Int64 { let flag: RefBool = refBool(true); "
+             "while (!flag) { flag := false; } return 0; }");
     complete("main(): Int64 { let cell: RefInt64 = refInt(7); "
-             "let old: Int64 = readInt(cell); let next: Int64 = add(old, 4); "
-             "write(cell, next); let result: Int64 = readInt(cell); return result; }");
+             "let old: Int64 = !cell; let next: Int64 = old + 4; "
+             "cell := next; let result: Int64 = !cell; return result; }");
     complete("main(): Int64 { let original: RefInt64 = refInt(0); "
-             "let alias: RefInt64 = original; write(alias, 9); "
-             "let value: Int64 = readInt(original); return value; }");
+             "let alias: RefInt64 = original; alias := 9; return !original; }");
+    complete("main(): Int64 { let flag: RefBool = refBool(true); "
+             "let b: Bool = !flag && false; if (!flag) { flag := b; } else {} return 0; }");
     complete("main(): Int64 { let flag: Bool = true; if (flag) { "
              "let local: Int64 = 2; } else { let other: Bool = false; } return 0; }");
 
@@ -80,12 +82,12 @@ int main() {
              "false ", "2); return x; }");
     rejected("main(): Int64 { let x: Int64 = add(1 ",
              ") ", ", 2); return x; }");
-    rejected("main(): Int64 { let r: RefInt64 = refInt(0); write(r, ",
-             "true ", "1); return 0; }");
+    rejected("main(): Int64 { let r: RefInt64 = refInt(0); r := ",
+             "true ", "1; return 0; }");
     rejected("main(): Int64 { let x: Int64 = 1; ",
              "x ", "return x; }");
-    rejected("main(): Int64 { var x: Int64 = 1; x = ",
-             "true ", "2; return x; }");
+    rejected("main(): Int64 { let x: RefInt64 = refInt(1); x := ",
+             "true ", "2; return !x; }");
     rejected("main(): Int64 { let x: Int64 = ",
              "9223372036854775808", "9223372036854775807; return x; }");
     rejected("main(): Int64 { let x: Int64 = 2 ",
@@ -100,7 +102,7 @@ int main() {
              "true", "1; return x; }");
     rejected("main(): Int64 { let x: Int64 = -", "9223372036854775809",
              "9223372036854775808; return x; }");
-    rejected("main(): Int64 { while (true) { var local: Int64 = 0; } ",
+    rejected("main(): Int64 { while (true) { let local: RefInt64 = refInt(0); } ",
              "local", "return 0; }");
     rejected("main(): Int64 { let x: Int64 = 1; let ",
              "x ", "xx: Int64 = 2; return x; }");
@@ -108,6 +110,17 @@ int main() {
              "x ", "0; }");
     rejected("main(): Int64 { if (", "1 ", "true) { } else { } return 0; }");
     rejected("main(): Int64 { ", "fn ", "return 0; }");
+
+    rejected("main(): Int64 { ", "var ", "return 0; }");
+    rejected("main(): Int64 { let x: RefInt64 = refInt(0); ", "write(", "return 0; }");
+    rejected("main(): Int64 { let x: RefInt64 = refInt(0); let v: Int64 = ",
+             "readInt(", "!x; return v; }");
+    rejected("main(): Int64 { let x: Int64 = 1; return ", "!", "x; }");
+    rejected("main(): Int64 { let r: RefBool = refBool(true); return ", "!", "0; }");
+    rejected("main(): Int64 { let r: RefInt64 = refInt(0); r", "=", ":=5; return !r; }");
+    rejected("main(): Int64 { let r: RefInt64 = refInt(0); r:", "+", "=5; return !r; }");
+    rejected("main(): Int64 { let n: RefInt64 = refInt(0); let name: RefBool = refBool(true); "
+             "let x: Int64 = !n", "a", "; return x; }");
 
     Prefix p;
     CHECK(p.append("main(): Int64 { return 0; }"));
@@ -133,4 +146,26 @@ int main() {
     CHECK(finished.can_end());
     CHECK(split.append("=1; return 0; }"));
     CHECK(split.can_end());
+    // All accepted one-byte candidates from boundary states must retain a
+    // completion, including whitespace after ! and half of := or ==.
+    for (auto seed : {
+        "main(): Int64 { let r: RefInt64 = refInt(0); r",
+        "main(): Int64 { let r: RefInt64 = refInt(0); r:",
+        "main(): Int64 { let r: RefInt64 = refInt(0); r:=!",
+        "main(): Int64 { let r: RefInt64 = refInt(0); let b: Bool = !",
+        "main(): Int64 { let r: RefInt64 = refInt(0); let b: Bool = !r=",
+        "main(): Int64 { let r: RefBool = refBool(true); while (!"
+    }) {
+        Prefix base;
+        CHECK(base.append(seed));
+        for (char ch = 32; ch < 127; ++ch) {
+            Prefix candidate = base;
+            if (!candidate.append(std::string_view(&ch, 1))) continue;
+            const auto rest = candidate.completion();
+            CHECK(rest.has_value());
+            CHECK(candidate.append(*rest));
+            CHECK(candidate.can_end());
+        }
+    }
+
 }
