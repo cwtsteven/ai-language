@@ -20,6 +20,7 @@ struct Options {
     std::optional<int> gpu_layers;
     bool raw = false;
     bool constrained = true;
+    bool plan = true;
     bool debug = false;
     int debug_limit = 20;
 };

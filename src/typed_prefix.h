@@ -32,30 +32,40 @@ public:
 
 private:
     enum class Phase {
-        Main, OpenParen, CloseParen, Colon, MainType, MainOpen,
+        TopLevel, OpenParen, CloseParen, Colon, MainType, MainOpen,
+        FunctionName, FunctionParen, ParamStart, ParamName, ParamColon, ParamType,
+        AfterParam, FunctionColon, FunctionType, FunctionOpen,
         Stmt, LetName, LetColon, LetType, LetEqual, Rhs, RhsAfterAtom, RhsRight,
-        CallOpen, CallArg, CallAfterArg, LetSemi,
+        CallOpen, CallArg, CallAfterArg, CallClose, LetSemi,
         AssignOperator, LoopControlSemi,
         IfOpenParen, IfCondition, IfCloseParen, IfOpen, Else, ElseOpen,
         WhileOpenParen, WhileCondition, WhileCloseParen, WhileOpen,
-        ReturnValue, ReturnSemi, MainClose, Done,
+        ReturnValue, ReturnSemi, BodyClose, Done,
     };
-    enum class Block { Main, IfThen, IfElse, While };
+    enum class Block { Main, Function, IfThen, IfElse, While };
+    struct Function {
+        std::string name;
+        Type result = Type::Int;
+        std::vector<Type> arguments;
+    };
     struct Frame {
         Block kind;
         size_t symbol_count;
     };
 
-    Phase phase_ = Phase::Main;
+    Phase phase_ = Phase::TopLevel;
     std::string pending_;
     std::vector<Symbol> symbols_;
     std::vector<Frame> blocks_;
+    std::vector<Function> functions_;
+    Function declaring_;
+    Type return_type_ = Type::Int;
     std::string new_name_;
     Type new_type_ = Type::Int;
     Type rhs_lhs_type_ = Type::Int;
     Type rhs_right_type_ = Type::Int;
     bool assignment_ = false;
-    std::string operation_;
+    std::vector<Type> call_arguments_;
     size_t argument_ = 0;
 
     bool step(unsigned char ch);
@@ -67,6 +77,7 @@ private:
     bool has_atom(Type type) const;
     bool name_available(std::string_view name) const;
     const Symbol * find(std::string_view name) const;
+    const Function * find_function(std::string_view name) const;
     bool operation_possible(Type result, std::string_view partial) const;
     bool begin_operation(std::string_view name, Type result);
     bool rhs_operator_possible(std::string_view partial) const;

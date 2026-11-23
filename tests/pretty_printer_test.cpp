@@ -24,6 +24,18 @@ static void formatted(std::string_view source, std::string_view expected) {
 }
 
 int main() {
+    formatted("func increment(x:Int64):Int64{let y:Int64=x+1;return y;}"
+              "func answer():Int64{let x:Int64=increment(4);return x;}"
+              "main():Int64{let result:Int64=answer();return result;}",
+              "func increment(x: Int64): Int64 {\n"
+              "    let y: Int64 = x + 1;\n"
+              "    return y;\n}\n"
+              "func answer(): Int64 {\n"
+              "    let x: Int64 = increment(4);\n"
+              "    return x;\n}\n"
+              "main(): Int64 {\n"
+              "    let result: Int64 = answer();\n"
+              "    return result;\n}\n");
     formatted("main():Int64{while(true){if(false){continue;}else{break;}}return 0;}",
               "main(): Int64 {\n"
               "    while (true) {\n"
@@ -70,6 +82,7 @@ int main() {
                           "main(): Int64 { var x: Int64 = 0; return x; }",
                           "main(): Int64 { let x: RefInt64 = refInt(0); x: =1; return !x; }",
                           "main(): Int64 { break; return 0; }",
+                          "func bad(): Bool { return 0; } main(): Int64 { return 0; }",
                           "main(): Int64 { if(true){continue;}else{} return 0; }" }) {
         CHECK(!typed::format_program(invalid));
     }

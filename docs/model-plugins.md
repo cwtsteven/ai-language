@@ -34,7 +34,7 @@ Set `gpu_layers` to `0` for CPU inference, including CPU builds on macOS.
 | `assistant_prefix` | Text or special tokens before generated code. An empty string disables the automatic Qwen3.5/GPT-OSS prefix. |
 
 Choose `chat_template` or `prompt_template`. Custom templates receive the
-language rules and grammar through `{{system}}` and the request through
+language specification through `{{system}}` and the request through
 `{{task}}`. Values are inserted once; placeholders inside them are not evaluated.
 Custom templates receive no automatic assistant prefix. See
 [plugins/custom.example.json](../plugins/custom.example.json) for a ChatML example.

@@ -43,7 +43,8 @@ A viable unfinished prefix passes `check` with `complete=no`.
 | Option | Meaning / default |
 | --- | --- |
 | `--model FILE` | Required GGUF weights or JSON plugin. |
-| `--n N` | Maximum generated tokens; default **256**. |
+| `--n N` | Maximum generated code tokens; default **256**. |
+| `--no-plan` | Skip the default unconstrained planning pass. |
 | `--prefix CODE` | Seed with a valid prefix; default empty. |
 | `--prompt TEXT` | Prepared raw prompt instead of the positional task description. |
 | `--raw` | Stream unformatted output; default is buffered and formatted. |
@@ -54,8 +55,10 @@ A viable unfinished prefix passes `check` with `complete=no`.
 | `--ubatch N` | Physical batch size: plugin setting, otherwise llama.cpp's default. |
 | `-h`, `--help` | Command help. |
 
-Task descriptions receive the language rules and grammar. `--prompt` bypasses
-that formatting. If the token budget runs out, constrained decoding constructs
+Tasks first produce an implementation plan on stderr until the model ends its response,
+then generate code using that plan and the language specification. `--no-plan` skips the first
+pass; `--prompt` bypasses planning and task formatting. If the code budget runs
+out, constrained decoding constructs
 a typed suffix and reports this on stderr; the suffix may not fulfill the task.
 
 ## Fibonacci example
@@ -71,8 +74,9 @@ A [reference program](examples/fibonacci-5-break.typed) uses `while (true)` and 
 
 Immutable `let` bindings; `Int64`, `Bool`, `RefInt64`, and `RefBool`; `!cell` reads
 and `cell := value` writes. Statements require semicolons. Conditions are Boolean
-atoms; `break;` and `continue;` are allowed only inside loops.
+atoms; `break;` and `continue;` are allowed only inside loops. Typed `func`
+declarations go before `main`; see the [function example](examples/functions.typed).
 
-- [Grammar and type rules](docs/language.md)
+- [Single language specification](docs/language.md) (also embedded in model prompts at build time)
 - [Model plugin settings](docs/model-plugins.md)
 - [Checker and decoder internals](docs/decoder.md)

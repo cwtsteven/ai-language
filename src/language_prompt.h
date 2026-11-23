@@ -1,71 +1,29 @@
 #pragma once
 
+#include "language_spec.h"
+
 #include <string>
-#include <string_view>
 
 namespace language {
 
-inline constexpr std::string_view break_example =
-    "main ( ) : Int64 { let i : RefInt64 = refInt ( 0 ) ; while ( true ) { "
-    "let done : Bool = ! i == 3 ; if ( done ) { break ; } else { i := ! i + 1 ; } } return ! i ; }";
-
-inline constexpr std::string_view grammar = R"GRAMMAR(
-
-Formal grammar (EBNF; quoted text is literal, * means zero or more):
-program       ::= "main" "(" ")" ":" "Int64" "{" statement* "return" int_atom ";" "}"
-statement     ::= "let" identifier ":" Type "=" rhs ";"
-                | ref_identifier ":=" rhs ";"
-                | "if" "(" bool_atom ")" "{" statement* "}" "else" "{" statement* "}"
-                | "while" "(" bool_atom ")" "{" statement* "}"
-                | "break" ";" | "continue" ";"
-Type          ::= "Int64" | "Bool" | "RefInt64" | "RefBool"
-atom          ::= integer | "true" | "false" | in_scope_identifier | "!" ref_identifier
-rhs           ::= atom | atom binary_op atom | unary_op "(" atom ")"
-                | binary_call "(" atom "," atom ")"
-binary_op     ::= "+" | "-" | "*" | "<" | "==" | "&&" | "||"
-unary_op      ::= "not" | "refInt" | "refBool"
-binary_call   ::= "add" | "sub" | "mul" | "eq" | "lt" | "and" | "or"
-int_atom      ::= an atom of type Int64
-bool_atom     ::= an atom of type Bool
-ref_identifier ::= an in-scope identifier of type RefInt64 or RefBool
-identifier    ::= a lowercase ASCII letter followed by ASCII letters, digits, or underscores
-integer       ::= an optional '-' followed by decimal digits, within signed 64-bit range
-All names must be fresh in active scopes and must not be reserved words or operation names.
-All operands, arguments, right-hand sides, assignments, and return values must match the type signatures above.
-Dereferencing !cell has the cell's contents type. Only reference cells can be assigned with :=.
-Conditions must be Boolean atoms. Bind comparisons before using them as conditions.
-break and continue are allowed only inside a while body, including nested if branches.
-break exits the nearest enclosing while. continue skips the rest of its body and rechecks its condition.
-)GRAMMAR";
-
 inline const std::string & system_prompt() {
     static const std::string prompt =
-        "Write exactly one program in the following small Cangjie-inspired typed language. Output code only: no Markdown or explanation. "
-        "Put whitespace between every token, including punctuation. "
-        "Start with: main ( ) : Int64 { . End with: return INT_ATOM ; } . "
-        "The body may use let name : Type = rhs ;, cell := rhs ;, "
-        "if ( bool_atom ) { statements } else { statements }, or "
-        "while ( bool_atom ) { statements }, with break ; or continue ; inside loops. "
-        "Types are Int64, Bool, RefInt64, RefBool. Atoms are integer literals, true, false, in-scope variables, or !cell to dereference a cell. Whitespace after ! is allowed. Keep := together. "
-        "Right-hand sides may be atoms, one binary expression of atomic operands, or these calls with atomic arguments. "
-        "Binary operators: Int64 + Int64, Int64 - Int64, Int64 * Int64 produce Int64; "
-        "Int64 < Int64 and Int64 == Int64 produce Bool; Bool && Bool, Bool || Bool, and Bool == Bool produce Bool. "
-        "add(Int64,Int64):Int64, sub(Int64,Int64):Int64, mul(Int64,Int64):Int64, "
-        "eq(Int64,Int64):Bool, lt(Int64,Int64):Bool, not(Bool):Bool, and(Bool,Bool):Bool, or(Bool,Bool):Bool, "
-        "refInt(Int64):RefInt64, refBool(Bool):RefBool. "
-        "Every computed intermediate value must be bound by let or assigned to a cell. Do not nest operations. "
-        "All let bindings are immutable. For mutation, allocate a RefInt64 or RefBool cell. "
-        "Read it with !cell and update its contents with cell := value. Never use var, write(), readInt(), or readBool(). "
-        "A while (!flag) loop rereads a RefBool cell on each iteration. "
-        "A while (true) loop can stop with break ;. A continue ; skips the rest of the current iteration and rechecks the condition. "
-        "Both statements target the nearest enclosing while and may appear inside its nested if branches. "
-        "Declaring or updating a local stopFlag does not stop while (true); use break ; instead. "
-        "For a counter loop, compare the current counter with the limit inside the loop, "
-        "then exit the loop if done or update the counter. Return only after the loop, not inside it. "
-        "Arithmetic example: main ( ) : Int64 { let x : Int64 = 2 + 3 ; return x ; } "
-        "Mutable cell example: main ( ) : Int64 { let x : RefInt64 = refInt ( 5 ) ; "
-        "x := ! x + 1 ; return ! x ; } "
-        "Loop example (returns 3): " + std::string(break_example) + std::string(grammar);
+        "Write exactly one program satisfying this language specification. "
+        "Output code only: no Markdown or explanation. Use spaces between tokens for clarity.\n\n" +
+        std::string(specification);
+    return prompt;
+}
+
+inline const std::string & planning_prompt() {
+    static const std::string prompt =
+        "Write a concise implementation plan for the requested program. Output a design summary, not program code or a reasoning transcript. "
+        "State the expected result or behavior. List any helper functions in declaration order with typed parameters and return types. "
+        "For each function, including main, specify its body: initial values, computations in order, cell updates, loop exit conditions, and returned atom. "
+        "For loops, state the invariant and when the condition is checked. For recursion, state the base case and how the argument decreases. "
+        "Plan intermediate let bindings so call arguments and operator operands are atoms. Respect any supplied code prefix. "
+        "Use as much space as needed for the plan; do not output a complete program or Markdown code fences. "
+        "The following specification describes the eventual program, not the formatting of your plan:\n\n" +
+        std::string(specification);
     return prompt;
 }
 

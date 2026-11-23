@@ -41,11 +41,12 @@ int main() {
     CHECK(options.command == cli::Command::Task);
     CHECK(options.input == "Compute Fibonacci(5)");
     CHECK(options.model_path == "weights.gguf");
-    CHECK(options.tokens == 256 && options.constrained && !options.raw);
+    CHECK(options.tokens == 256 && options.constrained && !options.raw && options.plan);
     CHECK(!options.gpu_layers && options.ubatch == 0 && !options.prompt);
     options = parse({"task", "--model", "plugin.json", "--n", "512", "request"});
     CHECK(options.model_path == "plugin.json" && options.tokens == 512);
     CHECK(parse({"task", "request", "--model", "x", "--n", "32"}).tokens == 32);
+    CHECK(!parse({"task", "request", "--model", "x", "--no-plan"}).plan);
     options = parse({"task", "--model", "x", "--prompt", "raw prompt", "--prefix", "main",
                      "--raw", "--unconstrained", "--debug-limit", "0", "--ngl", "0", "--ubatch", "64"});
     CHECK(options.prompt && *options.prompt == "raw prompt");

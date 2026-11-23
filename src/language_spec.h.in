@@ -1,0 +1,10 @@
+#pragma once
+
+#include <string_view>
+
+namespace language {
+
+// Generated from docs/language.md by CMake. Edit that file, then rebuild.
+inline constexpr std::string_view specification = R"AI_LANGUAGE_SPEC(@LANGUAGE_SPEC@)AI_LANGUAGE_SPEC";
+
+} // namespace language

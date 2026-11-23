@@ -45,6 +45,7 @@ Options parse(int argc, const char * const * argv) {
                 throw std::runtime_error(command + " does not accept option " + arg);
             if (arg == "--raw") { options.raw = true; continue; }
             if (arg == "--unconstrained") { options.constrained = false; continue; }
+            if (arg == "--no-plan") { options.plan = false; continue; }
             if (arg == "--debug") { options.debug = true; continue; }
             if (arg != "--model" && arg != "--n" && arg != "--prefix" &&
                 arg != "--prompt" && arg != "--debug-limit" && arg != "--ngl" && arg != "--ubatch")
@@ -99,9 +100,10 @@ void print_help(FILE * output, const char * executable, Command command) {
             "  TEXT              A quoted description of the program to generate.\n\n"
             "Options:\n"
             "  --model FILE      Required: GGUF weights or a JSON model plugin.\n"
-            "  --n N             Maximum generated model tokens (default 256).\n"
+            "  --n N             Maximum generated code tokens (default 256).\n"
+            "  --no-plan         Skip the default unconstrained implementation-planning pass.\n"
             "  --prefix CODE     Seed generation with a valid program prefix.\n"
-            "  --prompt TEXT     Use a prepared raw prompt instead of a task description.\n"
+            "  --prompt TEXT     Use a raw prompt instead of a task description; skips planning.\n"
             "  --raw             Stream unformatted output.\n"
             "  --unconstrained   Disable token constraints and check the result.\n"
             "  --debug           Trace selected and rejected tokens to stderr.\n"
@@ -109,7 +111,8 @@ void print_help(FILE * output, const char * executable, Command command) {
             "  --ngl N           Override GPU layers (default: plugin, then 99 on macOS/0 elsewhere).\n"
             "  --ubatch N        Override physical batch size (default: plugin, then llama.cpp).\n"
             "  -h, --help        Show this command's help without loading a model.\n\n"
-            "Task descriptions include the grammar prompt. Output is type-constrained and\n"
+            "Task descriptions first produce a plan on stderr, without an output token cap,\n"
+            "then include it with the language specification for code generation. Output is type-constrained and\n"
             "formatted by default. A token budget is not a word count; if it runs out,\n"
             "constrained generation constructs a typed suffix and reports this on stderr.\n"
             "The suffix may not fulfill the request. Use --unconstrained --raw to inspect\n"

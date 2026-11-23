@@ -61,15 +61,18 @@ int main() {
     CHECK(format_prompt(plugin, nullptr, "other-model", "rules", "request") ==
           "S:rules\nU:request\nA:start");
 
-    // Both built-in chat formatting and a custom plugin must carry the full
-    // grammar, including the restriction to atomic loop conditions.
+    // Both built-in chat formatting and a custom plugin carry the one spec.
     const auto & rules = language::system_prompt();
     typed::Prefix loop_example;
-    CHECK(loop_example.append(language::break_example));
+    CHECK(loop_example.append("main(): Int64 { while(true){break;} return 0; }"));
     CHECK(loop_example.can_end());
+    typed::Prefix function_example;
+    CHECK(function_example.append("func increment(value: Int64): Int64 { let next: Int64 = value + 1; return next; } "
+                                  "main(): Int64 { let result: Int64 = increment(4); return result; }"));
+    CHECK(function_example.can_end());
     const auto assert_grammar = [&](const std::string & prompt) {
-        CHECK(prompt.find(language::grammar) != std::string::npos);
-        CHECK(prompt.find(language::break_example) != std::string::npos);
+        CHECK(prompt.find(language::specification) != std::string::npos);
+        CHECK(prompt.find("\"func\" identifier") != std::string::npos);
         CHECK(prompt.find("\"while\" \"(\" bool_atom") != std::string::npos);
         CHECK(prompt.find("\"let\" identifier") != std::string::npos);
         CHECK(prompt.find("\"break\" \";\"") != std::string::npos);

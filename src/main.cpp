@@ -4,10 +4,15 @@
 #include "model_plugin.h"
 #include "language_prompt.h"
 #include "cli.h"
+#include "planning.h"
 #include "llama.h"
 
 #include <cstdio>
+#include <algorithm>
 #include <exception>
+#include <limits>
+#include <memory>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -15,12 +20,6 @@ namespace {
 
 void quiet_log(ggml_log_level level, const char * message, void *) {
     if (level == GGML_LOG_LEVEL_ERROR) std::fputs(message, stderr);
-}
-
-std::string task_prompt(const llama_model * model, const models::Plugin & plugin, const std::string & task) {
-    const std::string & system = language::system_prompt();
-    const std::string user = "Produce a program for this request: " + task;
-    return models::task_prompt(model, plugin, system, user);
 }
 
 std::string token_piece(const llama_vocab * vocab, llama_token token) {
@@ -43,6 +42,56 @@ void batch_set(llama_batch_ext * batch, const llama_token * tokens, int count, l
         llama_batch_ext_set_pos(batch, index, &p);
     }
     llama_batch_ext_set_output_logits(batch, count - 1, true);
+}
+
+planning::Plan run_planner(llama_model * model, const models::Plugin & plugin,
+                           const planning::Request & request, int ubatch) {
+    const auto prompt = models::task_prompt(model, plugin, request.system, request.user);
+    const auto * vocab = llama_model_get_vocab(model);
+    if (prompt.size() > static_cast<size_t>(std::numeric_limits<int>::max()))
+        throw std::runtime_error("planning prompt is too long");
+    const int count = -llama_tokenize(vocab, prompt.data(), prompt.size(), nullptr, 0, true, true);
+    if (count <= 0 || count > std::numeric_limits<int>::max() - 2048 - 8)
+        throw std::runtime_error("failed to tokenize planning prompt within the context limit");
+    std::vector<llama_token> tokens(static_cast<size_t>(count));
+    if (llama_tokenize(vocab, prompt.data(), prompt.size(), tokens.data(), count, true, true) < 0)
+        throw std::runtime_error("failed to tokenize planning prompt");
+
+    auto params = llama_context_default_params();
+    params.n_ctx = std::max(4096, count + 2048);
+    params.n_batch = params.n_ctx;
+    if (ubatch > 0) params.n_ubatch = ubatch;
+    std::unique_ptr<llama_context, decltype(&llama_free)> context(llama_init_from_model(model, params), llama_free);
+    if (!context) throw std::runtime_error("failed to create planning context");
+    std::unique_ptr<llama_batch_ext, decltype(&llama_batch_ext_free)> batch(llama_batch_ext_init(context.get()), llama_batch_ext_free);
+    std::unique_ptr<llama_sampler, decltype(&llama_sampler_free)> sampler(llama_sampler_init_greedy(), llama_sampler_free);
+    if (!batch || !sampler) throw std::runtime_error("failed to allocate planning batch or sampler");
+    batch_set(batch.get(), tokens.data(), count, 0);
+    planning::Plan plan;
+    std::vector<llama_token> history;
+    int position = 0;
+    int batch_count = count;
+    while (true) {
+        if (llama_process(context.get(), LLAMA_PROCESS_TYPE_DECODE, batch.get()))
+            throw std::runtime_error("planning model decode failed");
+        position += batch_count;
+        const auto token = llama_sampler_sample(sampler.get(), context.get(), -1);
+        if (llama_vocab_is_eog(vocab, token)) { plan.complete = true; break; }
+        plan.text += token_piece(vocab, token);
+        history.push_back(token);
+        if (position >= static_cast<int>(llama_n_ctx(context.get()))) {
+            const auto replay = planning::replay_tokens(tokens, history, llama_n_ctx(context.get()));
+            llama_memory_clear(llama_get_memory(context.get()), true);
+            position = 0;
+            batch_count = static_cast<int>(replay.size());
+            batch_set(batch.get(), replay.data(), batch_count, 0);
+        } else {
+            batch_set(batch.get(), &token, 1, position);
+            batch_count = 1;
+        }
+    }
+    // The planner context and sampler are freed before code generation begins.
+    return plan;
 }
 
 } // namespace
@@ -136,7 +185,15 @@ int main(int argc, char ** argv) {
     std::string full_prompt;
     if (!task.empty()) {
         try {
-            full_prompt = task_prompt(model, model_plugin, task);
+            const auto prepared = planning::prepare(task, prefix, options.plan, [&](const planning::Request & request) {
+                std::fputs("Planning implementation...\n", stderr);
+                std::fflush(stderr);
+                return run_planner(model, model_plugin, request, n_ubatch);
+            });
+            if (prepared.plan) {
+                std::fprintf(stderr, "Implementation plan:\n%s\n\n", prepared.plan->text.c_str());
+            }
+            full_prompt = models::task_prompt(model, model_plugin, prepared.system, prepared.user);
         } catch (const std::exception & error) {
             std::fprintf(stderr, "%s\n", error.what());
             llama_model_free(model);
