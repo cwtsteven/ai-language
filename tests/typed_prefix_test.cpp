@@ -51,7 +51,7 @@ int main() {
              "ready = false; r = r; return r; }");
     complete("main(): Int64 { let x: Int64 = -9223372036854775808; return x; }");
     complete("main(): Int64 { let x: Int64 = 9223372036854775807; return x; }");
-    complete("main(): Int64 { let x: Int64 = 5; if (x == 5) { let y: Int64 = x * 2; } else { } return x; }");
+    complete("main(): Int64 { let x: Int64 = 5; let same: Bool = x == 5; if (same) { let y: Int64 = x * 2; } else { } return x; }");
     complete("main(): Int64 { let x: Int64 = 3; let small: Bool = x < 5; "
              "let yes: Bool = small && true; return x; }");
     complete("main(): Int64 { let x: Int64 = 2 - 1; let y: Int64 = x - -1; "
@@ -62,7 +62,7 @@ int main() {
     complete("main(): Int64 { let limit: Int64 = 5; var i: Int64 = 0; "
              "var a: Int64 = 0; var b: Int64 = 1; "
              "var running: Bool = true; while (running) { "
-             "if (i == limit) { running = false; } else { "
+             "let atLimit: Bool = i == limit; if (atLimit) { running = false; } else { "
              "let next: Int64 = a + b; a = b; b = next; "
              "let nextIndex: Int64 = i + 1; i = nextIndex; } } return a; }");
     complete("main(): Int64 { var flag: Bool = true; "
@@ -85,7 +85,7 @@ int main() {
     complete("main(): Int64 { var breakfast: Int64 = 0; "
              "let continued: Int64 = 1; while(true){breakfast = continued; break;} return breakfast; }");
     complete("main(): Int64 { var i: Int64 = 0; var a: Int64 = 0; "
-             "var b: Int64 = 1; while(true){if(i == 5){break;}else{let next: Int64 = a + b; a = b; b = next; "
+             "var b: Int64 = 1; let done: Bool = false; while(true){if(done){break;}else{let next: Int64 = a + b; a = b; b = next; "
              "let nextIndex: Int64 = i + 1; i = nextIndex;}} return a; }");
     complete("main(): Int64 { var x: Int64 = 1; x = x + 1; return x; }");
 
@@ -261,6 +261,16 @@ int main() {
     rejected("main(): Int64 { let text: String = ", "1", "\"ok\"; return 0; }");
     rejected("main(): Int64 { let items: ListInt64 = emptyList(); let n: Int64 = ", "true",
              "listLen(items); return n; }");
+
+    complete("func id<T>(value: T): T { return value; } "
+             "main(): Int64 { let n: Int64 = id<Int64>(4); return n; }");
+    complete("func apply(f: (Int64) -> Int64, value: Int64): Int64 { return f(value); } "
+             "main(): Int64 { let inc: (Int64) -> Int64 = fun(x: Int64): Int64 => x + 1; "
+             "let n: Int64 = apply(inc, 4); return n; }");
+    rejected("func id<T>(value: T): T { let bad: Int64 = ", "value",
+             "0; return value; } main(): Int64 { return id<Int64>(1); }");
+    rejected("main(): Int64 { let n: Int64 = 1; if (", "n == 0",
+             "true) { return n; } else { return 0; } }");
 
     Prefix unfinished;
     CHECK(unfinished.append("main(): Int64 {"));

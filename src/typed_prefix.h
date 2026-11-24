@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdio>
+#include <memory>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -8,7 +9,28 @@
 
 namespace typed {
 
-enum class Type { Int, Bool, List, String };
+// Base data types are the four named ones. A function type exists only once an
+// annotation or a lambda signature has written it. A type parameter exists only
+// inside the generic function that declared it.
+struct Type {
+    enum class Kind { Int, Bool, List, String, Fun, Param };
+    Kind kind = Kind::Int;
+    std::string param;
+    std::vector<Type> parameters;
+    std::shared_ptr<Type> result;
+
+    static Type Int();
+    static Type Bool();
+    static Type List();
+    static Type String();
+    static Type Param(std::string name);
+    static Type Fun(std::vector<Type> parameters, Type result);
+
+    bool operator==(const Type & other) const;
+    bool operator!=(const Type & other) const { return !(*this == other); }
+};
+
+std::string type_name(const Type & type);
 
 struct Symbol {
     std::string name;
@@ -52,21 +74,41 @@ public:
 private:
     enum class Phase {
         TopLevel, OpenParen, CloseParen, Colon, MainType, MainOpen,
-        FunctionName, FunctionParen, ParamStart, ParamName, ParamColon, ParamType,
+        FunctionName, FunctionGenericOrParen, TypeParamName, TypeParamNext,
+        FunctionParen, ParamStart, ParamName, ParamColon, ParamType,
         AfterParam, FunctionColon, FunctionType, FunctionOpen,
         Stmt, LetName, LetColon, LetType, LetEqual, ExprStart,
         ExprAfterLeft, InfixRight, IndexArg, IndexClose, UnaryArg,
+        IfAtom, WhileAtom,
+        CallTypeOpen, CallTypeArg, CallTypeNext,
         CallOpen, CallArg, CallAfterArg, CallClose, LetSemi,
+        LambdaParen, LambdaParamStart, LambdaParamName, LambdaParamColon, LambdaParamType,
+        LambdaAfterParam, LambdaColon, LambdaResult, LambdaEq, LambdaGt,
+        TypeAtom, TypeAfter, TypeArrow, TypeArrowGt,
         AssignEqual, LoopControlSemi,
         IfOpenParen, IfCloseParen, IfOpen, Else, ElseOpen,
         WhileOpenParen, WhileCloseParen, WhileOpen,
         ReturnSemi, Done,
     };
     enum class Block { Main, Function, IfThen, IfElse, While };
-    enum class ExprFollow { LetSemi, ReturnSemi, IfClose, WhileClose };
+    enum class ExprFollow { LetSemi, ReturnSemi, IfClose, WhileClose, LambdaEnd };
+    enum class TypeDest { Let, Param, Return, LambdaParam, LambdaResult, CallArg };
+    struct TypeBuild {
+        std::vector<Type> parameters;
+        bool result = false;
+    };
+    struct LambdaFrame {
+        ExprFollow follow = ExprFollow::LetSemi;
+        Type expr_needed = Type::Int();
+        Type signature = Type::Int();
+        size_t base = 0;
+        size_t param = 0;
+        std::string name;
+    };
     struct Function {
         std::string name;
-        Type result = Type::Int;
+        std::vector<std::string> type_params;
+        Type result = Type::Int();
         std::vector<Type> arguments;
     };
     struct Frame {
@@ -80,12 +122,24 @@ private:
     std::vector<Frame> blocks_;
     std::vector<Function> functions_;
     Function declaring_;
-    Type return_type_ = Type::Int;
+    Type return_type_ = Type::Int();
     std::string new_name_;
-    Type new_type_ = Type::Int;
-    Type expr_needed_ = Type::Int;
-    Type left_type_ = Type::Int;
-    Type infix_right_type_ = Type::Int;
+    Type new_type_ = Type::Int();
+    Type expr_needed_ = Type::Int();
+    Type left_type_ = Type::Int();
+    Type infix_right_type_ = Type::Int();
+    ExprFollow saved_follow_ = ExprFollow::LetSemi;
+    Type saved_needed_ = Type::Int();
+    Type lambda_result_ = Type::Int();
+    size_t lambda_base_ = 0;
+    size_t lambda_param_ = 0;
+    std::vector<LambdaFrame> lambdas_;
+    std::vector<std::string> type_params_;
+    std::vector<Type> call_type_args_;
+    std::string call_name_;
+    std::vector<TypeBuild> type_stack_;
+    TypeDest type_dest_ = TypeDest::Let;
+    bool type_at_result_ = false;
     ExprFollow expr_follow_ = ExprFollow::LetSemi;
     bool assignment_ = false;
     bool mutable_binding_ = false;
@@ -119,6 +173,7 @@ private:
     bool begin_expression(Type needed, ExprFollow follow);
     bool finish_expression();
     bool value_start_possible(Type needed, std::string_view partial) const;
+    bool symbol_callable(const Symbol & symbol, Type needed) const;
     bool left_can_reach(Type left, Type needed) const;
     bool infix_possible(Type left, Type needed, std::string_view partial) const;
     bool index_possible(Type left, Type needed) const;
@@ -129,6 +184,14 @@ private:
     bool expects_atom() const;
     bool string_literal_context() const;
     bool atom_start_phase() const;
+    bool type_param_named(std::string_view name) const;
+    std::optional<Type> base_or_param(std::string_view token) const;
+    Type substitute(const Type & type, const std::vector<Type> & args) const;
+    bool instantiate_possible(const Function & function, const Type & needed) const;
+    bool begin_type(TypeDest dest);
+    bool deliver_type(Type type);
+    bool finish_type(const Type & type);
+    Type function_type(const Function & function) const;
 };
 
 } // namespace typed

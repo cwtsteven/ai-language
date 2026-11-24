@@ -73,10 +73,27 @@ int main() {
     CHECK(collections->find("\"a b\"") != std::string::npos);
 
     const auto infix_condition = typed::generate_cangjie(
-        "main(): Int64 { var x: Int64 = 1; if (x == 0) { return 1; } else { return x + 1; } }");
+        "main(): Int64 { var x: Int64 = 1; let done: Bool = x == 0; if (done) { return 1; } else { return x + 1; } }");
     CHECK(infix_condition);
-    CHECK(infix_condition->find("if ((typed_var_x == 0))") != std::string::npos);
+    CHECK(infix_condition->find("if (typed_var_done)") != std::string::npos);
     CHECK(infix_condition->find("(typed_var_x + 1)") != std::string::npos);
+
+    const auto generic = typed::generate_cangjie(
+        "func id<T>(value: T): T { return value; } "
+        "main(): Int64 { let n: Int64 = id<Int64>(4); return n; }");
+    CHECK(generic);
+    CHECK(generic->find("func typed_fn_id<T>(typed_var_value: T): T") != std::string::npos);
+    CHECK(generic->find("typed_fn_id<Int64>(4)") != std::string::npos);
+
+    const auto higher = typed::generate_cangjie(
+        "func apply(f: (Int64) -> Int64, value: Int64): Int64 { return f(value); } "
+        "main(): Int64 { let inc: (Int64) -> Int64 = fun(x: Int64): Int64 => x + 1; "
+        "let n: Int64 = apply(inc, 4); return n; }");
+    CHECK(higher);
+    CHECK(higher->find("func typed_fn_apply(typed_var_f: (Int64) -> Int64, typed_var_value: Int64): Int64") !=
+          std::string::npos);
+    CHECK(higher->find("{typed_var_x: Int64 => (typed_var_x + 1)}") != std::string::npos);
+    CHECK(higher->find("typed_fn_apply(typed_var_inc, 4)") != std::string::npos);
 
     std::puts("Cangjie generator tests passed");
 }

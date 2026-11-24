@@ -2,6 +2,7 @@
 #include "typed_prefix.h"
 
 #include <cctype>
+#include <memory>
 #include <stdexcept>
 #include <utility>
 #include <vector>
@@ -12,18 +13,24 @@ namespace {
 struct Atom {
     enum class Kind { Literal, Name } kind;
     std::string text;
+    bool function_ref = false;
 };
 
 struct Expression {
     std::optional<Atom> atom;
     std::string callee;
     std::vector<Atom> arguments;
+    std::vector<Type> type_arguments;
+    bool function_ref = false;
+    bool callee_is_function = false;
+    std::vector<Symbol> lambda_params;
+    std::shared_ptr<Expression> lambda_body;
 };
 
 struct Statement {
     enum class Kind { Let, Var, Assign, If, While, Return, Break, Continue } kind;
     std::string name;
-    Type type = Type::Int;
+    Type type = Type::Int();
     Expression value;
     std::vector<Statement> body;
     std::vector<Statement> alternative;
@@ -31,6 +38,7 @@ struct Statement {
 
 struct Function {
     std::string name;
+    std::vector<std::string> type_params;
     Type result;
     std::vector<Symbol> parameters;
     std::vector<Statement> body;
@@ -93,6 +101,7 @@ private:
     std::vector<std::string> tokens_;
     size_t position_ = 0;
     std::vector<Binding> symbols_;
+    std::vector<std::string> function_names_;
 
     bool peek(std::string_view token) const {
         return position_ < tokens_.size() && tokens_[position_] == token;
@@ -105,12 +114,27 @@ private:
         if (take() != token) throw std::logic_error("unexpected token in checked source");
     }
     Type type() {
+        if (peek("(")) {
+            take();
+            std::vector<Type> parameters;
+            if (!peek(")")) {
+                while (true) {
+                    parameters.push_back(type());
+                    if (peek(")")) break;
+                    expect(",");
+                }
+            }
+            expect(")");
+            expect("-");
+            expect(">");
+            return Type::Fun(std::move(parameters), type());
+        }
         const auto name = take();
-        if (name == "Int64") return Type::Int;
-        if (name == "Bool") return Type::Bool;
-        if (name == "ListInt64") return Type::List;
-        if (name == "String") return Type::String;
-        throw std::logic_error("unknown type in checked source");
+        if (name == "Int64") return Type::Int();
+        if (name == "Bool") return Type::Bool();
+        if (name == "ListInt64") return Type::List();
+        if (name == "String") return Type::String();
+        return Type::Param(name);
     }
     Type lookup(const std::string & name) const {
         for (auto binding = symbols_.rbegin(); binding != symbols_.rend(); ++binding) {
@@ -129,18 +153,61 @@ private:
             text = first == std::string::npos ? "0" : (negative ? "-" : "") + text.substr(first);
             return {Atom::Kind::Literal, std::move(text)};
         }
-        return {Atom::Kind::Name, std::move(text)};
+        Atom named{ Atom::Kind::Name, std::move(text), false };
+        named.function_ref = known_function(named.text);
+        return named;
+    }
+    bool known_function(const std::string & name) const {
+        for (const auto & function : function_names_) if (function == name) return true;
+        return false;
     }
     Expression expression() {
         Expression result;
+        if (peek("fun")) {
+            take();
+            expect("(");
+            while (!peek(")")) {
+                Symbol parameter;
+                parameter.name = take();
+                expect(":");
+                parameter.type = type();
+                result.lambda_params.push_back(std::move(parameter));
+                if (peek(")")) break;
+                expect(",");
+            }
+            expect(")");
+            expect(":");
+            type();
+            expect("=");
+            expect(">");
+            const size_t scope = symbols_.size();
+            for (const auto & parameter : result.lambda_params)
+                symbols_.push_back({ parameter.name, parameter.type });
+            result.lambda_body = std::make_shared<Expression>(expression());
+            symbols_.resize(scope);
+            return result;
+        }
         if (peek("!")) {
             take();
             result.callee = "!";
             result.arguments.push_back(atom());
             return result;
         }
-        if (position_ + 1 < tokens_.size() && tokens_[position_ + 1] == "(") {
+        const bool generic_call = position_ + 1 < tokens_.size() && tokens_[position_ + 1] == "<" &&
+            known_function(tokens_[position_]);
+        const bool direct_call = position_ + 1 < tokens_.size() && tokens_[position_ + 1] == "(";
+        if (generic_call || direct_call) {
             result.callee = take();
+            result.callee_is_function = known_function(result.callee);
+            if (peek("<")) {
+                take();
+                while (!peek(">")) {
+                    result.type_arguments.push_back(type());
+                    if (peek(">")) break;
+                    expect(",");
+                }
+                expect(">");
+            }
             expect("(");
             while (!peek(")")) {
                 result.arguments.push_back(atom());
@@ -151,12 +218,13 @@ private:
             return result;
         }
         Atom left = atom();
+        if (left.kind == Atom::Kind::Name && known_function(left.text)) result.function_ref = true;
         if (peek("[")) {
             expect("[");
             Atom index = atom();
             expect("]");
-            const Type left_type = left.kind == Atom::Kind::Name ? lookup(left.text) : Type::String;
-            result.callee = left_type == Type::List ? "[]" : "str[]";
+            const Type left_type = left.kind == Atom::Kind::Name ? lookup(left.text) : Type::String();
+            result.callee = left_type == Type::List() ? "[]" : "str[]";
             result.arguments = { std::move(left), std::move(index) };
             return result;
         }
@@ -221,6 +289,16 @@ private:
         Function result;
         result.name = take();
         if (main && result.name != "main") throw std::logic_error("missing main in checked source");
+        function_names_.push_back(result.name);
+        if (peek("<")) {
+            take();
+            while (!peek(">")) {
+                result.type_params.push_back(take());
+                if (peek(">")) break;
+                expect(",");
+            }
+            expect(">");
+        }
         expect("(");
         while (!peek(")")) {
             const auto name = take();
@@ -276,35 +354,54 @@ private:
     size_t depth_ = 0;
     bool needs_list_ = false;
     bool needs_character_ = false;
-    Type return_type_ = Type::Int;
+    Type return_type_ = Type::Int();
 
     // Disjoint prefixes avoid collisions with Cangjie keywords, runtime classes,
     // and later function names that an earlier body used as a local variable.
     static std::string variable(const std::string & name) { return "typed_var_" + name; }
     static std::string callable(const std::string & name) { return "typed_fn_" + name; }
     std::string type(Type value) {
-        switch (value) {
-            case Type::Int: return "Int64";
-            case Type::Bool: return "Bool";
-            case Type::List: needs_list_ = true; return "ArrayList<Int64>";
-            case Type::String: return "String";
+        switch (value.kind) {
+            case Type::Kind::Int: return "Int64";
+            case Type::Kind::Bool: return "Bool";
+            case Type::Kind::List: needs_list_ = true; return "ArrayList<Int64>";
+            case Type::Kind::String: return "String";
+            case Type::Kind::Param: return value.param;
+            case Type::Kind::Fun: {
+                std::string text = "(";
+                for (size_t i = 0; i < value.parameters.size(); ++i)
+                    text += (i ? ", " : "") + type(value.parameters[i]);
+                return text + ") -> " + type(*value.result);
+            }
         }
         throw std::logic_error("unknown checked type");
     }
     // A list name is cloned when it is stored. listPush already returns a new list.
     std::string stored(Type destination, const Expression & value) {
         std::string text = expression(value);
-        if (destination == Type::List && value.atom && value.atom->kind == Atom::Kind::Name)
+        if (destination == Type::List() && value.atom && value.atom->kind == Atom::Kind::Name)
             text += ".clone()";
         return text;
     }
     void line(const std::string & text) { output_ += std::string(depth_ * 4, ' ') + text + '\n'; }
     static std::string atom(const Atom & value) {
         if (value.kind == Atom::Kind::Literal) return value.text;
+        if (value.function_ref) return callable(value.text);
         return variable(value.text);
     }
     std::string expression(const Expression & value) {
-        if (value.atom) return atom(*value.atom);
+        if (value.lambda_body) {
+            std::string text = "{";
+            for (size_t i = 0; i < value.lambda_params.size(); ++i) {
+                if (i) text += ", ";
+                text += variable(value.lambda_params[i].name) + ": " + type(value.lambda_params[i].type);
+            }
+            return text + " => " + expression(*value.lambda_body) + "}";
+        }
+        if (value.atom) {
+            if (value.function_ref) return callable(value.atom->text);
+            return atom(*value.atom);
+        }
         const auto & name = value.callee;
         const auto & args = value.arguments;
         if (name == "+" || name == "-" || name == "*" || name == "==" || name == "<" ||
@@ -327,7 +424,14 @@ private:
             needs_character_ = true;
             return "typed_rt_str_at(" + atom(args.at(0)) + ", " + atom(args.at(1)) + ")";
         }
-        std::string result = callable(name) + "(";
+        std::string result = value.callee_is_function ? callable(name) : variable(name);
+        if (!value.type_arguments.empty()) {
+            result += "<";
+            for (size_t i = 0; i < value.type_arguments.size(); ++i)
+                result += (i ? ", " : "") + type(value.type_arguments[i]);
+            result += ">";
+        }
+        result += "(";
         for (size_t i = 0; i < args.size(); ++i) result += (i ? ", " : "") + atom(args[i]);
         return result + ")";
     }
@@ -386,7 +490,14 @@ private:
     void emit_function(const Function & function) {
         return_type_ = function.result;
         if (!output_.empty()) output_ += '\n';
-        std::string header = function.name == "main" ? "main(" : "func " + callable(function.name) + "(";
+        std::string header = function.name == "main" ? "main" : "func " + callable(function.name);
+        if (!function.type_params.empty()) {
+            header += "<";
+            for (size_t i = 0; i < function.type_params.size(); ++i)
+                header += (i ? ", " : "") + function.type_params[i];
+            header += ">";
+        }
+        header += "(";
         for (size_t i = 0; i < function.parameters.size(); ++i) {
             const auto & parameter = function.parameters[i];
             header += (i ? ", " : "") + variable(parameter.name) + ": " + type(parameter.type);

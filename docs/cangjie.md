@@ -23,6 +23,9 @@ Checked-in `.typed` fixtures stay in the constraint language. The benchmark and 
 | `emptyList()`, `listPush`, `listLen`, `xs[i]` | `ArrayList<Int64>` construction, a copying push, `.size`, and indexing |
 | `strLen`, `text[i]` | `.size` and a one-character read helper |
 | `func`, calls, `if`, `while`, `return`, `break`, `continue` | The corresponding Cangjie forms |
+| `func id<T>(value: T): T` | `func typed_fn_id<T>(typed_var_value: T): T` |
+| `(Int64) -> Int64`, a function name used as a value | The same function type, and `typed_fn_` for that name |
+| `fun(x: Int64): Int64 => x + 1` | `{typed_var_x: Int64 => (typed_var_x + 1)}` |
 
 `let` copies the current value. `var` is read again by later uses and by `while`, and assignment updates that binding only. User functions and variables get separate name prefixes so they do not collide with Cangjie keywords or generated runtime names. Decimal literals are normalized without passing through a smaller host integer. Arithmetic uses Cangjie's overflow behavior.
 
