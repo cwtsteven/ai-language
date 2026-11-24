@@ -13,31 +13,33 @@ otherwise optional.
 
 ### macOS
 
+Metal is on by default, and its shader library is embedded in the binary.
+
 ```sh
 brew install cmake git
 git clone --recurse-submodules https://github.com/cwtsteven/typed-cangjie.git
 cd typed-cangjie
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DGGML_METAL=ON -DGGML_METAL_EMBED_LIBRARY=ON
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build --parallel 4
 ctest --test-dir build --output-on-failure
 ```
 
+Configure with `-DGGML_METAL=OFF` for a build that has no Metal backend.
+
 ### Linux
 
-Metal is macOS-only. This CPU build matches the Ubuntu CI job. `GGML_NATIVE`
-stays on, so the binary uses the host CPU (AVX-512 on this class of Xeon).
+This is a CPU build. `GGML_NATIVE` stays on, so the binary uses the host CPU (AVX-512 on this class of Xeon).
 
 ```sh
 sudo apt install cmake g++ git
 git clone --recurse-submodules https://github.com/cwtsteven/typed-cangjie.git
 cd typed-cangjie
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DGGML_METAL=OFF -DGGML_BLAS=OFF
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build --parallel
 ctest --test-dir build --output-on-failure
 ```
 
-GPU layers default to 0 off macOS. Pass `--ngl 0` when a plugin requests GPU
-offload, or when you built without a GPU backend.
+GPU offload needs a backend compiled in. Add `-DGGML_CUDA=ON` for NVIDIA or `-DGGML_VULKAN=ON` for Vulkan, then rebuild.
 
 ## Use
 
@@ -80,8 +82,8 @@ Code goes to stdout; diagnostics go to stderr. Each command has `--help`.
 | `--debug` | Show the implementation plan and token traces on stderr; default off. |
 | `--debug-limit N` | Rejected candidates shown per code token; default **20**. Enables debug mode. |
 | `--threads N` | CPU threads for prompt processing and generation. Default **4**. |
-| `--ngl N` | GPU layers: plugin setting, otherwise **99** on macOS. Use **0** for CPU inference. |
-| `--ubatch N` | Physical batch size: plugin setting, otherwise llama.cpp's default. |
+| `--ngl N` | GPU layers to offload. Default **99** on macOS and **0** elsewhere. **0** runs on the CPU. |
+| `--ubatch N` | Physical prompt batch size. Default **512**, limited to the prompt length. |
 | `-h`, `--help` | Command help. |
 
 Higher temperature makes lower-scoring tokens more likely; temperature 0 is greedy. Code tokens must keep the program syntactically and type-correct unless `--unconstrained` is set. A complete program is translated to Cangjie. If `--n` runs out first, stdout stays empty. `--force-postfix` closes that prefix, translates it, and says so on stderr; the constructed ending may not fulfill the task.
