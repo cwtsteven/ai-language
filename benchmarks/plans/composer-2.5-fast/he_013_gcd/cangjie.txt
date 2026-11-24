@@ -1,0 +1,19 @@
+Design summary: The program computes the greatest common divisor of two nonnegative Int64 values that are not both zero, using the standard Euclidean reduction by remainder.
+
+Expected behavior: The returned value divides both inputs, is divided by any other common divisor, and matches the mathematical gcd. When one argument is zero the result is the other argument.
+
+Helper functions: none.
+
+func solve(a: Int64, b: Int64): Int64
+
+Initial values: Two mutable Int64 variables hold the current pair, initialized from a and b.
+
+Computation order: Repeat while the second of the pair is not equal to zero; the condition is checked before each reduction. Invariant: the gcd of the original a and b equals the gcd of the current pair. Each step replaces the pair with the second value and the remainder of the first divided by the second using integer division and modulo so the first becomes the old second and the second becomes the remainder of the old first modulo the old second.
+
+Loop exit: The second value is zero.
+
+Returned value: The first value of the pair, which is the gcd.
+
+main(): Int64
+
+Returns the Int64 zero.

@@ -1,0 +1,19 @@
+Design summary: A list of at most eight Int64 values is monotonic if it is entirely nondecreasing or entirely nonincreasing, allowing equal neighbors. With fewer than two elements, the list is trivially monotonic. Otherwise scan adjacent pairs once, tracking whether any increase or any decrease occurs; monotonicity holds when at least one direction flag stays false for all pairs.
+
+Expected behavior: solve returns true when every adjacent pair in numbers satisfies either every difference is nonnegative or every difference is nonpositive, and false when the sequence both rises and falls somewhere.
+
+Helper functions: None.
+
+func solve(numbers: ArrayList<Int64>): Bool
+
+Let size be numbers.size read as Int64. If size is less than two, return true.
+
+Initialize mutable Bool hasIncrease to false and mutable Bool hasDecrease to false. Initialize mutable Int64 i to zero.
+
+While i is less than size minus one, the invariant is that hasIncrease and hasDecrease reflect only adjacent pairs among indices zero through i, and i counts the left index of the pair under consideration. Let a be numbers at index i and b be numbers at index i plus one using list indexing. If b is greater than a, set hasIncrease to true. If b is less than a, set hasDecrease to true. Increase i by one. Check the condition i less than size minus one before each iteration.
+
+After the loop, return true when hasIncrease and hasDecrease are not both true, using logical conjunction negation on their conjunction; equivalently return false only when both flags are true.
+
+func main(): Int64
+
+The body of main returns the Int64 zero.

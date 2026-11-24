@@ -1,0 +1,19 @@
+Design summary: The program tracks a cumulative sum while walking the operation list in order. It answers whether that sum ever becomes strictly less than zero before all elements are consumed.
+
+Expected behavior: For an empty ArrayList of Int64, the result is false because no step occurs. For a nonempty list, start the running total at zero, add each operation value in sequence, and if after any addition the total is less than zero, return true immediately. If every element is processed without the total going below zero, return false.
+
+Helper functions: none.
+
+func solve(operations: ArrayList<Int64>): Bool
+
+Initial values: A mutable Int64 running total is set to zero. An Int64 index starts at zero.
+
+Computation order: While the index is strictly less than operations.size, the loop condition is checked at the start of each iteration. Invariant: indices already processed have been folded into the running total, and the total has not been observed below zero on any completed step. Read the Int64 at operations indexed by the current index, add it to the running total with integer addition, then compare the total to zero with less-than. If the comparison is true, return true without further work. Otherwise advance the index by one and continue.
+
+Loop exit: The loop ends when the index equals operations.size, meaning every element was applied and the total never dropped below zero after any step.
+
+Returned value: true if an early return fired; otherwise false.
+
+main(): Int64
+
+The body performs no input or solving work for this planning task. It returns the Int64 zero.

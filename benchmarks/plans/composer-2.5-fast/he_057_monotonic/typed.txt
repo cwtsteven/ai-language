@@ -1,0 +1,25 @@
+Design summary
+
+A short list of Int64 values is monotonic when it is either entirely nondecreasing or entirely nonincreasing; equal neighbors are allowed in both cases. Two helpers each verify one ordering by scanning adjacent pairs. solve returns true if at least one helper accepts the list. Lists of length zero or one are trivially monotonic in both senses.
+
+Expected behavior
+
+solve returns true on a constant sequence, a strictly increasing sequence, a strictly decreasing sequence, and any sequence with plateaus that still follows one direction throughout. It returns false when some adjacent step goes up and a later step goes down, or otherwise mixes both directions.
+
+Helper functions in declaration order
+
+func isNondecreasing(numbers: ListInt64): Bool
+
+Bind the list length. If the length is at most one, return true. Initialize an index variable to zero. While the index is less than the length minus one, read the element at the index and the element at the next index. If the next element is strictly less than the current element, return false. Advance the index by one. The invariant is that every pair of neighbors with indices below the current index satisfies nondecreasing order. The while test runs before each iteration. After all adjacent pairs pass, return true.
+
+func isNonincreasing(numbers: ListInt64): Bool
+
+Bind the list length. If the length is at most one, return true. Initialize an index variable to zero. While the index is less than the length minus one, read the element at the index and the element at the next index. If the current element is strictly less than the next element, return false. Advance the index. The invariant is that every inspected adjacent pair satisfies nonincreasing order. Check the condition at the start of each loop. If the loop completes, return true.
+
+func solve(numbers: ListInt64): Bool
+
+Compute whether the list is nondecreasing using isNondecreasing and whether it is nonincreasing using isNonincreasing. Return the logical disjunction of those two boolean results so that either ordering suffices.
+
+main(): Int64
+
+Return zero.

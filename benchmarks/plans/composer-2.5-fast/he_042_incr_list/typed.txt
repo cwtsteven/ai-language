@@ -1,0 +1,27 @@
+Design summary
+
+The program walks the input list once and constructs a new ListInt64. Each original element is read in order, increased by one using add, and appended to an accumulator with listPush. The input list is not modified. An empty input yields an empty output because no elements are processed.
+
+Expected behavior
+
+The solve function returns a new list containing every value from numbers with one added to each entry. Order is preserved. When numbers has length zero, the result is an empty list.
+
+Helper functions
+
+None.
+
+func solve(numbers: ListInt64): ListInt64
+
+Bind the length of numbers with listLen into an Int64 count. Initialize a mutable accumulator list of type ListInt64 to the result of emptyList. Initialize a mutable index of type Int64 to zero.
+
+Loop while the index is strictly less than the count; the condition is checked at the start of each iteration by binding a Bool with lt comparing index to count.
+
+Loop invariant: the accumulator holds the values add of each element from numbers at indices zero through one less than the current index, in order, and no later elements have been appended.
+
+Inside the loop, bind the current element with listGet from numbers at the index. Bind an Int64 one greater with add using the current element and the literal one. Replace the accumulator with listPush appending that incremented value. Increase the index by one with add and assign it back to the index variable.
+
+When the loop ends because the index is no longer less than the count, return the accumulator.
+
+func main(): Int64
+
+Return the integer zero.

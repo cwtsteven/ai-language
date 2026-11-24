@@ -84,21 +84,9 @@ Code goes to stdout; diagnostics go to stderr. Each command has `--help`.
 | `--ubatch N` | Physical batch size: plugin setting, otherwise llama.cpp's default. |
 | `-h`, `--help` | Command help. |
 
-Raising the temperature increases the chance of choosing lower-scoring tokens;
-greedy decoding always chooses the highest-scoring token. Code generation accepts
-only tokens that preserve syntax and type correctness, unless `--unconstrained`
-is set. A complete typed program is translated to Cangjie on stdout. If `--n`
-runs out first, stdout stays empty and the prefix is not translated.
-`--force-postfix` appends a typed postfix that closes the program, translates
-it, and reports that on stderr. The postfix is constructed, so it may not fulfill the task.
+Higher temperature makes lower-scoring tokens more likely; temperature 0 is greedy. Code tokens must keep the program syntactically and type-correct unless `--unconstrained` is set. A complete program is translated to Cangjie. If `--n` runs out first, stdout stays empty. `--force-postfix` closes that prefix, translates it, and says so on stderr; the constructed ending may not fulfill the task.
 
-To reuse one typed plan, save it with
-`generate TEXT --model FILE --plan-only > plan.txt`, then pass
-`generate TEXT --model FILE --plan-file plan.txt` to each typed generation.
-The [benchmark](benchmarks/README.md) does not share that plan. It runs two arms
-with the same task, seed, temperature, and token budget: `typed-cangjie` plans,
-samples this language, and writes Cangjie, and `plain-llama` plans and generates
-Cangjie from [its own excerpt](docs/cangjie-subset.md).
+Save a plan with `generate TEXT --model FILE --plan-only > plan.txt`, then pass `--plan-file plan.txt`. The [benchmark](benchmarks/README.md) does not share that plan. It runs `typed-cangjie` and `plain-llama` on the same task, seed, temperature, and token budget. The Cangjie arm uses [its own excerpt](docs/cangjie-subset.md).
 
 ## Fibonacci example
 
@@ -114,13 +102,7 @@ The [prompt](examples/fibonacci-5-prompt.txt) supplies the algorithm explicitly.
 
 ## Language
 
-`let` bindings are immutable and `var` bindings can be updated with
-`name = atom;`. A name reads the current value. Types are `Int64`, `Bool`, `ListInt64`, and `String`.
-An atom is a literal or an in-scope variable. Statements require semicolons. Conditions
-are Boolean atoms; `break;` and `continue;` are allowed only inside loops. Typed `func`
-declarations go before `main`; see the [function example](examples/functions.typed).
-Computations use calls such as `add(x, 1)` and `eq(x, 5)`, with atomic arguments;
-infix expressions are not supported.
+`let` is immutable. `var` is updated with `name = atom;`. Types are `Int64`, `Bool`, `ListInt64`, and `String`. Conditions are `Bool` atoms. `break;` and `continue;` occur only inside loops. Helpers are `func` declarations before `main`; see the [function example](examples/functions.typed). Calls take atoms and show their result, as in `add(Int64, Int64): Int64` and `eq(Int64, Int64): Bool`. Infix expressions are rejected. The [specification](docs/language.md) lists every operation.
 
 - [Typed language specification](docs/language.md) (embedded in `typed-cangjie` prompts at build time)
 - [Cangjie prompt excerpt](docs/cangjie-subset.md) (appended by the benchmark's Cangjie arm)

@@ -1,0 +1,29 @@
+Design summary
+
+The program checks whether every element of the input list is strictly less than the given limit. It scans the list once from first to last. If any element fails the strict comparison against limit, the answer is false immediately. If the list is empty, no element violates the condition and the answer is true. If all elements pass, the answer is true.
+
+Expected behavior
+
+The solve function returns true exactly when every value in numbers is strictly less than limit. An empty numbers list returns true. It returns false when at least one element is greater than or equal to limit.
+
+Helper functions
+
+None.
+
+func solve(numbers: ListInt64, limit: Int64): Bool
+
+Bind the length of numbers with listLen into an Int64 count. Initialize a mutable index of type Int64 to zero.
+
+Loop while the index is strictly less than the count; the condition is checked at the start of each iteration using lt on index and count.
+
+Loop invariant: every element at indices from zero up to but not including the current index is strictly less than limit.
+
+Inside the loop, bind the current value with listGet from numbers at the index. Bind a Bool under with lt comparing the current value and limit. If under is false, return false immediately.
+
+Increase the index by one with add and assign back, then continue the loop.
+
+When the loop ends because the index is no longer less than the count, return true.
+
+func main(): Int64
+
+Return the integer zero.

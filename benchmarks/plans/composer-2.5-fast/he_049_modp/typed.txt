@@ -1,0 +1,37 @@
+Design summary
+
+The program computes two raised to the power n, reduced modulo p, without letting intermediate Int64 values grow beyond what repeated modular reduction can safely handle. A helper brings any Int64 value into the range from zero up to but not including p by subtracting p while the value is still at least p. The main computation keeps a running residue that always stays below p and multiplies it by two exactly n times, reducing after each multiplication so the next product stays bounded.
+
+Expected behavior
+
+The solve function returns the integer equal to two to the power n taken modulo p. For n zero the result is one modulo p. For positive n the result is the residue after n doublings modulo p. The value p is greater than one and n is nonnegative.
+
+Helper functions
+
+func modReduce(value: Int64, p: Int64): Int64
+
+Initialize a mutable residue of type Int64 to value.
+
+Loop while the residue is not strictly less than p; the condition is checked at the start of each iteration by binding a Bool below with lt comparing residue to p, then binding a Bool stillLarge with not applied to below, and using stillLarge as the while condition.
+
+Loop invariant: the residue equals the initial value minus some nonnegative multiple of p, and when the loop is about to continue the residue is still at least p.
+
+Inside the loop, replace the residue with sub of the residue and p, then continue.
+
+When the loop ends because residue is strictly less than p, return the residue.
+
+func solve(n: Int64, p: Int64): Int64
+
+Bind an initial residue with modReduce applied to the literal one and p into an Int64 starting value. Initialize a mutable result of type Int64 to that starting value. Initialize a mutable counter of type Int64 to zero.
+
+Loop while the counter is strictly less than n; the condition is checked at the start of each iteration using lt on counter and n.
+
+Loop invariant: the result equals two raised to the power equal to the current counter, reduced modulo p, and result is strictly less than p.
+
+Inside the loop, bind a product with mul of result and the literal two. Replace result with modReduce applied to the product and p. Increase the counter by one with add and assign back.
+
+When the loop finishes, return result.
+
+func main(): Int64
+
+Return the integer zero.

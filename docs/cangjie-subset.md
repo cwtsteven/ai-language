@@ -1,263 +1,146 @@
-# Cangjie specification excerpt
+# Cangjie
 
-This file is the Cangjie counterpart of [docs/language.md](language.md).
-`plain-llama` appends it to the benchmark's Cangjie planning and code prompts.
-`typed-cangjie` does not. The pages are copied from CangjieSkills,
-https://github.com/SunriseSummer/CangjieSkills branch `cangjie-1.0.5`, under
-`references/language`. They cover the same kind of fragment as the typed
-specification: functions, bindings, conditions, loops, integers, Booleans,
-operators, and `main`.
+This file is the Cangjie fragment for a complete program: functions, bindings, conditions, loops, integers, Booleans, operators, lists, strings, and `main`. It describes Cangjie 1.0.5. A newer compiler may accept more.
 
-Generator comments and parent navigation links are omitted. One upstream page
-included a complete `main` that reassigns a `let`; that program is omitted here
-so this prompt does not contain a whole program. The prose below is an English
-translation of the remaining upstream text. Code examples are unchanged. Those
-pages describe Cangjie 1.0.5. The local compiler used for scoring may be newer.
+`Unit` has one value, `()`. A definition, an assignment, a loop, and an empty body have type `Unit`. `Nothing` has no values. It is the type of `return`, `break`, and `continue`, and it is a subtype of every type, so a branch that does not continue may appear where another branch produces a value. A `Rune` is one Unicode character.
 
-Source pages:
-- `references/language/function/1-函数定义/1-1-基本语法.md`
-- `references/language/function/1-函数定义/1-2-参数列表.md`
-- `references/language/function/1-函数定义/1-3-返回类型.md`
-- `references/language/function/1-函数定义/1-4-函数体.md`
-- `references/language/basic_concepts/2-程序结构/2-2-变量定义.md`
-- `references/language/basic_concepts/3-表达式/3-2-if-条件判断.md`
-- `references/language/basic_concepts/3-表达式/3-3-while-do-while-循环.md`
-- `references/language/basic_concepts/3-表达式/3-5-break-continue.md`
-- `references/language/basic_data_type/1-整数类型/1-1-类型列表.md`
-- `references/language/basic_data_type/1-整数类型/1-2-整数字面量.md`
-- `references/language/basic_data_type/1-整数类型/1-5-整数支持的运算.md`
-- `references/language/basic_data_type/11-基本运算符/11-2-算术运算符.md`
-- `references/language/basic_data_type/11-基本运算符/11-4-关系运算符.md`
-- `references/language/basic_data_type/11-基本运算符/11-5-逻辑运算符.md`
-- `references/language/basic_data_type/3-布尔类型.md`
-- `references/language/package/3-程序入口/3-1-main-函数.md`
+## Functions
 
+A function starts with `func`, then its name, parameter list, optional return type, and body. The last expression in the body can be the return value.
 
-## Source: `references/language/function/1-函数定义/1-1-基本语法.md`
-
-# 1.1 Basic syntax
-
-
-A function starts with `func`, then declares its name, parameter list, optional return type, and body. The last expression in the body can be the return value.
-
-```cangjie cjtest=syntax id=syntax-42d5419be4-1 form=unit
+```cangjie
 func add(a: Int64, b: Int64): Int64 {
     a + b
 }
 ```
-- Starts with the keyword `func`
-- Parameters are inside `()`, separated by commas
-- The return type follows `:` after the parameter list (optional; the compiler can infer it)
-- The body is inside `{}`
 
+- The keyword is `func`.
+- Parameters sit inside `()`, separated by commas.
+- The return type follows `:` after the parameter list. It may be omitted when the compiler can infer it.
+- The body is inside `{}`.
 
-## Source: `references/language/function/1-函数定义/1-2-参数列表.md`
+## Parameters
 
-# 1.2 Parameter list
+- Positional parameter: `p: T`. The call passes a value with no label.
+- Named parameter: `p!: T`. The definition writes `!`; the call writes `p: value` and does not write `!`.
+- Default: `p!: T = expr`. Only a named parameter may have a default.
+- Positional parameters come before named parameters.
+- A parameter is immutable in the body.
+- A parameter name is visible from its definition through the end of the body. Declaring that name again in the body is an error.
 
+```cangjie
+// indent is a named parameter. Its default is 2.
+// toString() renders an Int64 as a String. s * n repeats the string s, n times.
+func formatNumber(value: Int64, indent!: Int64 = 2): String {
+    " " * indent + value.toString()
+}
 
-- **Positional parameter**: `p: T` — a positional parameter, with no label at the call
-- **Named parameter**: `p!: T` — the definition uses a `!` suffix; the call uses `p: value` (**the call does not write `!`**)
-- **Named parameter with a default**: `p!: T = expr` — only a named parameter may have a default, assigned with `=`
-- **Order**: positional parameters come before named parameters. A positional parameter cannot follow a named parameter
-- **Immutability**: every function parameter is immutable inside the function body and cannot be assigned again
-- **Scope**: a parameter name is visible from its definition through the end of the function body. Redefining the same name inside the body is an error
-- **Named-parameter example**:
-  ```cangjie cjtest=syntax id=syntax-67a1fac9ca-1 form=stmt
-  // indent is a named parameter whose default value is 2
-  func formatNumber(value: Int64, indent!: Int64 = 2): String {
-      " " * indent + value.toString()
-  }
+formatNumber(42, indent: 4)  // "    42"
+formatNumber(42)             // "  42"
+```
 
-  // The call passes indent by name and does not write !
-  println(formatNumber(42, indent: 4))  // "    42"
+## Return type
 
-  // Omitting the named parameter uses its default
-  println(formatNumber(42))  // "  42" (indent uses the default 2)
-  ```
+- The return type may be written or inferred. If inference fails, the compiler reports an error.
+- When it is declared, every `return e` and the body's final expression must be a subtype of that type.
+- `return expr` stops execution and returns `expr`.
+- `return`, with no expression, is `return ()` and requires the return type `Unit`.
+- A `return` expression has type `Nothing`.
+- The body's type is the type of its last item. An expression has that expression's type. A variable definition, a function declaration, or an empty body has type `Unit`.
+- When the return type is `Unit`, the compiler inserts `return ()` at every return point.
+- The body may contain variable definitions, expressions, and nested functions.
 
+## Variables
 
-## Source: `references/language/function/1-函数定义/1-3-返回类型.md`
+Syntax: `modifier name: type = value`. The type may be omitted when it can be inferred.
 
-# 1.3 Return type
+- `let` is immutable and assigned once. `let answer = 41` followed by `answer = 42` is rejected: `cannot assign to immutable value`.
+- `var` is mutable and may be assigned again.
+- `const` is a compile-time constant.
+- Global and static variables must be initialized.
+- A local variable may be initialized later, but it must be assigned before use.
 
+## if
 
-- It may be **written explicitly** or **omitted** (the compiler infers it)
-- When it is declared, every `return e` expression and the body's final expression must be a subtype of the declared type
-- When the return type is `Unit`, the compiler inserts `return ()` at every return point
-- If inference fails, the compiler reports an error
+`if (cond) { exprs1 } else { exprs2 }`. `cond` is a `Bool` expression. `else if` chains are allowed. A condition may instead be `let pattern <- expr`: `expr` is matched against `pattern`, and the names in the pattern are bound in the branch that runs.
 
+Used as a value, an `if` with `else` has the type required by context, or the least common supertype of the branches. Its value is the last expression of the branch that runs. Without `else`, the type is `Unit`.
 
-## Source: `references/language/function/1-函数定义/1-4-函数体.md`
+## while
 
-# 1.4 Function body
+`while (cond) { exprs }` and `do { exprs } while (cond)`. `cond` is a `Bool` expression and may be a `let` pattern, as in `if`. The loop's type is `Unit`.
 
+## break and continue
 
-- Contains variable definitions, expressions, and optional nested function definitions
-- **`return expr`**: stops execution and returns `expr` (it must match the return type)
-- **`return`**: equivalent to `return ()`, and requires the return type `Unit`
-- **The type of a `return` expression is `Nothing`**
-- **The body's type** is the type of its last item: an expression has that expression's type; a variable definition, function declaration, or empty body has type `Unit`
+`break` leaves the loop. `continue` skips to the next iteration. Both have type `Nothing`.
 
----
+## Integers
 
+Signed: `Int8`, `Int16`, `Int32`, `Int64`, `IntNative`. Unsigned: `UInt8`, `UInt16`, `UInt32`, `UInt64`, `UIntNative`. A signed N-bit range is −2^(N−1) through 2^(N−1)−1. An unsigned N-bit range is 0 through 2^N−1. `IntNative` and `UIntNative` follow the platform width. The default integer type is `Int64`; an integer literal with no other context is `Int64`.
 
-## Source: `references/language/basic_concepts/2-程序结构/2-2-变量定义.md`
+Literals may be binary (`0b00011000` or `0B`), octal (`0o30` or `0O`), decimal (`24`), or hexadecimal (`0x18` or `0X`). Underscores may separate digits: `0b0001_1000`. A value outside the type's range is a compile error.
 
-# 2.2 Variable definitions
+Integers support arithmetic, bitwise operations, relational operations, `++`, `--`, and compound assignment. An integer converts to another integer type, to or from a floating-point type, and to `Rune`.
 
+## Arithmetic
 
-- Syntax: `modifier name: type = value`
-- Modifiers:
-  - `let`: immutable, assigned once
-  - `var`: mutable, may be assigned more than once
-  - `const`: a compile-time constant
-- The type annotation may be omitted when it can be inferred
-- Global and static variables must be initialized
-- A local variable may be initialized later, but it must be assigned before use
+| Operator | Meaning | Operands | Result |
+| --- | --- | --- | --- |
+| `-` (unary) | Negation | Numeric | The same numeric type |
+| `+` | Addition, also string concatenation | The same numeric type, or `String` | The same type |
+| `-` | Subtraction | The same numeric type | The same numeric type |
+| `*` | Multiplication | The same numeric type | The same numeric type |
+| `/` | Division. Integer division truncates toward zero | The same numeric type | The same numeric type |
+| `%` | Remainder, `a - b*(a/b)` | Integers | The same integer type |
+| `**` | Exponentiation | `Int64` and `UInt64`, or `Float64` and `Int64` or `Float64` | `Int64` or `Float64`, matching the base |
 
-A `let` binding cannot be assigned again. After `let answer = 41`, writing `answer = 42` is rejected with the diagnostic `cannot assign to immutable value`. A `var` binding can be assigned.
+Overflow is a runtime error.
 
+## Relations and logic
 
-## Source: `references/language/basic_concepts/3-表达式/3-2-if-条件判断.md`
+`==`, `!=`, `<`, `<=`, `>`, `>=` each take two operands of the same comparable type and return `Bool`.
 
-# 3.2 if conditions
+| Operator | Meaning | Result | Short-circuit |
+| --- | --- | --- | --- |
+| `!` | Not (unary prefix) | `Bool` | None |
+| `&&` | And | `Bool` | `false && x` is `false` |
+| `\|\|` | Or | `Bool` | `true \|\| x` is `true` |
 
+## Bool
 
-- Syntax: `if (cond) { exprs1 } else { exprs2 }`. `cond` is a `Bool` expression
-- `else if` chains are supported
-- When used as a value: with `else`, the type is decided by context or by the least common supertype of the branches, and the value is the last expression of the branch that runs. Without `else`, the type is always `Unit`
-- A condition may use `let pattern <- expr` for pattern matching
+`Bool` has the values `true` and `false`. It is used in conditions and logic. Its operators, each returning `Bool`, are `!`, `&&`, `||`, `==`, `!=`, `&&=`, and `||=`.
 
+## main
 
-## Source: `references/language/basic_concepts/3-表达式/3-3-while-do-while-循环.md`
-
-# 3.3 while / do-while loops
-
-
-- Syntax: `while (cond) { exprs }` and `do { exprs } while (cond)`. `cond` is a `Bool` expression
-- The type is always `Unit`
-- A condition may use `let pattern <- expr` for pattern matching
-
-
-## Source: `references/language/basic_concepts/3-表达式/3-5-break-continue.md`
-
-# 3.5 break / continue
-
-
-- `break` leaves the loop. `continue` skips to the next iteration
-- Both have type `Nothing`
-
-
-## Source: `references/language/basic_data_type/1-整数类型/1-1-类型列表.md`
-
-# 1.1 Integer types
-
-
-- **Signed integers**: `Int8`, `Int16`, `Int32`, `Int64`, `IntNative`
-- **Unsigned integers**: `UInt8`, `UInt16`, `UInt32`, `UInt64`, `UIntNative`
-- A signed N-bit range is −2^(N−1) through 2^(N−1)−1. An unsigned N-bit range is 0 through 2^N−1
-- `IntNative` and `UIntNative` have a platform-dependent width
-- The default integer type is `Int64`. Without context, an integer literal is inferred as `Int64`
-
-
-## Source: `references/language/basic_data_type/1-整数类型/1-2-整数字面量.md`
-
-# 1.2 Integer literals
-
-
-- **Binary**: prefix `0b` or `0B`, for example `0b00011000`
-- **Octal**: prefix `0o` or `0O`, for example `0o30`
-- **Decimal**: no prefix, for example `24`
-- **Hexadecimal**: prefix `0x` or `0X`, for example `0x18`
-- Underscores `_` may separate digits: `0b0001_1000`
-- A value outside the type's range is a compile error
-
-
-## Source: `references/language/basic_data_type/1-整数类型/1-5-整数支持的运算.md`
-
-# 1.5 Operations on integers
-
-
-- Arithmetic, bitwise operations, relational operations, increment and decrement (`++` and `--`), and compound assignment
-- An integer can be converted to another integer type, to or from a floating-point type, and to `Rune`
-
-
-## Source: `references/language/basic_data_type/11-基本运算符/11-2-算术运算符.md`
-
-# 11.2 Arithmetic operators
-
-
-| Operator | Meaning | Operand types |
-| --- | --- | --- |
-| `-` (unary) | Negation | Numeric types |
-| `+` | Addition, also string concatenation | The same numeric type |
-| `-` | Subtraction | The same numeric type |
-| `*` | Multiplication | The same numeric type |
-| `/` | Division. Integer division truncates toward zero | The same numeric type |
-| `%` | Remainder, `a - b*(a/b)` | Integers only |
-| `**` | Exponentiation | `Int64^UInt64→Int64`, `Float64^(Int64\|Float64)→Float64` |
-
-- Overflow is detected and reported as a runtime error
-
-
-## Source: `references/language/basic_data_type/11-基本运算符/11-4-关系运算符.md`
-
-# 11.4 Relational operators
-
-
-`==`, `!=`, `<`, `<=`, `>`, `>=`
-
-
-## Source: `references/language/basic_data_type/11-基本运算符/11-5-逻辑运算符.md`
-
-# 11.5 Logical operators
-
-
-Quick reference: `!` is not (a unary prefix); `&&` is and; `||` is or.
-
-| Operator | Meaning | Short-circuit |
-| --- | --- | --- |
-| `!` | Not (unary prefix) | Not applicable |
-| `&&` | And | Yes: `false && x` → `false` |
-| `\|\|` | Or | Yes: `true \|\| x` → `true` |
-
-
-## Source: `references/language/basic_data_type/3-布尔类型.md`
-
-# 3. Boolean type
-
-
-`Bool` has only the values `true` and `false`. It is used in conditions and logical operations.
-
-- Type: `Bool`
-- Literals: `true`, `false`
-- Supported operators:
-  - Logical: `!` (not), `&&` (and), `||` (or)
-  - Relational: `==`, `!=`
-  - Compound assignment: `&&=`, `||=`
-
----
-
-
-## Source: `references/language/package/3-程序入口/3-1-main-函数.md`
-
-# 3.1 The `main` function
-
-
-- `main` is the entry point. A root package has at most one
-- It cannot have an access modifier
-- It is not imported when the package is imported
-- Parameters: none, or `Array<String>`
-- Return type: `Unit` or an integer type
-- The definition does not use the `func` keyword
-
+`main` is the entry point. A root package has at most one. It has no access modifier, and importing the package does not import it. Its parameter list is empty or `Array<String>`, a list of the program's string arguments. Its return type is `Unit` or an integer type. The definition does not use `func`.
 
 ## Lists and strings
 
-These forms are included so a Cangjie program can use the same values as the typed language's `ListInt64` and `String`. They are not a separate upstream page.
+`import std.collection.ArrayList` before using `ArrayList`.
 
-- `import std.collection.ArrayList` before using `ArrayList`
-- `ArrayList<Int64>()` creates an empty list. `items.add(value)` appends one element. `items.size` is the length. `items[index]` reads an element. `items.clone()` copies the list
-- A string literal is `"text"`. `text.size` is its length for an ASCII string. `left + right` joins strings. `left == right` compares them
-- `text.toRuneArray()[index]` reads one character. Indexes start at 0
+- `ArrayList<Int64>()` has type `ArrayList<Int64>` and is empty.
+- `items.add(value)` appends one element.
+- `items.size` has type `Int64`.
+- `items[index]` has type `Int64`. Indexes start at 0.
+- `items.clone()` has type `ArrayList<Int64>` and copies the list.
+
+A string literal is `"text"`. `text.size` has type `Int64` for an ASCII string. `left + right` has type `String`. `left == right` has type `Bool`. `text.toRuneArray()[index]` reads one `Rune`.
+
+```cangjie
+func groups(n: Int64): Int64 {
+    let small: Bool = n < 10
+    if (small) {
+        return 0
+    } else {
+        let rest: Int64 = n - 10
+        let counted: Int64 = groups(rest)
+        let result: Int64 = counted + 1
+        return result
+    }
+}
+
+main(): Int64 {
+    let result: Int64 = groups(25)
+    return result
+}
+```

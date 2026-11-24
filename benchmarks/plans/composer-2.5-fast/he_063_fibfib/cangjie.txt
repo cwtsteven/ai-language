@@ -1,0 +1,19 @@
+Design summary: The program evaluates the tribonacci-like fibfib sequence whose first three terms are zero, zero, and one at indices zero, one, and two, with each later term equal to the sum of the three immediately preceding terms, for n between zero and twenty.
+
+Expected behavior: Index zero and one return zero; index two returns one. For indices three through twenty, the returned Int64 matches the sequence defined by adding the three prior terms. All cases in the range are handled by direct base returns or a short forward iteration, not a single hard-coded example.
+
+Helper functions: none.
+
+func solve(n: Int64): Int64
+
+Initial values: If n equals zero, return zero. If n equals one, return zero. If n equals two, return one.
+
+Computation order: Otherwise maintain three mutable Int64 values representing the terms at the three most recent indices, initialized to zero, zero, and one respectively. Maintain a mutable Int64 cursor starting at three. While cursor is less than or equal to n, checked before each iteration. Invariant: the three stored values are exactly the sequence terms at cursor minus three, cursor minus two, and cursor minus one. Compute the next term as the sum of those three values. Shift the triple forward by replacing the oldest with the middle, the middle with the newest, and the newest with the newly computed term. Increase cursor by one.
+
+Loop exit: cursor exceeds n, so the third stored value is the term at index n.
+
+Returned value: The third of the three rolling values after the loop completes.
+
+main(): Int64
+
+The body returns zero as an Int64 without calling solve.

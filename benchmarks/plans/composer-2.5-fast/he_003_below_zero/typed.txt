@@ -1,0 +1,25 @@
+Design summary
+
+The program scans the input list of Int64 values from left to right while maintaining a running total. After each value is incorporated into the total, the program checks whether the total is strictly less than zero. If that ever happens, the answer is true. If every value is processed without the total dropping below zero, the answer is false. An empty list never updates the total from its initial zero, so the answer is false.
+
+Expected behavior
+
+The solve function returns true exactly when the prefix sums of operations include at least one value below zero. It returns false for an empty list and for any list whose cumulative sum stays at zero or above through the entire scan.
+
+Helper functions
+
+None.
+
+func solve(operations: ListInt64): Bool
+
+Initialize a mutable running sum of type Int64 to zero. Bind the list length with listLen into an Int64 length value. Initialize a mutable index of type Int64 to zero. Loop while the index is strictly less than the length; the loop condition is checked at the start of each iteration by binding a Bool with lt comparing index to length.
+
+Loop invariant: before each iteration, the running sum equals the sum of all list elements at indices from zero up to but not including the current index, and no prior prefix sum was below zero.
+
+Inside the loop, bind the current element with listGet from operations at the current index. Replace the running sum with add of the previous running sum and the current element. Bind a Bool with lt comparing the running sum to zero. If that Bool is true, return true immediately. Otherwise increase the index by one with add and assign it back to the index variable, then continue the loop.
+
+When the loop ends because the index is no longer less than the length, return false.
+
+func main(): Int64
+
+Return the integer zero.

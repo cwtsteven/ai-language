@@ -1,0 +1,21 @@
+Design summary: The program finds the largest prime divisor of a composite Int64 by stripping smaller prime factors through repeated division, then treating any remaining value greater than one as the final prime factor.
+
+Expected behavior: For every composite n greater than one, the returned Int64 is the greatest prime number that divides n evenly. After fully dividing out all primes from two upward, any leftover n larger than one is prime and becomes the answer; otherwise the last prime factor removed during the process is the largest.
+
+Helper functions: none.
+
+func solve(n: Int64): Int64
+
+Initial values: Keep a mutable Int64 variable holding the working value of n, a mutable Int64 trial divisor starting at two, and a mutable Int64 answer initialized to one.
+
+Computation order: While the trial divisor multiplied by itself is less than or equal to the working n, the condition is checked before each outer iteration. Invariant: all prime factors of the original n that are strictly less than the current trial divisor have been divided out of the working n, and answer holds the largest prime factor seen so far among those removed. Inside the outer loop, while the remainder of working n divided by trial divisor equals zero, divide working n by trial divisor and set answer to trial divisor. Then increase trial divisor by one.
+
+Loop exit: The outer loop ends when trial divisor squared exceeds the current working n.
+
+Final step: If working n is greater than one, set answer to working n because that residue is prime and larger than any factor already recorded.
+
+Returned value: answer as the largest prime factor.
+
+main(): Int64
+
+The body returns zero as an Int64 without performing solving logic for this planning artifact.

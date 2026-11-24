@@ -1,0 +1,19 @@
+Design summary
+
+The task checks whether every list element is strictly below a given limit. A linear scan returns false on the first violation; an empty list or a list with all values below the limit returns true.
+
+Expected behavior
+
+solve returns true when every Int64 in the input list is strictly less than the limit Int64. An empty list returns true. If any element is greater than or equal to limit, return false.
+
+Helper functions
+
+None.
+
+func solve(numbers: ArrayList<Int64>, limit: Int64): Bool
+
+If numbers.size equals zero, return true. Initialize a mutable Int64 index to zero. While the index is strictly less than numbers.size, read the element at the index. If that element is greater than or equal to limit using relational comparison, return false immediately. Otherwise increase the index by one and continue. The condition index less than size is checked before each iteration. Invariant: every index less than the current index holds a value strictly less than limit. When the loop ends without early exit, return true.
+
+func main(): Int64
+
+Return the integer zero.

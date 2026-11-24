@@ -1,0 +1,37 @@
+Design summary
+
+The program searches for two list elements at distinct indices whose sum is zero. It uses nested loops over index pairs so that the outer index is always strictly less than the inner index, which guarantees different positions. As soon as a matching pair is found, the answer is true. If every valid pair is examined without a zero sum, the answer is false. Lists of length zero or one contain no such pair.
+
+Expected behavior
+
+The solve function returns true exactly when there exist indices i and j with i not equal to j such that the value at i plus the value at j equals zero. It returns false when no such pair exists, including when the list has fewer than two elements.
+
+Helper functions
+
+None.
+
+func solve(numbers: ListInt64): Bool
+
+Bind the length of numbers with listLen into an Int64 count. Initialize a mutable outer index of type Int64 to zero.
+
+Loop while the outer index is strictly less than the count; the outer condition is checked at the start of each outer iteration using lt on the outer index and count.
+
+Outer loop invariant: no pair of indices both less than the current outer index has been found whose values sum to zero, and all pairs with first index less than the outer index and second index less than that first index have already been ruled out.
+
+Inside the outer loop, bind an Int64 inner start as add of the outer index and one. Initialize a mutable inner index of type Int64 to that inner start value.
+
+Loop while the inner index is strictly less than the count; the inner condition is checked at the start of each inner iteration using lt on the inner index and count.
+
+Inner loop invariant: for the fixed outer index, no inner index between inner start and the current inner index has produced a zero sum with the outer element.
+
+Inside the inner loop, bind the outer value with listGet from numbers at the outer index. Bind the inner value with listGet from numbers at the inner index. Bind the sum with add of the outer value and the inner value. Bind a Bool with eq comparing the sum to zero. If that Bool is true, return true immediately.
+
+Otherwise increase the inner index by one with add and assign back, then continue the inner loop.
+
+When the inner loop finishes, increase the outer index by one and assign back, then continue the outer loop.
+
+When the outer loop finishes without returning true, return false.
+
+func main(): Int64
+
+Return the integer zero.

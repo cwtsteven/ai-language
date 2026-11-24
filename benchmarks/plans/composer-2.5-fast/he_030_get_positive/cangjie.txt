@@ -1,0 +1,19 @@
+Design summary: The program scans an input list of Int64 values in order and collects only those strictly greater than zero into a new list, preserving the original relative order among kept values.
+
+Expected behavior: Given an ArrayList of Int64 with at most twelve elements each between negative twenty and one hundred fifty, the result is a new ArrayList containing exactly the positive entries in the same sequence as they appeared in the input. Zero and negative values are skipped entirely. An empty input yields an empty output; a list with no positive values yields an empty output.
+
+Helper functions: none.
+
+func solve(numbers: ArrayList<Int64>): ArrayList<Int64>
+
+Initial values: An empty ArrayList of Int64 serves as the result. An Int64 index is set to zero.
+
+Computation order: While the index is strictly less than numbers.size, the condition is checked at the start of each iteration. Invariant: all indices less than the current index have been examined, and every positive value among those indices has been appended to the result in order. Read the Int64 at numbers indexed by the current index. If that value is greater than zero, append it to the result with add. Advance the index by one and continue.
+
+Loop exit: The index equals numbers.size after the last element has been considered.
+
+Returned value: The result ArrayList containing the positive values in original order.
+
+main(): Int64
+
+The body performs no input or solving work for this planning task. It returns the Int64 zero.

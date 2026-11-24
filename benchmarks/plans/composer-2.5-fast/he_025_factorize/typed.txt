@@ -1,0 +1,30 @@
+Design summary
+
+The program returns the prime factorization of n as a list of sixty-four-bit integers in nondecreasing order, with each prime repeated according to multiplicity. Input n ranges from two to two hundred thousand. Division and remainder are implemented without built-in divide or mod: one helper tests exact divisibility by repeated subtraction, another computes the integer quotient when division is exact by counting how many times the divisor can be subtracted from a working copy. The solve function maintains the unfactored quotient, tries trial divisors starting at two, and whenever the current divisor divides the quotient, appends that divisor to a list and replaces the quotient with the quotient of division. When the trial divisor squared exceeds the remaining quotient, the remainder is prime and is appended once. The list is built with empty list initialization and list push. Main returns zero.
+
+Expected behavior
+
+solve returns a ListInt64 containing all prime factors of n from smallest to largest. Each prime p appears as many times as p divides n in the factorization sense. The product of the list elements equals n.
+
+Helper and entry signatures in declaration order
+
+func divides(n: Int64, d: Int64): Bool
+func intDivide(n: Int64, d: Int64): Int64
+func solve(n: Int64): ListInt64
+main(): Int64
+
+divides body
+
+Same as for the largest-divisor task: copy n into a remainder variable, subtract d while the remainder is not less than d, then return whether the remainder equals zero. Loop invariant: remainder equals initial n minus d times subtraction count. Condition checked at loop head.
+
+intDivide body
+
+Assume d divides n. Initialize quotient to zero and remainder to n. While remainder is not less than d, subtract d from remainder and add one to quotient. Condition at loop start. Invariant: quotient times d plus remainder equals original n, with remainder eventually below d. Return quotient when remainder is zero after the loop for exact division inputs used by solve.
+
+solve body
+
+Initialize the factor list to emptyList. Initialize the remaining value to n. Initialize the trial divisor to two. While the remaining value is greater than one, checked at each loop head with lt so that one is the stop value, evaluate whether the trial divisor divides the remaining value. When true, push the trial onto the list, then replace the remaining value with the integer quotient from intDivide and leave the trial divisor unchanged so repeated factors are extracted. When false, test whether the trial divisor is greater than the remaining value using lt on the remaining and trial. If so the remaining value is prime, push it onto the list, set remaining to one, and finish factoring. Otherwise increase the trial divisor by one and continue. Loop invariant: the product of all integers already pushed times the current remaining value equals the original n. After remaining becomes one, return the factor list.
+
+main body
+
+Return the integer zero.

@@ -1,0 +1,19 @@
+Design summary: The program scans an ArrayList of Int64 values at odd zero-based indices and accumulates those elements whose value is even, including negative even integers, with at most ten entries per list.
+
+Expected behavior: For any input list meeting the size and value bounds, the result is the arithmetic sum of elements at indices one, three, five, and so forth, restricted to entries whose remainder modulo two equals zero. Elements at even indices are ignored even if even.
+
+Helper functions: none.
+
+func solve(numbers: ArrayList<Int64>): Int64
+
+Initial values: A mutable Int64 accumulator starts at zero. A mutable Int64 index starts at one so the first examined position is the second element.
+
+Computation order: While index is less than numbers.size, checked at the start of each iteration. Invariant: every odd index strictly less than the current index has been processed and even values at those positions have been added to the accumulator. Read numbers at index using list indexing. If the remainder of that element divided by two equals zero, add the element to the accumulator. Increase index by two to stay on odd indices.
+
+Loop exit: index is no longer less than numbers.size, so all odd indices from one upward have been visited.
+
+Returned value: The accumulator as the total of even values at odd positions.
+
+main(): Int64
+
+The body returns zero as an Int64 without calling solve.

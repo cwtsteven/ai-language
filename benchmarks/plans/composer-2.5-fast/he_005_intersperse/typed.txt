@@ -1,0 +1,29 @@
+Design summary
+
+The program walks the input list once and builds a new ListInt64. Each original element is appended in order. After every element except the last, the delimiter Int64 is appended as well. The delimiter never appears after the final element. An empty input list produces an empty output list without inserting the delimiter.
+
+Expected behavior
+
+The solve function returns a new list equal to the input numbers with the delimiter placed between each pair of consecutive values and omitted after the last value. For an empty numbers list, the result is an empty list.
+
+Helper functions
+
+None.
+
+func solve(numbers: ListInt64, delimiter: Int64): ListInt64
+
+Bind the length of numbers with listLen into an Int64 count. If the count equals zero, bind a Bool with eq comparing count to zero; when true, return emptyList.
+
+Otherwise initialize a mutable accumulator list of type ListInt64 to emptyList. Initialize a mutable index of type Int64 to zero. Compute the index of the last element as sub of count and one, binding it into an Int64 lastIndex value.
+
+Loop while the index is strictly less than the count; the condition is checked at the start of each iteration using lt on index and count.
+
+Loop invariant: the accumulator holds the input elements with indices from zero through one less than the current index, and after each of those elements except possibly the unfinished last step, the delimiter has been inserted between neighbors as required for the processed prefix.
+
+Inside the loop, bind the current number with listGet from numbers at the index. Replace the accumulator with listPush appending the current number. Bind a Bool with eq comparing the index to lastIndex. If that Bool is false, replace the accumulator with listPush appending the delimiter. Increase the index by one and assign back. Continue the loop.
+
+When the loop finishes, return the accumulator.
+
+func main(): Int64
+
+Return the integer zero.

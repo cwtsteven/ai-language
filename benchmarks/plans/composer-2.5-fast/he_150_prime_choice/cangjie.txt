@@ -1,0 +1,17 @@
+Design summary: Primality follows the usual definition: integers less than two are not prime; two and larger primes have no positive divisors other than one and themselves. Trial division tests divisibility by integers from two up to the square root of n, sufficient for Int64 inputs in typical test ranges.
+
+Expected behavior: When n is prime, solve returns x; otherwise it returns y. Negative x and y are returned unchanged according to that rule. Zero, one, and negative n are not prime.
+
+Helper functions (declaration order):
+
+func isPrime(n: Int64): Bool
+
+func solve(n: Int64, x: Int64, y: Int64): Int64
+
+func main(): Int64
+
+isPrime: If n is less than two, return false. If n equals two, return true. If n is even and greater than two, return false. Initialize a trial divisor to three. While the divisor multiplied by itself is less than or equal to n, test whether n remainder divisor equals zero; if so, return false. Increase the divisor by two and repeat. Invariant: no odd divisor less than the current divisor divides n. When the loop condition fails, return true.
+
+solve: Call isPrime with n. If the result is true, return x; otherwise return y.
+
+main: Return zero as Int64.

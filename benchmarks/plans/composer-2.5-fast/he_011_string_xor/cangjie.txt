@@ -1,0 +1,19 @@
+Design summary: The program walks two same-length strings of ASCII digits zero and one in parallel and builds a result string where each position is one when the characters differ and zero when they match.
+
+Expected behavior: For equal inputs the output is all zeros. For inputs that differ at some positions, those positions become one in the output. Length is unchanged from the inputs.
+
+Helper functions: none.
+
+func solve(left: String, right: String): String
+
+Initial values: An empty String accumulator for output. An Int64 index starts at zero. The length is taken from left.size, equal to right.size.
+
+Computation order: While the index is less than the length, checked at the beginning of each iteration. Invariant: the accumulator contains the correct xor characters for all indices strictly less than the current index. Obtain the Rune at left via left.toRuneArray indexed by index, and the same for right. Compare the two runes for equality. If equal, extend the accumulator by appending the character zero as a string; if not equal, append the character one. Increment the index.
+
+Loop exit: Index reaches the length.
+
+Returned value: The completed String.
+
+main(): Int64
+
+Returns zero as Int64.

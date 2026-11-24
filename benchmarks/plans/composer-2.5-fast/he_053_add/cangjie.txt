@@ -1,0 +1,13 @@
+Design summary: The program exposes a single numerical entry point that combines two signed 64-bit integer inputs into their arithmetic sum. No auxiliary state or iteration is required because the problem is a direct binary operation on in-range values.
+
+Expected behavior: For every pair of inputs x and y that fit in Int64, solve returns the integer that is the sum of x and y, which also fits in Int64 per the problem guarantee.
+
+Helper functions: None.
+
+func solve(x: Int64, y: Int64): Int64
+
+The body of solve uses addition on the two Int64 parameters. The returned value is that sum, with no intermediate variables required because both operands are already available as parameters.
+
+func main(): Int64
+
+The body of main returns the Int64 literal zero and performs no other computation.

@@ -1,0 +1,23 @@
+Design summary: The fixed set of even integers from two through eight is enumerated. The inclusive interval between a and b is determined by taking the smaller and larger of the two parameters, then collecting which of those four values lie inside the closed range, appended to an ArrayList in ascending order two, four, six, eight.
+
+Expected behavior: solve returns an ArrayList containing exactly those values among two, four, six, and eight that are greater than or equal to the lower endpoint and less than or equal to the upper endpoint, in increasing order. Swapping a and b yields the same list.
+
+Helper functions (declaration order):
+
+func lowerEndpoint(a: Int64, b: Int64): Int64
+func upperEndpoint(a: Int64, b: Int64): Int64
+func inClosedRange(value: Int64, low: Int64, high: Int64): Bool
+
+func solve(a: Int64, b: Int64): ArrayList<Int64>
+
+func main(): Int64
+
+lowerEndpoint: Compare a and b; return a if a is less than or equal to b, otherwise return b.
+
+upperEndpoint: Compare a and b; return a if a is greater than or equal to b, otherwise return b.
+
+inClosedRange: Return true when value is greater than or equal to low and value is less than or equal to high; otherwise false.
+
+solve: Compute low as lowerEndpoint of a and b and high as upperEndpoint of a and b. Create a new empty ArrayList of Int64. For each candidate in the sequence two, then four, then six, then eight, if inClosedRange reports the candidate lies between low and high, append the candidate to the list. Return the list.
+
+main: Return zero as Int64.

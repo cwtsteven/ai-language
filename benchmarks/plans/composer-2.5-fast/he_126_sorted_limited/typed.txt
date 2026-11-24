@@ -1,0 +1,30 @@
+Design summary
+
+The program validates a short list of integers in two independent passes: first whether consecutive elements are in nondecreasing order, second whether no integer appears more than twice. An empty list is accepted without scanning elements.
+
+Expected behavior
+
+solve returns true exactly when the input list is sorted in nondecreasing order and every value occurs at most two times. The empty list yields true. Lists have at most ten elements with values between negative five and ten.
+
+Helper and entry signatures in declaration order
+
+func isNondecreasing(numbers: ListInt64): Bool
+func withinTwoCopies(numbers: ListInt64): Bool
+func solve(numbers: ListInt64): Bool
+func main(): Int64
+
+func isNondecreasing(numbers: ListInt64): Bool
+
+Let the list length be obtained with listLen on numbers. If the length is zero, return true. Otherwise initialize a mutable Int64 index to zero. Loop while the index is strictly less than the length minus one: the condition is checked at the head of each iteration using lt on Int64; the invariant is that all pairs before the current index are nondecreasing. Read the element at the current index and at the next index with listGet. If the first is greater than the second, return false immediately. Otherwise increment the index by one and continue. If the loop completes, return true.
+
+func withinTwoCopies(numbers: ListInt64): Bool
+
+Let the outer length be listLen of numbers. If the outer length is zero, return true. Initialize an outer mutable index to zero. Outer loop while the outer index is less than the outer length: invariant is that every value among indices below the outer index appears at most twice in the whole list. Fix the candidate value as listGet at the outer index. Initialize a counter Int64 var to zero and an inner index var to zero. Inner loop while the inner index is less than the outer length: at each step compare listGet at inner index to the candidate with eq; when equal, increment the counter by one. Advance the inner index. After the inner loop, if the counter exceeds two, return false. Increment the outer index and continue. If all outer iterations finish, return true.
+
+func solve(numbers: ListInt64): Bool
+
+Compute whether the list is nondecreasing by calling isNondecreasing on numbers. Compute whether copy limits hold by calling withinTwoCopies on numbers. Return the logical and of those two Bool results using and.
+
+func main(): Int64
+
+Return zero as Int64.

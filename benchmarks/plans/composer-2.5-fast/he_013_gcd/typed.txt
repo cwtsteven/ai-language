@@ -1,0 +1,27 @@
+Design summary
+
+The program computes the greatest common divisor of two nonnegative integers that are not both zero using repeated subtraction, which matches the available arithmetic built-ins without division. Two mutable Int64 values hold the current pair. While they differ, the larger is reduced by the smaller. When they become equal, that common value is the greatest common divisor.
+
+Expected behavior
+
+The solve function returns the greatest common divisor of a and b as an Int64. For example, the gcd of twelve and eighteen is six. The method terminates because each step decreases the sum of the two values while preserving their gcd.
+
+Helper functions
+
+None.
+
+func solve(a: Int64, b: Int64): Int64
+
+Initialize a mutable first value of type Int64 to a. Initialize a mutable second value of type Int64 to b.
+
+Loop while the two values are not equal; at the start of each iteration bind a Bool done with eq comparing first and second, then bind a Bool continueLoop with not applied to done, and use continueLoop as the while condition so the condition is re-evaluated after each body execution.
+
+Loop invariant: the gcd of the original a and b equals the gcd of the current first and second values, and the sum first plus second strictly decreases whenever the loop body runs.
+
+Inside the loop, bind a Bool firstLess with lt comparing first to second. If firstLess is true, replace second with sub of second and first. Otherwise replace first with sub of first and second. Continue the loop.
+
+When the loop exits because first and second are equal, return first.
+
+func main(): Int64
+
+Return the integer zero.

@@ -39,6 +39,176 @@ class BenchmarkTests(unittest.TestCase):
     def test_normal_run_generates_every_task_in_both_modes_with_planning(self):
         self.run_generation_fixture()
 
+    def test_plan_only_writes_plans_and_skips_generation(self):
+        commands, plan_commands = [], []
+
+        def fake_execute(command, timeout, **kwargs):
+            if "--help" in command and "generate" in command:
+                return process(stdout="--force-postfix --plan-only --plan-file")
+            planning = "--plan-only" in command or ("--system-file" in command and "--n" not in command)
+            if planning:
+                plan_commands.append(command)
+                return process(stdout=f"plan for {' '.join(command)}\n")
+            return process(stdout="fixture version")
+
+        with tempfile.TemporaryDirectory() as temporary:
+            temporary = Path(temporary)
+            model = temporary / "fixture.gguf"
+            model.write_bytes(b"model-free fixture, never loaded")
+            output = temporary / "plans"
+            with patch.object(bench, "execute", side_effect=fake_execute), \
+                 patch.object(bench, "evaluate", side_effect=lambda *args: dict(
+                     compilation_success=True, functional_success=True, status="pass")), \
+                 patch.object(bench, "model_lock", return_value=contextlib.nullcontext()), \
+                 contextlib.redirect_stdout(io.StringIO()):
+                status = bench.main(["--model", str(model), "--cli", sys.executable, "--translator", sys.executable,
+                                     "--plain", sys.executable, "--cjc", sys.executable,
+                                     "--plan-only", "--output", str(output), "--tasks", "he_053_add"])
+            self.assertEqual(status, 0)
+            self.assertEqual(len(plan_commands), 2)
+            self.assertEqual(commands, [])
+            self.assertFalse((output / "results.jsonl").exists())
+            summary = json.loads((output / "plans_summary.json").read_text())
+            self.assertEqual(summary["passed"], 2)
+            for mode in bench.MODES:
+                plan = output / "plans" / "he_053_add" / f"sample_000_{mode}" / "plan.txt"
+                self.assertTrue(plan.read_text().strip())
+                metadata = json.loads((plan.parent / "plan_metadata.json").read_text())
+                self.assertEqual(metadata["status"], "pass")
+                self.assertTrue(metadata["local_planner_invoked"])
+
+    def test_saved_plans_skip_the_planner(self):
+        commands, plan_commands = [], []
+
+        def fake_execute(command, timeout, **kwargs):
+            if "--help" in command and "generate" in command:
+                return process(stdout="--force-postfix --plan-only --plan-file")
+            planning = "--plan-only" in command or ("--system-file" in command and "--n" not in command)
+            if planning:
+                plan_commands.append(command)
+                return process(stdout="should not plan\n")
+            generating = (len(command) > 1 and command[1] == "generate") or "--user-file" in command
+            if generating:
+                commands.append(command)
+                return process(stdout="main(): Int64 { return 0; }")
+            return process(stdout="fixture version")
+
+        with tempfile.TemporaryDirectory() as temporary:
+            temporary = Path(temporary)
+            saved = temporary / "saved"
+            for mode in bench.MODES:
+                directory = saved / "plans" / "he_053_add" / f"sample_000_{mode}"
+                directory.mkdir(parents=True)
+                (directory / "plan.txt").write_text(f"saved {mode} plan\n")
+                (directory / "plan_metadata.json").write_text(json.dumps({"seed": 42}) + "\n")
+            model = temporary / "fixture.gguf"
+            model.write_bytes(b"model-free fixture, never loaded")
+            output = temporary / "results"
+            with patch.object(bench, "execute", side_effect=fake_execute), \
+                 patch.object(bench, "evaluate", side_effect=lambda *args: dict(
+                     compilation_success=True, functional_success=True, status="pass")), \
+                 patch.object(bench, "score_translated", side_effect=lambda *args: dict(
+                     task_id="he_053_add", translation_success=True, compilation_success=True,
+                     harness_compile_success=True, functional_success=True,
+                     tests_passed=1, tests_total=1, status="pass")), \
+                 patch.object(bench, "evaluate_cangjie", side_effect=lambda *args: dict(
+                     task_id="he_053_add", translation_success=None, compilation_success=True,
+                     harness_compile_success=True, functional_success=True,
+                     tests_passed=1, tests_total=1, status="pass")), \
+                 patch.object(bench, "model_lock", return_value=contextlib.nullcontext()), \
+                 contextlib.redirect_stdout(io.StringIO()):
+                status = bench.main(["--model", str(model), "--cli", sys.executable, "--translator", sys.executable,
+                                     "--plain", sys.executable, "--cjc", sys.executable,
+                                     "--plans", str(saved), "--output", str(output), "--tasks", "he_053_add"])
+            self.assertEqual(status, 0)
+            self.assertEqual(plan_commands, [])
+            self.assertEqual(len(commands), 2)
+            typed = next(command for command in commands if len(command) > 1 and command[1] == "generate")
+            self.assertEqual(Path(typed[typed.index("--plan-file") + 1]).read_text(), "saved constrained plan\n")
+            cangjie = next(command for command in commands if "--user-file" in command)
+            self.assertIn("saved cangjie plan", Path(cangjie[cangjie.index("--user-file") + 1]).read_text())
+            config = json.loads((output / "config.json").read_text())
+            self.assertEqual(config["plan_source"], "saved")
+            self.assertFalse(config["local_planning"])
+            rows = [json.loads(line) for line in (output / "results.jsonl").read_text().splitlines()]
+            self.assertTrue(all(row["plan_sha256"] for row in rows))
+            self.assertTrue(all(row["code_generation_attempted"] for row in rows))
+
+    def test_per_task_plans_are_reused_for_every_sample(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            task = root / "he_053_add"
+            task.mkdir()
+            (task / "typed.txt").write_text("typed plan\n")
+            (task / "cangjie.txt").write_text("cangjie plan\n")
+            self.assertTrue(bench.plans_directory_ok(root))
+            self.assertFalse(bench.plans_directory_ok(root / "missing"))
+            for sample in (0, 3):
+                self.assertEqual(bench.saved_plan_file(root, "he_053_add", sample, "constrained").name, "typed.txt")
+                self.assertEqual(bench.saved_plan_file(root, "he_053_add", sample, "cangjie").name, "cangjie.txt")
+            sample_plan = root / "plans" / "he_053_add" / "sample_001_constrained"
+            sample_plan.mkdir(parents=True)
+            (sample_plan / "plan.txt").write_text("sample plan\n")
+            self.assertEqual(bench.saved_plan_file(root, "he_053_add", 1, "constrained").read_text(), "sample plan\n")
+            self.assertEqual(bench.saved_plan_file(root, "he_053_add", 0, "constrained").read_text(), "typed plan\n")
+
+    def test_given_task_plans_skip_the_planner(self):
+        commands, plan_commands = [], []
+
+        def fake_execute(command, timeout, **kwargs):
+            if "--help" in command and "generate" in command:
+                return process(stdout="--force-postfix --plan-only --plan-file")
+            planning = "--plan-only" in command or ("--system-file" in command and "--n" not in command)
+            if planning:
+                plan_commands.append(command)
+                return process(stdout="should not plan\n")
+            generating = (len(command) > 1 and command[1] == "generate") or "--user-file" in command
+            if generating:
+                commands.append(command)
+                return process(stdout="main(): Int64 { return 0; }")
+            return process(stdout="fixture version")
+
+        with tempfile.TemporaryDirectory() as temporary:
+            temporary = Path(temporary)
+            saved = temporary / "given"
+            task = saved / "he_053_add"
+            task.mkdir(parents=True)
+            (task / "typed.txt").write_text("given typed plan\n")
+            (task / "cangjie.txt").write_text("given cangjie plan\n")
+            model = temporary / "fixture.gguf"
+            model.write_bytes(b"model-free fixture, never loaded")
+            output = temporary / "results"
+            with patch.object(bench, "execute", side_effect=fake_execute), \
+                 patch.object(bench, "evaluate", side_effect=lambda *args: dict(
+                     compilation_success=True, functional_success=True, status="pass")), \
+                 patch.object(bench, "score_translated", side_effect=lambda *args: dict(
+                     task_id="he_053_add", translation_success=True, compilation_success=True,
+                     harness_compile_success=True, functional_success=True,
+                     tests_passed=1, tests_total=1, status="pass")), \
+                 patch.object(bench, "evaluate_cangjie", side_effect=lambda *args: dict(
+                     task_id="he_053_add", translation_success=None, compilation_success=True,
+                     harness_compile_success=True, functional_success=True,
+                     tests_passed=1, tests_total=1, status="pass")), \
+                 patch.object(bench, "model_lock", return_value=contextlib.nullcontext()), \
+                 contextlib.redirect_stdout(io.StringIO()):
+                status = bench.main(["--model", str(model), "--cli", sys.executable, "--translator", sys.executable,
+                                     "--plain", sys.executable, "--cjc", sys.executable,
+                                     "--plans", str(saved), "--samples", "2", "--output", str(output),
+                                     "--tasks", "he_053_add"])
+            self.assertEqual(status, 0)
+            self.assertEqual(plan_commands, [])
+            self.assertEqual(len(commands), 4)
+            typed = [command for command in commands if len(command) > 1 and command[1] == "generate"]
+            self.assertEqual(len(typed), 2)
+            self.assertTrue(all(Path(command[command.index("--plan-file") + 1]).read_text() == "given typed plan\n"
+                                for command in typed))
+            cangjie = [command for command in commands if "--user-file" in command]
+            self.assertTrue(all("given cangjie plan" in Path(command[command.index("--user-file") + 1]).read_text()
+                                for command in cangjie))
+            config = json.loads((output / "config.json").read_text())
+            self.assertEqual(config["plan_source"], "saved")
+            self.assertFalse(config["local_planning"])
+
     def run_generation_fixture(self):
         commands = []
         plan_commands = []
@@ -91,7 +261,6 @@ class BenchmarkTests(unittest.TestCase):
                 self.assertNotIn("--skip-plan", command)
                 self.assertNotIn("--format", command)
                 self.assertNotIn("--force-postfix", command)
-                self.assertEqual(command[command.index("--n") + 1], "2048")
             for command in cangjie:
                 self.assertNotIn("--skip-plan", command)
                 self.assertIn("--n", command)
@@ -101,6 +270,9 @@ class BenchmarkTests(unittest.TestCase):
             for task in SUITE["tasks"]:
                 self.assertEqual(sum(len(command) > 2 and command[2] == bench.task_prompt(task) for command in typed), 1)
                 self.assertEqual(len(seen_plans[bench.task_prompt(task)]), 1)
+                expected = str(bench.code_budget(task))
+                typed_command = next(command for command in typed if len(command) > 2 and command[2] == bench.task_prompt(task))
+                self.assertEqual(typed_command[typed_command.index("--n") + 1], expected)
             summary = json.loads((output / "summary.json").read_text())
             self.assertTrue(summary["complete"])
             self.assertTrue(summary["config"]["planning"])
@@ -163,8 +335,8 @@ class BenchmarkTests(unittest.TestCase):
         planning = (bench.ROOT / "src/planning.h").read_text()
         self.assertIn("Write exactly one program satisfying this language specification.", header)
         self.assertIn("Use spaces between tokens for clarity.", header)
-        self.assertIn("The following specification governs both the planned statement sketches and the eventual program:", header)
-        self.assertIn("infix expressions are not allowed.", header)
+        self.assertIn("The following specification constrains the program written later.", header)
+        self.assertIn("Write signatures only", header)
         self.assertIn("Plan the implementation for this request: ", planning)
         self.assertIn("Produce a program for this request: ", planning)
         self.assertIn("func add(a: Int64, b: Int64): Int64", CANGJIE_SPEC)
@@ -205,16 +377,19 @@ class BenchmarkTests(unittest.TestCase):
             self.assertIn((bench.ROOT / "docs/cangjie-subset.md").read_text(),
                           Path(cangjie[cangjie.index("--system-file") + 1]).read_text())
 
-    def test_fibonacci_budgets_are_at_least_2048_in_both_modes(self):
+    def test_code_budget_is_twice_the_reference(self):
+        addition = "func solve(x: Int64, y: Int64): Int64 {\n    let result: Int64 = add(x, y);\n    return result;\n}\nmain(): Int64 { return 0; }\n"
+        self.assertEqual(bench.reference_token_count(addition), bench.reference_token_count(
+            (bench.ROOT / "benchmarks/references/he_053_add.typed").read_text()))
+        self.assertEqual(bench.reference_token_count('let text: String = "a b";'), 7)
         with tempfile.TemporaryDirectory() as temporary:
             directory = Path(temporary)
             for task in SUITE["tasks"]:
-                if task["id"] not in ("he_055_fibonacci", "he_063_fibfib"):
-                    continue
+                self.assertEqual(task["code_tokens"], task["reference_tokens"] * 2)
+                self.assertGreater(task["reference_tokens"], 0)
                 for mode in bench.MODES:
-                    for requested, expected in ((512, 2048), (2048, 2048), (4096, 4096)):
-                        command = bench.generation_command(settings(n=requested), task, mode, 42, directory)
-                        self.assertEqual(command[command.index("--n") + 1], str(expected))
+                    command = bench.generation_command(settings(), task, mode, 42, directory)
+                    self.assertEqual(command[command.index("--n") + 1], str(task["code_tokens"]))
 
     def test_unittest_harness_renames_main_and_parses_summary(self):
         renamed = bench.rename_candidate_main("main(): Int64 {\n    return 0\n}\n")

@@ -1,0 +1,19 @@
+Design summary: The program searches downward from n minus one for the greatest positive integer that divides n evenly, which is the largest proper divisor of n for n at least two.
+
+Expected behavior: For each n from two through two hundred, the result is the maximum integer d such that d is greater than zero, d is less than n, and n modulo d equals zero. For prime n the result is one; for composite n it is the largest nontrivial factor below n.
+
+Helper functions: none.
+
+func solve(n: Int64): Int64
+
+Initial values: Set a mutable Int64 candidate to n minus one.
+
+Computation order: While candidate is greater than zero, condition checked at the start of each iteration. Invariant: no integer strictly between candidate and n minus one inclusive divides n evenly. Each iteration computes the remainder of n divided by candidate using integer division semantics. If the remainder is zero, return candidate immediately. Otherwise decrease candidate by one.
+
+Loop exit: Either a divisor was found and returned, or candidate reaches zero (which cannot occur for valid n at least two because one always divides n).
+
+Returned value: The first candidate encountered in the downward scan for which n modulo candidate is zero.
+
+main(): Int64
+
+The body returns zero as an Int64 without calling solve.

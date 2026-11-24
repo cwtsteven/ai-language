@@ -1,0 +1,19 @@
+Design summary: The program formats the integers from zero through n inclusive as decimal text, with a single ASCII space between consecutive numerals and no space before the first or after the last.
+
+Expected behavior: For n equal to zero, the result is the single character string for zero. For larger n, the result is the decimal representation of zero, then for each successive integer from one through n append one space and that integer's decimal string, producing one contiguous String.
+
+Helper functions: none.
+
+func solve(n: Int64): String
+
+Initial values: If n is zero, form the String for zero alone and return it. Otherwise start from the String for zero and set a mutable Int64 counter to one.
+
+Computation order: While the counter is less than or equal to n, condition checked at the start of each iteration. Invariant: the accumulated String equals the space-separated decimal numerals for every integer from zero through counter minus one. Each iteration concatenates onto the result String one space character and the decimal string of the current counter value from toString on Int64, then increments the counter by one.
+
+Loop exit: When the counter exceeds n, every value from zero through n has been appended with the required separators.
+
+Returned value: The completed String.
+
+main(): Int64
+
+The body returns zero as an Int64 without invoking solve.

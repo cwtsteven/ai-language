@@ -1,0 +1,25 @@
+Design summary
+
+The program counts how many times a nonempty pattern appears in a text string, including overlaps. Text and pattern are printable ASCII with length at most sixteen. The approach scans every starting index in text where a full pattern could still fit, and at each index checks whether the pattern matches character by character using string length, indexed character access, and string equality. A helper performs that alignment test at a given start offset. The solve function walks start positions from zero upward by one each time so overlapping matches are all counted. Integer comparisons express whether another start position remains valid relative to text length and pattern length. Main returns zero.
+
+Expected behavior
+
+solve returns the total number of start positions in text at which pattern matches exactly for its full length. Overlapping occurrences are counted separately. If pattern never matches, the count is zero. Pattern is never longer than text when occurrences exist; pattern length is obtained via strLen and used in bounds checks.
+
+Helper and entry signatures in declaration order
+
+func matchesAt(text: String, pattern: String, start: Int64): Bool
+func solve(text: String, pattern: String): Int64
+main(): Int64
+
+matchesAt body
+
+Let the pattern length be strLen of pattern. Initialize a running offset within the pattern to zero. While the offset is strictly less than the pattern length, read the character of text at the index formed by adding start and the offset, read the character of pattern at the offset, and compare the two one-character strings with strEq. If any pair differs, return false immediately. Advance the offset by one after each successful comparison. The condition is checked at the beginning of each loop iteration. Invariant: all pattern positions before the current offset agree with the corresponding text positions. When the offset reaches the pattern length without mismatch, return true.
+
+solve body
+
+Let text length and pattern length be their respective strLen values. Initialize the match count to zero and the start position to zero. While the sum of start position and pattern length is not greater than text length, meaning the pattern still fits starting at start, evaluate matchesAt at the current start. If it returns true, increase the count by one. Increase the start position by one every iteration regardless of match outcome to allow overlaps. Loop condition is checked at iteration start using the relation that start plus pattern length is less than or equal to text length, expressed via integer less-than and equality negation as needed. Invariant: the count equals the number of valid starts strictly before the current start that matched. After the loop, return the count.
+
+main body
+
+Return the integer zero.

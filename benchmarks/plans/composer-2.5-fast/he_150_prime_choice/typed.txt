@@ -1,0 +1,35 @@
+Design summary
+
+The program tests primality of n by trial division using only subtraction-based remainder reduction, then selects between two Int64 branches. Integers below two are treated as composite for the purpose of choosing y.
+
+Expected behavior
+
+solve returns x when n is prime and returns y when n is not prime. Primality follows the usual definition for integers at least two; values smaller than two yield y.
+
+Helper and entry signatures in declaration order
+
+func remainderAfterDivisibleBy(d: Int64, n: Int64): Int64
+func divides(d: Int64, n: Int64): Bool
+func isPrime(n: Int64): Bool
+func solve(n: Int64, x: Int64, y: Int64): Int64
+func main(): Int64
+
+func remainderAfterDivisibleBy(d: Int64, n: Int64): Int64
+
+Assume d is positive and n is non-negative. Initialize a mutable Int64 remainder to n. Loop while remainder is greater than or equal to d: condition at loop head using lt after forming that remainder is not less than d; invariant is that the remainder equals n modulo d. Each body step subtracts d from remainder. When the loop ends, return remainder.
+
+func divides(d: Int64, n: Int64): Bool
+
+Let the remainder be remainderAfterDivisibleBy with d and n. Return true when eq shows remainder is zero.
+
+func isPrime(n: Int64): Bool
+
+If n is less than two via lt, return false. If n equals two via eq, return true. If n is even using divides with two, return false. Initialize a mutable Int64 trial divisor to three. Loop while the product of trial divisor with itself is less than or equal to n: condition checked each iteration by comparing mul of divisor with itself against n using lt and not as needed; invariant is that no odd divisor between three and the current trial has divided n. If divides reports trial divisor divides n, return false. Increase trial divisor by two. If the loop finishes without a divisor, return true.
+
+func solve(n: Int64, x: Int64, y: Int64): Int64
+
+Let primality be isPrime applied to n. If primality is true, return x; otherwise return y.
+
+func main(): Int64
+
+Return zero as Int64.

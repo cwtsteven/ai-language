@@ -1,0 +1,19 @@
+Design summary: The program finds the largest Int64 in a nonempty input list by scanning every element once and retaining the greatest value seen.
+
+Expected behavior: For a nonempty ArrayList of Int64 with at most twelve elements each between negative twenty and one hundred fifty, the returned Int64 is the maximum of all entries. Every element is considered; ties keep the same maximum value.
+
+Helper functions: none.
+
+func solve(numbers: ArrayList<Int64>): Int64
+
+Initial values: Set a mutable Int64 best to the value at index zero of numbers. Set an Int64 index to one.
+
+Computation order: While the index is strictly less than numbers.size, the condition is checked at the start of each iteration. Invariant: best equals the maximum among indices from zero through index minus one. Read the value at numbers indexed by the current index. If that value is greater than best, replace best with that value. Advance the index by one.
+
+Loop exit: The index equals numbers.size after every element has been compared.
+
+Returned value: The Int64 best holding the largest element.
+
+main(): Int64
+
+The body performs no input or solving work for this planning task. It returns the Int64 zero.

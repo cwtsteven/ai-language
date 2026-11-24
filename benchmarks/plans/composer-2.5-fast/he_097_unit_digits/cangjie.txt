@@ -1,0 +1,20 @@
+Design summary: The program computes the ones place of each input after converting both operands to nonnegative magnitude, then multiplies those two digits and returns the product as Int64. Negative inputs and magnitudes up to ten thousand are handled solely through absolute value and remainder by ten; leading digits are ignored.
+
+Expected behavior: For any pair of Int64 values within the stated bound on absolute value, solve returns the product of the decimal units digits of the absolute values of a and b. Examples of the rule: opposing signs affect only magnitude; trailing zeros contribute a units digit of zero.
+
+Helper functions (declaration order):
+
+func absValue(x: Int64): Int64
+func unitDigit(m: Int64): Int64
+
+func solve(a: Int64, b: Int64): Int64
+
+func main(): Int64
+
+absValue: Begin with the parameter as the working magnitude. If the parameter is less than zero, replace the working value with its negation so the result is nonnegative; otherwise keep the parameter. Return the resulting Int64.
+
+unitDigit: First replace the argument with its absolute value using absValue so the digit is taken from a nonnegative magnitude. Compute the remainder when dividing that magnitude by ten; that remainder is the units digit. Return it as Int64.
+
+solve: Obtain the units digit of a by passing a to unitDigit. Obtain the units digit of b the same way. Multiply the two digits with integer multiplication and return the product.
+
+main: Return zero as Int64 without performing other work.

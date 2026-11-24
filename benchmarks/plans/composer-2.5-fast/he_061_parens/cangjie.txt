@@ -1,0 +1,19 @@
+Design summary: The program walks a String of opening and closing parentheses character by character, maintaining a depth count that must never go negative and must finish at zero for a balanced string.
+
+Expected behavior: The empty String yields true. For strings of length at most forty containing only parentheses, the result is true exactly when every opening parenthesis is eventually matched in correct nesting order; any extra closing, unmatched opening, or wrong order yields false.
+
+Helper functions: none.
+
+func solve(text: String): Bool
+
+Initial values: A mutable Int64 depth starts at zero. A mutable Int64 index starts at zero. The rune sequence comes from converting text to a rune array once.
+
+Computation order: While index is less than text.size, the condition is checked at the start of each iteration. Invariant: depth equals the net number of unmatched opening parentheses among characters before index, and depth has never been negative during prior steps. Read the rune at index. If it is an opening parenthesis, increase depth by one. If it is a closing parenthesis, decrease depth by one; if depth becomes less than zero, return false immediately. Increase index by one.
+
+Loop exit: All characters have been processed without depth dropping below zero.
+
+Returned value: true when depth equals zero after the loop; false when depth was negative during the scan or depth is nonzero at the end.
+
+main(): Int64
+
+The body returns zero as an Int64 without calling solve.

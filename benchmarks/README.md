@@ -1,10 +1,6 @@
 # Typed pipeline vs direct Cangjie
 
-Compare the same local model, task, token budget, temperature, and seed.
-The typed arm plans and generates with `typed-cangjie`, which appends `docs/language.md`
-and writes Cangjie.
-The Cangjie arm plans and generates with `plain-llama`, which appends `docs/cangjie-subset.md`
-and does not run the typed checker. Requires Python 3.10+, both built binaries, and the Cangjie SDK.
+Compare one local model on the same task, token budget, temperature, and seed. The typed arm uses `typed-cangjie`, appends [docs/language.md](../docs/language.md), and writes Cangjie. The Cangjie arm uses `plain-llama`, appends [docs/cangjie-subset.md](../docs/cangjie-subset.md), and does not run the typed checker. Requires Python 3.10+, both binaries, and the Cangjie SDK.
 
 ```sh
 cmake --build build --parallel 4
@@ -16,33 +12,41 @@ A shorter run:
 
 ```sh
 python3 benchmarks/run.py --model /path/to/model.gguf \
-    --tasks he_053_add he_055_fibonacci --n 2048 --samples 1 \
+    --tasks he_053_add he_055_fibonacci --samples 1 \
     --output benchmark-results/smoke
 ```
 
-Model selection accepts the same GGUF files and JSON plugins as `generate`. Supply a
-new output directory for each run. Results are saved after every attempt, so an
-interrupted run retains completed measurements. An existing directory is never
-overwritten. `--validate` checks reference solutions without loading any model.
-Every generation run also validates its selected reference solutions first.
+Model selection matches `generate`: a GGUF file or a JSON plugin. Use a new output directory each time. Results are saved after every attempt, and an existing directory is never overwritten. `--validate` checks reference solutions without a model; every generation run validates its selected references first.
 
-A normal run plans once per arm. The typed planner is `typed-cangjie generate --plan-only`.
-The Cangjie planner is `plain-llama` with the Cangjie specification and no token cap.
-Each arm then generates from its own plan. The typed arm's stdout is already Cangjie.
-Cangjie-arm programs are compiled as generated. Both are scored with the
-checked-in `std.unittest` files under [cjtests/](cjtests/); the Cangjie arm calls
-`solve` where the translated arm calls `typed_fn_solve`. The 592 `@Test` cases are
-inputs for the 35 generated functions, not 592 separate prompts. Reference validation
-checks the typed evaluator; it is not a model benchmark result.
+The runner has two generation modes. Typed stdout is already Cangjie.
+
+End to end is the default. Each arm plans from the prompt, then generates from that plan. The typed planner is `typed-cangjie generate --plan-only`. The Cangjie planner is `plain-llama` with the Cangjie specification and no token cap.
+
+```sh
+python3 benchmarks/run.py --model /path/to/model.gguf \
+    --output benchmark-results/end-to-end
+```
+
+Given-plan mode skips the planner and generates from saved plans. `--plans` accepts a previous `--plan-only` directory, or one folder per task with `typed.txt` and `cangjie.txt`. A per-task file is reused for every sample. A sample file (`plans/<task>/sample_<index>_<mode>/plan.txt`) is used only for that sample. A missing plan fails that arm only.
+
+```sh
+python3 benchmarks/run.py --model /path/to/model.gguf --plan-only \
+    --output benchmarks/plans/qwen35-9b-seed42
+python3 benchmarks/run.py --model /path/to/model.gguf \
+    --plans benchmarks/plans/qwen35-9b-seed42 \
+    --output benchmark-results/from-saved-plans
+python3 benchmarks/run.py --model /path/to/model.gguf \
+    --plans benchmarks/plans/composer-2.5-fast \
+    --output benchmark-results/from-given-plans
+```
+
+The Qwen3.5-9B plans for seed 42 and temperature 0.8 are in [plans/qwen35-9b-seed42](plans/qwen35-9b-seed42). The Composer 2.5 Fast plans, one typed plan and one Cangjie plan per task, are in [plans/composer-2.5-fast](plans/composer-2.5-fast).
+
+Cangjie-arm programs are compiled as generated. Both arms are scored with the `std.unittest` files in [cjtests/](cjtests/). The Cangjie arm calls `solve`; the translated arm calls `typed_fn_solve`. The 592 `@Test` cases are inputs for the 35 generated functions, not 592 prompts. Reference validation checks the typed evaluator; it is not a model score.
 
 ## Suite and provenance
 
-The bundled `humaneval-scalar-anf-v1` suite adapts **35 of HumanEval's 164 tasks**
-to Int64, Bool, ListInt64, and String. It contains **592 cases**, including **212
-distinct literal upstream input cases**, plus fixed boundary cases. The cases live in [cjtests/](cjtests/) as one `@Test` / `@Expect` per
-input against `typed_fn_solve`. [tasks.json](tasks.json) holds signatures,
-prompts, and provenance only. The suite does not use the upstream randomized
-loops. These are **not official HumanEval or HumanEval+ scores**.
+The bundled `humaneval-scalar-anf-v1` suite adapts **35 of HumanEval's 164 tasks** to `Int64`, `Bool`, `ListInt64`, and `String`: **592 cases**, of which **212** are distinct literal upstream inputs, plus fixed boundary cases. [cjtests/](cjtests/) has one `@Test` / `@Expect` per input against `typed_fn_solve`. [tasks.json](tasks.json) holds signatures, prompts, and provenance. The suite does not use the upstream randomized loops. These are not official HumanEval or HumanEval+ scores.
 
 [HumanEval](https://github.com/openai/human-eval) motivates function-level tests
 and pass@k estimation. [EvalPlus](https://github.com/evalplus/evalplus) motivates
@@ -89,20 +93,9 @@ recorded in [tasks.json](tasks.json). HumanEval's MIT notice is retained in
 | `he_150_prime_choice` | 150: x_or_y | Int64 |
 | `he_163_even_digits` | 163: generate_integers | ListInt64 |
 
-Floats, tuples, nested lists, lists of strings, and optional results still cannot be expressed.
-The selected tasks use the bounded domains stated in their prompts, with
-all expected results fitting Int64. Inputs with zero, negative values, repeated
-factors, sequence boundaries, and large results are included where applicable.
-Both arms are asked for `solve`. The typed language reserves names such as `add`,
-and the checked-in tests call `typed_fn_solve`. The Cangjie harness rewrites
-that call to `solve`. Helpers may precede `solve`, and a dummy `main` completes
-the program.
+Floats, tuples, nested lists, lists of strings, and optional results cannot be expressed. Expected results fit `Int64`, within the bounds stated in each prompt. Zero, negative values, repeated factors, sequence boundaries, and large results are included where they apply.
 
-Both arms receive the same function signature and problem description. The typed
-arm then receives [docs/language.md](../docs/language.md), and the Cangjie arm
-receives [docs/cangjie-subset.md](../docs/cangjie-subset.md). Test inputs,
-answers, and reference solutions are not included. Reference programs are
-positive controls for the typed evaluator; they are never supplied to the model.
+Both arms are asked for `solve`. The typed language reserves names such as `add(Int64, Int64): Int64`, so the checked-in tests call `typed_fn_solve` and the Cangjie harness rewrites that call to `solve`. Helpers may precede `solve`, and a dummy `main` completes the program. Both arms get the same signature and problem text, then their own specification. Test inputs, answers, and reference solutions are not shown to the model. References are positive controls for the typed evaluator.
 
 ## Experimental controls
 
@@ -110,33 +103,21 @@ positive controls for the typed evaluator; they are never supplied to the model.
   `--seed + i`, wrapping within the unsigned 32-bit range.
 - Both arms leave the forced postfix off. The evaluator does not remove Markdown,
   extract code, reformat output, repair errors, or append a deterministic suffix.
-- The request text is the same problem statement. Each arm then adds its own output instructions.
-  The typed system message appends `docs/language.md`. The Cangjie system message appends
-  `docs/cangjie-subset.md`, an English translation of a CangjieSkills excerpt covering functions, bindings,
-  conditions, loops, integers, Booleans, operators, and `main`.
-- Planning is enabled by default and is separate for each arm. Both planners see the same task,
-  seed, and temperature, and each sees only its own specification.
-  `benchmarks/run.py --no-plan` skips planning for both arms. That passes
-  `--skip-plan` to `typed-cangjie` and runs `plain-llama` with no plan. A failed
-  plan fails that arm only.
+- The request text is the same problem statement, followed by that arm's output instructions. The typed system message appends `docs/language.md`. The Cangjie system message appends `docs/cangjie-subset.md`.
+- Planning is separate for each arm. Both planners see the same task, seed, and temperature, and only their own specification. The default run plans, then generates. `--plans DIR` generates from saved plans and does not call the planner. `--no-plan` skips planning for both. `--plan-only` writes plans and does not generate. A failed or missing plan fails that arm only.
 - Mode order alternates between pairs. Generations run sequentially to avoid
   loading multiple model instances simultaneously.
-- Defaults: one sample per task/mode, 2048 code tokens, temperature 0.8, seed 42,
-  physical batch size 64. `--ngl 0` selects CPU inference.
-- Fibonacci and FibFib require at least **2048 code tokens**, even if a lower
-  `--n` is requested. Both arms use that same budget, recorded in
+- Defaults: one sample per task/mode, temperature 0.8, seed 42, physical batch
+  size 64. `--ngl 0` selects CPU inference.
+- Each task's `--n` is twice the language-token count of its typed reference.
+  A string literal counts as one token. Both arms use that budget, recorded in
   `code_tokens_by_task` and the per-attempt results.
 - Planning, code generation, compilation, and execution have separate wall-clock
   limits (`600`, `300`, `20`, and `5` seconds by default). The execution limit is
   per `std.unittest` case via `--timeout-each`; the process-group backstop is
   that limit times the case count. Timeouts count as failures, not omitted samples.
 
-Use `--samples 5` or more to estimate pass@5, or `--samples 10` or more for pass@10.
-The planning stage has no output token cap; `--planning-timeout` limits wall
-time for the benchmark. A failed or empty plan fails that arm
-without substituting another plan. `--generation-timeout`
-applies only to code generation. Seeds do not guarantee identical
-outputs across different hardware or numerical backends.
+Use `--samples 5` or more for pass@5, or `--samples 10` or more for pass@10. Planning has no output token cap; `--planning-timeout` limits its wall time. A failed or empty plan fails that arm, with no substitute plan. `--generation-timeout` applies only to code generation. A seed does not fix results across hardware or numerical backends.
 
 ## Measurements
 
@@ -147,35 +128,18 @@ outputs across different hardware or numerical backends.
 | **Functional correctness rate** | Every test passes / all attempts | Every test passes / all attempts |
 | Correct given compiled | Every test passes / compiled candidates | Every test passes / compiled candidates |
 
-An unfinished typed program counts as a translation failure, and `cjc` is
-not invoked. The Cangjie arm has no translation step, so its translation cell
-in the report is `n/a`. No failures disappear from the primary denominators.
+An unfinished typed program is a translation failure, and `cjc` is not invoked. The Cangjie arm has no translation step, so that cell is `n/a`. Failures stay in the primary denominators.
 
-Functional evaluation compiles the candidate with the checked-in `*_test.cj`
-file under `cjc --test`. Each input is its own `@Test`. The typed arm calls
-`typed_fn_solve`. The Cangjie arm calls `solve`. A throw or wrong answer does
-not stop later cases.
-The generated dummy `main` is renamed to `benchmarkOriginalMain` and not
-executed; `test_entry` is the process entry. A missing entry point or wrong
-signature fails harness compilation; the candidate's standalone compilation
-result is retained. Wrong answers (`FAILED`), runtime exceptions (`ERROR`),
-per-case timeouts, and harness compilation failures are distinguished. A
-candidate passes only when the unittest summary reports every case `PASSED`.
+Functional evaluation compiles the candidate with its `*_test.cj` under `cjc --test`. Each input is its own `@Test`. The typed arm calls `typed_fn_solve`; the Cangjie arm calls `solve`. A throw or a wrong answer does not stop later cases. The generated `main` is renamed to `benchmarkOriginalMain` and not executed; `test_entry` is the process entry. A missing entry point or wrong signature fails harness compilation, while the candidate's standalone compilation result is kept. `FAILED`, `ERROR`, per-case timeouts, and harness compilation failures are counted separately. A candidate passes only when every case is `PASSED`.
 
-The report also includes per-task pass@k using the HumanEval estimator
-`1 - C(n-c, k) / C(n, k)`, averaged across tasks. Here `n` is the number of samples
-and `c` the number passing all tests. Compilation and execution failures remain
-incorrect samples. With one sample per task, pass@1 equals functional correctness
-rate. Paired counts show where only the typed arm or only the Cangjie arm
-succeeds. A two-task smoke run checks the harness; it is not a reliable comparison
-of general model quality.
+Per-task pass@k uses the HumanEval estimator `1 - C(n-c, k) / C(n, k)`, averaged across tasks. `n` is the sample count and `c` is the number that pass every test. Compilation and execution failures remain incorrect. With one sample per task, pass@1 equals the functional correctness rate. Paired counts show where only one arm succeeds. A two-task smoke run checks the harness; it is not a model comparison.
 
 ## Artifacts and verification
 
 - `config.json`: settings, selected tasks, model/plugin and suite hashes, CLI and
   runner hashes, compiler version, Git revision and working-tree status.
 - `runner.snapshot.py` and `suite.snapshot.json`: the exact runner and task
-  manifest used, including per-task minimum token budgets.
+  manifest used. `code_tokens_by_task` records each task's code budget.
 - `results.jsonl`: one row per attempted generation, including failures.
 - `plans/<task>/sample_<index>_<mode>/`: that arm's plan, system message, and user
   message. `planning_results.jsonl` records one planning result per arm. Each code
@@ -188,21 +152,8 @@ of general model quality.
   stage commands, return codes, timings, stdout, and stderr. A typed attempt that
   exits 2 did not produce Cangjie, so `cjc` is not run.
 
-If one arm's planning fails, that attempt is recorded as a planning failure and
-`code_generation_attempted` is false. Those failures remain in the end-to-end
-denominators; `code_generation_attempts` reports how many code jobs actually ran.
+A planning failure sets `code_generation_attempted` to false and stays in the end-to-end denominators. `code_generation_attempts` counts code jobs that actually ran.
 
-Outputs go under the Git-ignored `benchmark-results/` directory by default.
-Model runs take an exclusive lock so two benchmark runners cannot accidentally
-load competing model instances. Interrupting or terminating the runner stops its
-active child process group. Engine failures such as GPU out-of-memory errors
-invalidate the comparison and stop the run; they are not reported as bad model
-code or ordinary compilation failures.
-Execution has CPU, file-size, and core-dump limits in addition to process-group
-timeouts. The typed arm writes Cangjie directly. Checked-in typed references are
-translated with `emit-cangjie` before `cjc`. The Cangjie arm is compiled as generated.
+Output defaults to the Git-ignored `benchmark-results/` directory. A model run takes an exclusive lock. Stopping the runner stops its child process group. An engine failure, such as GPU out-of-memory, invalidates the comparison and stops the run; it is not scored as bad model code. Execution also has CPU, file-size, and core-dump limits. The typed arm writes Cangjie directly. Checked-in typed references go through `emit-cangjie` before `cjc`. The Cangjie arm is compiled as generated.
 
-`ctest` includes model-free harness tests when Python is available. With `cjc`,
-these also run all reference cases and check rejection, wrong answers, missing
-entry points, and nontermination. No automated test loads GPT-OSS or any other
-model weights.
+When Python is available, `ctest` runs the harness without a model. With `cjc`, those tests also run every reference case and check rejection, wrong answers, missing entry points, and nontermination. No automated test loads model weights.

@@ -1,0 +1,17 @@
+Design summary: Angle-bracket correctness is decided by a single running depth counter for open brackets. Each less-than increases depth; each greater-than decreases it. A closing bracket when depth is already zero, or any positive depth after the full scan, means the string is not matched. The empty string keeps depth zero throughout.
+
+Expected behavior: solve returns true if and only if every less-than is eventually closed in order and no greater-than appears without a matching prior less-than. For length at most forty, a linear scan over runes suffices.
+
+Helper functions: None.
+
+func solve(text: String): Bool
+
+Initialize mutable Int64 depth to zero, counting unmatched open brackets seen so far.
+
+Loop index i from zero while i is less than text.size; the invariant is that depth equals the number of unmatched less-than characters in the prefix ending before position i, and depth has never been negative during the scan so far. At each index, obtain the rune at i. If it is less-than, increase depth by one. If it is greater-than, decrease depth by one. If depth becomes less than zero after a greater-than, return false immediately because a close bracket had no partner. Advance i by one. The loop condition i less than text.size is checked before each iteration.
+
+After the loop, return true exactly when depth equals zero; otherwise return false.
+
+func main(): Int64
+
+The body of main returns the Int64 zero.

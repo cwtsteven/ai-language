@@ -1,0 +1,31 @@
+Design summary
+
+The program processes the input list in order while tracking the largest value seen so far. After each input element is considered, the current maximum is appended to an output list. Thus the output length matches the input length, and each position holds the maximum among all input elements from the start through that position. An empty input yields an empty output.
+
+Expected behavior
+
+The solve function returns a ListInt64 with one entry per input element. Entry at position k is the maximum of the first k plus one elements of numbers. An empty list input returns an empty list.
+
+Helper functions
+
+None.
+
+func solve(numbers: ListInt64): ListInt64
+
+Bind the list length with listLen into an Int64 count. If the count equals zero, return emptyList.
+
+Initialize a mutable output list of type ListInt64 to emptyList. Initialize a mutable index of type Int64 to zero. Initialize a mutable current maximum of type Int64; its first value will be set from the first list element before the main accumulation logic relies on it.
+
+Loop while the index is strictly less than the count; the condition is checked at the start of each iteration with lt on index and count.
+
+Loop invariant: the output list length equals the index, and for every position p less than the index, the output element at p equals the maximum of numbers from index zero through p. The current maximum equals the maximum among numbers from index zero through index minus one when index is positive, and will be updated for the element at index during the body.
+
+Inside the loop, bind the current value with listGet from numbers at the index. When the index is zero, assign the current maximum to the current value directly. When the index is greater than zero, bind a Bool with lt comparing current maximum to the current value; if that Bool is true, assign the current maximum to the current value, otherwise leave the current maximum unchanged.
+
+Replace the output list with listPush appending the current maximum. Increase the index by one and assign back. Continue the loop.
+
+When the loop ends, return the output list.
+
+func main(): Int64
+
+Return the integer zero.

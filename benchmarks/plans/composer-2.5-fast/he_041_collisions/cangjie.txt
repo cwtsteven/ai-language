@@ -1,0 +1,17 @@
+Design summary: The program computes how many pairwise passings occur when two equal-sized groups of cars travel toward each other on one road, with every car from one group meeting every car from the other.
+
+Expected behavior: For nonnegative Int64 n, each of the n cars in the first group passes each of the n cars in the opposing group exactly once, so the total encounter count is the product n times n. When n is zero, no cars are present and the total is zero.
+
+Helper functions: none.
+
+func solve(n: Int64): Int64
+
+Initial values: None beyond the parameter n.
+
+Computation order: Form the Int64 product by multiplying n by n using integer multiplication.
+
+Returned value: That product as the total number of encounters.
+
+main(): Int64
+
+The body performs no input or solving work for this planning task. It returns the Int64 zero.

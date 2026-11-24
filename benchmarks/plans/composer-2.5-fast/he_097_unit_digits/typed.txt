@@ -1,0 +1,30 @@
+Design summary
+
+The program computes the product of the last decimal digits of two signed integers by first reducing each input to a non-negative magnitude, then isolating the ones place by repeated subtraction of ten until the value is below ten, then multiplying the two digit results.
+
+Expected behavior
+
+Given integers a and b with absolute value at most ten thousand, solve returns the product of the decimal units digits of abs(a) and abs(b). Negative inputs are handled through magnitude only; the sign of the inputs does not affect the digit extraction.
+
+Helper and entry signatures in declaration order
+
+func absVal(x: Int64): Int64
+func unitsDigit(n: Int64): Int64
+func solve(a: Int64, b: Int64): Int64
+func main(): Int64
+
+func absVal(x: Int64): Int64
+
+Begin with x as the parameter. Form a Bool atom that is true when x is less than zero. If that condition holds, return zero minus x as an Int64; otherwise return x unchanged.
+
+func unitsDigit(n: Int64): Int64
+
+Assume n is non-negative. Initialize a mutable Int64 variable to n. Loop while that variable is greater than nine: at the start of each iteration the condition compares the variable to ten using lt on Int64; the invariant is that the true units digit of the original n equals the units digit of the current variable and the variable is non-negative. Each body step subtracts ten from the variable and assigns it back. When the condition is false, return the variable as the ones digit.
+
+func solve(a: Int64, b: Int64): Int64
+
+Let the absolute value of a be computed by calling absVal on a. Let the absolute value of b be computed by calling absVal on b. Let the units digit of the first magnitude be unitsDigit applied to that magnitude. Let the units digit of the second magnitude be unitsDigit applied to the second magnitude. Return the Int64 product of the two digits using mul.
+
+func main(): Int64
+
+Return the Int64 literal zero.

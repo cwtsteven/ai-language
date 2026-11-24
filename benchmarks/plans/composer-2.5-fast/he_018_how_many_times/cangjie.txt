@@ -1,0 +1,29 @@
+Design summary: The program counts how many starting positions in text yield an exact match to pattern when pattern is compared character by character from that start, including matches that overlap.
+
+Expected behavior: The returned Int64 is zero when text is shorter than pattern or pattern never aligns. Otherwise each index from zero through text length minus pattern length inclusive is tried; whenever the substring of text beginning at that index equals pattern under character-wise comparison, the count increases by one. Overlapping alignments are all counted.
+
+Helper functions (declaration order):
+
+func substringMatches(text: String, start: Int64, pattern: String): Bool
+
+Initial values: Let pattern length come from pattern.size. Set a mutable Int64 offset to zero.
+
+Computation order: While offset is less than pattern.size, checked at loop entry. Invariant: for every index less than offset, the rune or character at text position start plus offset equals the character at pattern position offset under the string indexing API from the language subset. Each iteration compares the two characters at the current offset; if they differ, return false immediately. Otherwise increment offset by one.
+
+Loop exit: When offset reaches pattern.size, all pattern characters matched.
+
+Returned value: True when every position matched; false if any comparison failed.
+
+func solve(text: String, pattern: String): Int64
+
+Initial values: Let text length be text.size and pattern length be pattern.size. A mutable Int64 count starts at zero. A mutable Int64 position starts at zero. Compute the last valid start index as text length minus pattern length.
+
+Computation order: If pattern length is greater than text length, return zero. While position is less than or equal to the last valid start index, condition checked at loop start. Invariant: count equals the number of starting indices strictly less than position at which substringMatches returned true. Each iteration calls substringMatches with text, position, and pattern; when the result is true, increment count by one. Increment position by one.
+
+Loop exit: When position exceeds the last valid start index, every candidate start has been examined.
+
+Returned value: The final count as Int64.
+
+main(): Int64
+
+The body returns zero as an Int64 without calling solve.

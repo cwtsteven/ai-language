@@ -1,0 +1,37 @@
+Design summary
+
+The program decides primality by trial division. Values below two are rejected immediately. For larger values, each candidate divisor starting at two is tested for whether it divides the input evenly, using only subtraction and comparison because division and remainder are unavailable. Divisors are considered only while the product of the divisor with itself does not exceed the input, which suffices for composite detection. If any qualifying divisor divides the input, the answer is false; if none do, the answer is true.
+
+Expected behavior
+
+The solve function returns true if and only if n is an integer prime. It returns false for zero, one, and every composite integer. It returns true for two and all larger primes.
+
+Helper functions
+
+func dividesEvenly(value: Int64, divisor: Int64): Bool
+
+Determine whether divisor divides value with no remainder by repeated subtraction.
+
+Initialize a mutable remainder of type Int64 to value. Loop forever with while true; the condition is checked at the start of each iteration.
+
+Loop invariant: the remainder equals value minus divisor times the number of complete subtractions already performed from the original value.
+
+Bind a Bool with lt comparing remainder and divisor. If that Bool is true, bind another Bool with eq comparing remainder and zero and return that Bool as the answer. Otherwise assign remainder to sub of remainder and divisor and continue the loop.
+
+func solve(n: Int64): Bool
+
+Bind a Bool with lt comparing n and two. If that Bool is true, return false.
+
+Initialize a mutable divisor of type Int64 to two. Initialize a mutable running of type Bool to true representing whether the search for a factor should continue.
+
+Loop while running is true; the condition is checked at the start of each iteration.
+
+Loop invariant: no integer from two inclusive up to but not including the current divisor divides n evenly.
+
+Inside the loop, bind the square of the current divisor with mul of divisor and divisor. Bind a Bool with lt comparing square and n. If that Bool is false, meaning the square is not less than n, assign false to running so the search ends after this iteration. If that Bool is true, call dividesEvenly with n and divisor and bind the result into a Bool. If that Bool is true, return false immediately. Otherwise increase divisor by one with add and assign back to divisor.
+
+When the loop ends, return true.
+
+func main(): Int64
+
+Return the integer zero.

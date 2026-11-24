@@ -1,0 +1,25 @@
+Design summary
+
+Two lowercase strings represent character multisets only through membership, not multiplicity or order. The program decides whether the set of distinct letters appearing in the left string equals the set in the right string. A fixed alphabet string of twenty-six lowercase letters supplies each candidate character via index. A helper scans one string for one single-character substring. The solve function walks the alphabet and rejects any letter present in exactly one of the two inputs.
+
+Expected behavior
+
+solve returns true when every letter that appears in left also appears in right and every letter that appears in right also appears in left, including when both strings are empty or when both use the same letters with different lengths or orderings. It returns false when at least one letter appears in one string but not the other.
+
+Helper functions in declaration order
+
+func hasChar(text: String, ch: String): Bool
+
+Bind the length of text to an Int64. Initialize a running index variable to zero. While the index is strictly less than the length, read the one-character substring at that index, compare it to ch for string equality, and if equal return true immediately. Advance the index by one each iteration. The loop invariant is that no index smaller than the current index contains ch; the condition is checked at the start of each while iteration. After the loop, return false.
+
+func letterAt(alphabet: String, i: Int64): String
+
+Return the one-character string at index i in the alphabet reference string.
+
+func solve(left: String, right: String): Bool
+
+Bind a constant alphabet string holding all lowercase letters from a through z in order. Initialize an index variable to zero. While that index is less than twenty-six, obtain the current letter from the alphabet using letterAt, determine whether left contains that letter via hasChar, and determine whether right contains it the same way. If one side contains the letter and the other does not, return false immediately using boolean conjunction and negation to express the mismatch. Increment the index and continue. The invariant is that every alphabet index already processed has matching presence in left and right. After all twenty-six letters are checked, return true.
+
+main(): Int64
+
+Return zero without invoking solve.

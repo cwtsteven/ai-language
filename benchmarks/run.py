@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Compare the typed pipeline with direct Cangjie generation."""
+"""Compare the typed pipeline with direct Cangjie generation.
+
+Two generation modes:
+- end to end (default): each arm plans from the prompt, then generates code
+- given plans (--plans DIR): each arm generates from a saved plan and does not call the planner
+"""
 
 import argparse
 import contextlib
@@ -122,6 +127,47 @@ def count_unittest_cases(path):
     return count
 
 
+def reference_token_count(text):
+    """Language tokens in a typed reference. A string literal is one token."""
+    tokens = 0
+    i = 0
+    size = len(text)
+    while i < size:
+        character = text[i]
+        if character in " \t\r\n":
+            i += 1
+            continue
+        if character == '"':
+            end = text.find('"', i + 1)
+            if end < 0 or "\n" in text[i + 1:end]:
+                raise ValueError("reference string is not a single-line literal")
+            tokens += 1
+            i = end + 1
+            continue
+        if character == "-" or character.isdigit():
+            if character == "-" and (i + 1 >= size or not text[i + 1].isdigit()):
+                raise ValueError("reference has a minus that is not part of an integer")
+            i += 1
+            while i < size and text[i].isdigit():
+                i += 1
+            tokens += 1
+            continue
+        if character.isascii() and (character.isalpha() or character == "_"):
+            i += 1
+            while i < size and text[i].isascii() and (text[i].isalnum() or text[i] == "_"):
+                i += 1
+            tokens += 1
+            continue
+        if character in "(){}:;=,":
+            tokens += 1
+            i += 1
+            continue
+        raise ValueError(f"reference has an unexpected character: {character!r}")
+    if tokens <= 0:
+        raise ValueError("reference has no tokens")
+    return tokens
+
+
 def load_suite(path):
     path = Path(path)
     suite = json.loads(path.read_text())
@@ -132,9 +178,6 @@ def load_suite(path):
         if not NAME.fullmatch(task["id"]) or task["id"] in ids:
             raise ValueError("task IDs must be unique safe identifiers")
         ids.add(task["id"])
-        minimum = task.get("min_code_tokens", 1)
-        if type(minimum) is not int or not 1 <= minimum < 2**31:
-            raise ValueError("min_code_tokens must be a positive 32-bit integer")
         if not NAME.fullmatch(task["entry_point"]):
             raise ValueError("invalid task entry point")
         names = set()
@@ -155,6 +198,15 @@ def load_suite(path):
         task["tests_total"] = count_unittest_cases(tests)
         if "typed_fn_" + task["entry_point"] not in tests.read_text():
             raise ValueError(f"unittest must call typed_fn_{task['entry_point']}: {tests}")
+        reference = path.parent / task["reference"]
+        if not reference.is_file():
+            raise ValueError(f"missing reference: {reference}")
+        tokens = reference_token_count(reference.read_text())
+        budget = tokens * 2
+        if budget >= 2**31:
+            raise ValueError("code token budget does not fit a signed 32-bit integer")
+        task["reference_tokens"] = tokens
+        task["code_tokens"] = budget
     return suite
 
 
@@ -193,7 +245,7 @@ def generation_command(args, task, mode, seed, directory, plan_file=None):
     write_messages(directory, system_text(mode, False), code_user(task, mode, plan))
     if mode == "constrained":
         command = [str(args.cli), "generate", task_prompt(task), "--model", str(args.model),
-                   "--n", str(code_budget(args, task)), "--temperature", str(args.temperature), "--seed", str(seed),
+                   "--n", str(code_budget(task)), "--temperature", str(args.temperature), "--seed", str(seed),
                    "--ubatch", str(args.ubatch)]
         if args.plan:
             if plan_file is None:
@@ -205,7 +257,7 @@ def generation_command(args, task, mode, seed, directory, plan_file=None):
         command = [str(args.plain), "--model", str(args.model),
                    "--system-file", str(directory / "system.txt"),
                    "--user-file", str(directory / "user.txt"),
-                   "--n", str(code_budget(args, task)),
+                   "--n", str(code_budget(task)),
                    "--temperature", str(args.temperature), "--seed", str(seed),
                    "--ubatch", str(args.ubatch)]
     else:
@@ -215,8 +267,9 @@ def generation_command(args, task, mode, seed, directory, plan_file=None):
     return command
 
 
-def code_budget(args, task):
-    return max(args.n, task.get("min_code_tokens", 1))
+def code_budget(task):
+    """Code token budget: twice the reference implementation's language-token count."""
+    return task["code_tokens"]
 
 
 def failed_result(task, directory, status):
@@ -497,9 +550,7 @@ def write_report(output, config, records):
     (output / "summary.json").write_text(json.dumps({"config": config, **summary}, indent=2) + "\n")
     text = ["# Typed pipeline vs direct Cangjie", "", f"Suite: `{config['suite_name']}` (adapted HumanEval subset).",
             f"Complete run: **{summary['complete']}**. Valid comparison: **{summary['valid_comparison']}**. Planning input: **{config['plan_source']}**.", "",
-            "This run skips planning. Both arms receive the task and their own language specification only."
-            if config["plan_source"] == "none" else
-            "Each arm plans in its own language from the same task, seed, and temperature. The plans are not shared.",
+            planning_sentence(config),
             "The typed arm writes Cangjie. An unfinished typed program is a translation failure, and `cjc` is not invoked.",
             "The Cangjie arm is compiled as generated. It has no translation step.",
             "Functional tests were not executed for this run." if config.get("compile_only") else
@@ -541,6 +592,124 @@ def write_report(output, config, records):
     (output / "report.md").write_text("\n".join(text))
 
 
+def planning_sentence(config):
+    source = config["plan_source"]
+    if source == "none":
+        return "This run skips planning. Both arms receive the task and their own language specification only."
+    if source == "saved":
+        return ("Each arm generates from its own saved plan. This run does not call the planner. "
+                "The plans are not shared.")
+    return "Each arm plans in its own language from the same task, seed, and temperature. The plans are not shared."
+
+
+PLAN_FILENAMES = {"constrained": ("typed.txt", "constrained.txt"), "cangjie": ("cangjie.txt",)}
+
+
+def saved_plan_candidates(plans_root, task_id, sample, mode):
+    """Runner sample files first, then one plan per task and language."""
+    root = Path(plans_root)
+    sample_name = f"sample_{sample:03d}_{mode}"
+    paths = [
+        root / "plans" / task_id / sample_name / "plan.txt",
+        root / task_id / sample_name / "plan.txt",
+    ]
+    for name in PLAN_FILENAMES[mode]:
+        paths.append(root / task_id / name)
+        paths.append(root / "plans" / task_id / name)
+    return paths
+
+
+def saved_plan_file(plans_root, task_id, sample, mode):
+    candidates = saved_plan_candidates(plans_root, task_id, sample, mode)
+    for path in candidates:
+        if path.is_file():
+            return path
+    root = Path(plans_root)
+    if (root / task_id).is_dir():
+        return root / task_id / PLAN_FILENAMES[mode][0]
+    return candidates[0]
+
+
+def plans_directory_ok(plans_root):
+    root = Path(plans_root)
+    if (root / "plans").is_dir():
+        return True
+    if not root.is_dir():
+        return False
+    for child in root.iterdir():
+        if not child.is_dir():
+            continue
+        names = {path.name for path in child.iterdir()}
+        if names.intersection({"typed.txt", "cangjie.txt", "constrained.txt"}):
+            return True
+        if any(name.startswith("sample_") and (child / name / "plan.txt").is_file() for name in names):
+            return True
+    return False
+
+
+def record_plan(output, metadata):
+    directory = Path(metadata["artifact_dir"])
+    directory.mkdir(parents=True, exist_ok=True)
+    (directory / "plan_metadata.json").write_text(json.dumps(metadata, indent=2) + "\n")
+    with (output / "planning_results.jsonl").open("a") as plans:
+        plans.write(json.dumps(metadata) + "\n")
+
+
+def acquire_plan(args, task, sample, seed, mode, output):
+    """Return the plan file, its hash, the planner process, a failure status, and metadata."""
+    plan_directory = output / "plans" / task["id"] / f"sample_{sample:03d}_{mode}"
+    write_messages(plan_directory, system_text(mode, True), planning_user(task, mode))
+    plan_file = None
+    plan_sha = None
+    plan_result = None
+    plan_failure = None
+    if args.plans is not None:
+        source = saved_plan_file(args.plans, task["id"], sample, mode)
+        planning_seed = seed
+        source_meta = source.parent / "plan_metadata.json"
+        if source_meta.is_file():
+            planning_seed = json.loads(source_meta.read_text()).get("seed", seed)
+        if not source.is_file():
+            plan_failure = "missing_plan"
+        else:
+            text = source.read_text()
+            if not text.strip():
+                plan_failure = "empty_plan"
+            else:
+                plan_file = plan_directory / "plan.txt"
+                plan_file.write_text(text)
+                plan_sha = sha256(plan_file)
+        metadata = {"task_id": task["id"], "sample_index": sample, "mode": mode, "seed": seed,
+                    "planning_seed": planning_seed, "status": plan_failure or "pass",
+                    "plan_sha256": plan_sha, "seconds": 0, "local_planner_invoked": False,
+                    "source": "saved", "saved_plan": str(source), "artifact_dir": str(plan_directory)}
+        record_plan(output, metadata)
+        if plan_file is not None:
+            print(f"  loaded {mode} plan {plan_sha[:12]} ({len(text)} characters)", flush=True)
+        return plan_file, plan_sha, None, plan_failure, metadata
+    print(f"{task['id']} sample={sample} seed={seed} {mode}: planning", flush=True)
+    plan_result = execute(planning_command(args, task, seed, mode, plan_directory), args.planning_timeout)
+    save_process(plan_directory, "planning", plan_result)
+    if plan_result.timed_out:
+        plan_failure = "planning_timeout"
+    elif plan_result.returncode != 0:
+        plan_failure = "planning_error"
+    elif not plan_result.stdout.strip():
+        plan_failure = "empty_plan"
+    else:
+        plan_file = plan_directory / "plan.txt"
+        plan_file.write_text(plan_result.stdout)
+        plan_sha = sha256(plan_file)
+    metadata = {"task_id": task["id"], "sample_index": sample, "mode": mode, "seed": seed,
+                "status": plan_failure or "pass", "plan_sha256": plan_sha,
+                "seconds": plan_result.seconds, "local_planner_invoked": True,
+                "source": "local_model", "artifact_dir": str(plan_directory)}
+    record_plan(output, metadata)
+    if plan_file is not None:
+        print(f"  saved {mode} plan {plan_sha[:12]} ({len(plan_result.stdout)} characters)", flush=True)
+    return plan_file, plan_sha, plan_result, plan_failure, metadata
+
+
 def positive(value):
     number = int(value)
     if number <= 0:
@@ -564,9 +733,13 @@ def main(argv=None):
     parser.add_argument("--samples", type=positive, default=1, help="samples per task and mode")
     parser.add_argument("--seed", type=int, default=42, help="first seed; sample i uses seed+i in each mode")
     parser.add_argument("--temperature", type=float, default=0.8, help="sampling randomness; 0 selects greedy")
-    parser.add_argument("--n", type=positive, default=2048, help="code token budget per attempt, raised to each task's minimum")
     parser.add_argument("--plan", action=argparse.BooleanOptionalAction, default=True,
-                        help="plan in each arm's own language; --no-plan skips planning for both")
+                        help="end-to-end mode: plan from the prompt, then generate; --no-plan skips planning for both")
+    parser.add_argument("--plan-only", action="store_true",
+                        help="write each arm's plan and stop before code generation")
+    parser.add_argument("--plans", type=Path,
+                        help="given-plan mode: generate from saved plans and do not call the planner. "
+                             "DIR is a --plan-only output, or <task>/typed.txt and <task>/cangjie.txt")
     parser.add_argument("--ngl", type=int, help="GPU layer override for both modes")
     parser.add_argument("--ubatch", type=positive, default=64, help="physical prompt batch size for both modes")
     parser.add_argument("--planning-timeout", type=float, default=600, help="wall seconds for each arm's planning stage")
@@ -577,14 +750,20 @@ def main(argv=None):
     parser.add_argument("--compile-only", action="store_true",
                         help="translate and compile each candidate; do not execute functional tests")
     args = parser.parse_args(argv)
+    if args.plan_only and args.plans is not None:
+        parser.error("--plan-only cannot be combined with --plans")
+    if args.plans is not None and not args.plan:
+        parser.error("--plans cannot be combined with --no-plan")
+    if args.plan_only and not args.plan:
+        parser.error("--plan-only cannot be combined with --no-plan")
     if not args.validate and args.model is None:
         parser.error("generation requires --model FILE (or use --validate without a model)")
     if not math.isfinite(args.temperature) or args.temperature < 0 or not 0 <= args.seed < 2**32:
         parser.error("temperature must be finite and nonnegative; seed must be an unsigned 32-bit integer")
     if args.ngl is not None and args.ngl < 0:
         parser.error("--ngl must be nonnegative")
-    if args.n >= 2**31 or args.ubatch >= 2**31 or (args.ngl is not None and args.ngl >= 2**31):
-        parser.error("--n, --ubatch, and --ngl must fit signed 32-bit integers")
+    if args.ubatch >= 2**31 or (args.ngl is not None and args.ngl >= 2**31):
+        parser.error("--ubatch and --ngl must fit signed 32-bit integers")
     if any(not math.isfinite(t) or t <= 0 for t in
            (args.planning_timeout, args.generation_timeout, args.compile_timeout, args.run_timeout)):
         parser.error("timeouts must be finite and positive")
@@ -608,6 +787,10 @@ def main(argv=None):
                                             ("--force-postfix", "--plan-only", "--plan-file")):
             raise ValueError("rebuild typed-cangjie: benchmark runs require a binary whose forced postfix is opt-in (--force-postfix, --plan-only, --plan-file)")
         model_files = []
+        if args.plans is not None:
+            args.plans = args.plans.resolve(strict=True)
+            if not plans_directory_ok(args.plans):
+                raise ValueError("--plans must be a --plan-only output directory, or one folder per task containing typed.txt and cangjie.txt")
         if not args.validate:
             resources.enter_context(model_lock())
             args.model = args.model.resolve(strict=True)
@@ -621,11 +804,14 @@ def main(argv=None):
         config = {"created_utc": timestamp, "suite_name": suite["name"], "suite_sha256": sha256(args.suite),
                   "runner_sha256": sha256(__file__), "task_ids": [t["id"] for t in tasks],
                   "samples": args.samples, "seed": args.seed, "temperature": args.temperature,
-                  "code_tokens": args.n, "planning": args.plan, "automatic_completion": False,
-                  "shared_planning": False, "per_arm_planning": args.plan, "planning_timeout": args.planning_timeout,
-                  "plan_source": "local_model" if args.plan else "none",
-                  "local_planning": args.plan,
-                  "code_tokens_by_task": {t["id"]: code_budget(args, t) for t in tasks},
+                  "planning": bool(args.plan or args.plans is not None),
+                  "plan_only": args.plan_only, "automatic_completion": False,
+                  "shared_planning": False, "per_arm_planning": bool(args.plan or args.plans is not None),
+                  "planning_timeout": args.planning_timeout,
+                  "plan_source": "saved" if args.plans is not None else ("local_model" if args.plan else "none"),
+                  "saved_plans": str(args.plans) if args.plans is not None else None,
+                  "local_planning": bool(args.plan and args.plans is None),
+                  "code_tokens_by_task": {t["id"]: code_budget(t) for t in tasks},
                   "ngl": args.ngl, "ubatch": args.ubatch, "cli": str(args.cli), "cli_sha256": sha256(args.cli),
                   "plain": None if args.validate else str(args.plain),
                   "plain_sha256": None if args.validate else sha256(args.plain),
@@ -653,52 +839,37 @@ def main(argv=None):
         if args.validate:
             return 0
         records = []
-        write_report(output, config, records)
-        with (output / "results.jsonl").open("w") as stream:
+        planning_records = []
+        if not args.plan_only:
+            write_report(output, config, records)
+        result_stream = None if args.plan_only else (output / "results.jsonl").open("w")
+        try:
             for task_index, task in enumerate(tasks):
                 for sample in range(args.samples):
                     seed = (args.seed + sample) % 2**32
                     order = MODES if (task_index + sample) % 2 == 0 else MODES[::-1]
                     for mode in order:
-                        directory = output / task["id"] / f"sample_{sample:03d}_{mode}"
-                        directory.mkdir(parents=True)
                         plan_file = None
                         plan_sha = None
                         plan_result = None
                         plan_failure = None
-                        if args.plan:
-                            plan_directory = output / "plans" / task["id"] / f"sample_{sample:03d}_{mode}"
-                            write_messages(plan_directory, system_text(mode, True), planning_user(task, mode))
-                            print(f"{task['id']} sample={sample} seed={seed} {mode}: planning", flush=True)
-                            plan_result = execute(planning_command(args, task, seed, mode, plan_directory), args.planning_timeout)
-                            save_process(plan_directory, "planning", plan_result)
-                            if plan_result.timed_out:
-                                plan_failure = "planning_timeout"
-                            elif plan_result.returncode != 0:
-                                plan_failure = "planning_error"
-                            elif not plan_result.stdout.strip():
-                                plan_failure = "empty_plan"
-                            else:
-                                plan_file = plan_directory / "plan.txt"
-                                plan_file.write_text(plan_result.stdout)
-                                plan_sha = sha256(plan_file)
-                            metadata = {"task_id": task["id"], "sample_index": sample, "mode": mode, "seed": seed,
-                                        "status": plan_failure or "pass", "plan_sha256": plan_sha,
-                                        "seconds": plan_result.seconds,
-                                        "local_planner_invoked": True,
-                                        "source": config["plan_source"], "artifact_dir": str(plan_directory)}
-                            (plan_directory / "plan_metadata.json").write_text(json.dumps(metadata, indent=2) + "\n")
-                            with (output / "planning_results.jsonl").open("a") as plans:
-                                plans.write(json.dumps(metadata) + "\n")
-                            if plan_file is not None:
-                                print(f"  saved {mode} plan {plan_sha[:12]} ({len(plan_result.stdout)} characters)", flush=True)
+                        if args.plan or args.plans is not None:
+                            plan_file, plan_sha, plan_result, plan_failure, metadata = acquire_plan(
+                                args, task, sample, seed, mode, output)
+                            planning_records.append(metadata)
+                        if args.plan_only:
+                            status = plan_failure or "pass"
+                            print(f"  {task['id']} {mode}: {status}", flush=True)
+                            continue
+                        directory = output / task["id"] / f"sample_{sample:03d}_{mode}"
+                        directory.mkdir(parents=True)
                         generation = None
                         if plan_failure:
                             row = failed_result(task, directory, plan_failure)
                         else:
                             if plan_file is not None and sha256(plan_file) != plan_sha:
                                 raise ValueError("plan changed before code generation; refusing an unmatched comparison")
-                            print(f"{task['id']} sample={sample} seed={seed} {mode} n={code_budget(args, task)}: generating", flush=True)
+                            print(f"{task['id']} sample={sample} seed={seed} {mode} n={code_budget(task)}: generating", flush=True)
                             generation = execute(generation_command(args, task, mode, seed, directory, plan_file), args.generation_timeout)
                             if plan_file is not None and sha256(plan_file) != plan_sha:
                                 raise ValueError("plan changed during code generation; refusing an unmatched comparison")
@@ -713,20 +884,32 @@ def main(argv=None):
                             else:
                                 row = score_translated(task, generation.stdout, directory, args)
                         row.update(mode=mode, sample_index=sample, seed=seed,
-                                   code_tokens=code_budget(args, task),
+                                   code_tokens=code_budget(task),
                                    plan_file=str(plan_file) if plan_file is not None else None,
                                    plan_sha256=plan_sha, planning_seconds=plan_result.seconds if plan_result else 0,
                                    code_generation_attempted=generation is not None,
                                    generation_returncode=generation.returncode if generation else None,
                                    generation_seconds=generation.seconds if generation else 0)
                         records.append(row)
-                        stream.write(json.dumps(row) + "\n")
-                        stream.flush()
+                        result_stream.write(json.dumps(row) + "\n")
+                        result_stream.flush()
                         write_report(output, config, records)
                         tests = "skipped" if row["functional_success"] is None else f"{row['tests_passed']}/{row['tests_total']}"
                         print(f"  {row['status']}; compiled={row['compilation_success']}; tests={tests}", flush=True)
                         if row["status"] == "generation_error":
                             raise ValueError(f"generation infrastructure failed; run is not a valid comparison; inspect {directory / 'generation.stderr'}")
+        finally:
+            if result_stream is not None:
+                result_stream.close()
+        if args.plan_only:
+            failed = [row for row in planning_records if row["status"] != "pass"]
+            summary = {"plans": len(planning_records), "passed": len(planning_records) - len(failed),
+                       "failed": len(failed),
+                       "failures": [{"task_id": row["task_id"], "mode": row["mode"], "status": row["status"]}
+                                    for row in failed]}
+            (output / "plans_summary.json").write_text(json.dumps(summary, indent=2) + "\n")
+            print(f"Saved {summary['passed']}/{summary['plans']} plans in {output}", flush=True)
+            return 0 if not failed else 1
         print((output / "report.md").read_text(), flush=True)
         return 0
     except (OSError, ValueError, KeyError) as error:

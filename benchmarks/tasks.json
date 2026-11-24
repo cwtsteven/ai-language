@@ -415,8 +415,7 @@
       "return_type": "Int64",
       "description": "Return Fibonacci term n, with term zero equal to zero and term one equal to one. Each subsequent term is the sum of the preceding two. n is between zero and twenty.",
       "reference": "references/he_055_fibonacci.typed",
-      "upstream_literal_tests": 5,
-      "min_code_tokens": 2048
+      "upstream_literal_tests": 5
     },
     {
       "id": "he_056_angle_brackets",
@@ -512,8 +511,7 @@
       "return_type": "Int64",
       "description": "Return term n of a sequence whose first three terms, at indices zero, one, and two, are zero, zero, and one. Each later term is the sum of the three preceding terms. n is between zero and twenty.",
       "reference": "references/he_063_fibfib.typed",
-      "upstream_literal_tests": 7,
-      "min_code_tokens": 2048
+      "upstream_literal_tests": 7
     },
     {
       "id": "he_085_even_at_odd",

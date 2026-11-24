@@ -1,0 +1,30 @@
+Design summary
+
+A positive integer is a sum of four positive even integers if and only if it is even and at least eight, because each summand is at least two and the total is twice the sum of four positive integers. The plan uses comparisons only, without searching for a partition.
+
+Expected behavior
+
+solve returns true when n can be written as the sum of four positive even integers (not necessarily distinct), and false otherwise. Equivalently, true exactly when n is even and n is greater than or equal to eight.
+
+Helper and entry signatures in declaration order
+
+func isAtLeastEight(n: Int64): Bool
+func isEven(n: Int64): Bool
+func solve(n: Int64): Bool
+func main(): Int64
+
+func isAtLeastEight(n: Int64): Bool
+
+Form a Bool by negating the result of lt comparing n to eight, so the result is true when n is not less than eight.
+
+func isEven(n: Int64): Bool
+
+Initialize a mutable Int64 remainder to n. Loop while remainder is greater than or equal to two: condition checked at loop head with lt on Int64 after forming a comparison that remainder is not below two; invariant is that n and remainder have the same parity. Each iteration subtracts two from remainder and assigns. After the loop, return true when remainder equals zero using eq on Int64, else return false.
+
+func solve(n: Int64): Bool
+
+Let one Bool be isAtLeastEight applied to n. Let another Bool be isEven applied to n. Return the and of those two Bool values.
+
+func main(): Int64
+
+Return zero as Int64.

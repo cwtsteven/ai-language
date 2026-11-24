@@ -1,0 +1,17 @@
+Design summary: The program reports text length using the built-in size property of String for printable ASCII input.
+
+Expected behavior: The returned Int64 equals the number of characters in text, consistent with text.size for strings within the stated length bound.
+
+Helper functions: none.
+
+func solve(text: String): Int64
+
+Initial values: None beyond the parameter.
+
+Computation order: Read the character count from text.size and return it as the function result without further transformation.
+
+Returned value: text.size as Int64.
+
+main(): Int64
+
+The body returns zero as an Int64 without calling solve.

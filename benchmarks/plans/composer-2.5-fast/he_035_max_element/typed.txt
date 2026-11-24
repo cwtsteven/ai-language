@@ -1,0 +1,27 @@
+Design summary
+
+The program assumes a nonempty list and scans every element once, keeping the largest value seen so far. The first element seeds the running maximum; each later element may replace it when strictly larger.
+
+Expected behavior
+
+The solve function returns the greatest Int64 among all elements of numbers. Because the list is guaranteed nonempty, the scan always reads at least one element before returning.
+
+Helper functions
+
+None.
+
+func solve(numbers: ListInt64): Int64
+
+Bind the length with listLen. Initialize a mutable index to zero. Bind the element at index zero with listGet and initialize a mutable maximum of type Int64 to that value. Set the index to one with add.
+
+Loop while the index is strictly less than the length; the condition is checked at each iteration start with lt.
+
+Loop invariant: maximum equals the largest value among elements at indices from zero through one less than the current index.
+
+Inside the loop, bind the current element with listGet at the index. Bind a Bool with lt comparing maximum and the current element, true when the current element is larger. If that Bool is true, assign the current element to maximum. Increase the index by one and continue.
+
+When the loop ends, return maximum.
+
+func main(): Int64
+
+Return the integer zero.

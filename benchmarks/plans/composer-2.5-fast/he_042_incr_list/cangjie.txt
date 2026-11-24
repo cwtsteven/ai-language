@@ -1,0 +1,19 @@
+Design summary
+
+The task builds a new list from the input list by adding one to each element, leaving an empty input unchanged. A single pass over the input with index-based access produces the output list; no mutation of the input is required.
+
+Expected behavior
+
+For any ArrayList of Int64 values, solve returns a new ArrayList of Int64 with the same length. Each output element equals the corresponding input element plus one. When the input has size zero, the output is an empty ArrayList with no elements.
+
+Helper functions
+
+None.
+
+func solve(numbers: ArrayList<Int64>): ArrayList<Int64>
+
+Begin with a new empty ArrayList of Int64. Initialize a mutable Int64 index to zero. While the index is strictly less than numbers.size, read the element at that index as Int64, form the sum of that value and the literal one using addition, append the sum to the result list with add, then increase the index by one and continue. The loop condition is checked before each iteration; when the index is no longer less than size, the loop ends. Invariant: after k complete iterations, the result list holds exactly k elements, each equal to one plus the input element at indices zero through k minus one. Return the result list.
+
+func main(): Int64
+
+Return the integer zero.

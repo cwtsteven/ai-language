@@ -1,0 +1,19 @@
+Design summary
+
+Each car in one group meets every car in the opposing group exactly once because all travel at equal speed on one line and pass through each oncoming vehicle. The total encounter count is therefore the product of the two group sizes, both equal to n.
+
+Expected behavior
+
+The solve function returns n multiplied by n for any nonnegative n. For zero cars in each group, no encounters occur and the result is zero.
+
+Helper functions
+
+None.
+
+func solve(n: Int64): Int64
+
+Bind the total encounters with mul of n and n. Return that Int64 value.
+
+func main(): Int64
+
+Return the integer zero.

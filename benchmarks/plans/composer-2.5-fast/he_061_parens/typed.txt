@@ -1,0 +1,28 @@
+Design summary
+
+The program verifies whether a string of parentheses is correctly matched. The empty string is accepted. Input length is at most forty. Only balance matters: each opening parenthesis increases a depth counter and each closing parenthesis decreases it. A closing parenthesis when depth is already zero makes the string invalid. After scanning all characters, depth must be exactly zero. Characters are read one at a time with string length and indexed single-character access compared to the one-character literals for open and close.
+
+Expected behavior
+
+solve returns true for the empty string and for every string where parentheses nest and pair properly in left-to-right order. solve returns false when any closing parenthesis appears without a matching prior open, or when any open parenthesis remains unmatched at the end.
+
+Helper and entry signatures in declaration order
+
+func solve(text: String): Bool
+main(): Int64
+
+solve body
+
+Bind the text length with strLen into an Int64. Initialize a mutable depth of type Int64 to zero. Initialize a mutable index of type Int64 to zero.
+
+Loop while the index is strictly less than the length; the condition is checked at the start of each iteration using lt between index and length.
+
+Invariant: the prefix of text from index zero through index minus one is a balanced fragment of parentheses, and depth equals the number of unmatched open parentheses in that prefix.
+
+Inside the loop, bind the current character with strAt of text at the index. Bind a Bool for open with strEq comparing the character to the open parenthesis string. If open is true, increase depth by one and skip the close branch. Otherwise bind a Bool for close with strEq comparing the character to the close parenthesis string. If close is true, bind a Bool for zero depth with eq comparing depth and zero. If zero depth is true, return false immediately because a close has no partner. Otherwise decrease depth by one with sub. If the character is neither open nor close, the problem statement implies only parentheses appear; behavior for other characters is unspecified by tests, but the intended input is parentheses only.
+
+Increase the index by one each iteration. When the loop completes, bind a Bool for balanced with eq comparing depth and zero. Return that Bool.
+
+main body
+
+Return the integer zero.

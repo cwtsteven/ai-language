@@ -1,0 +1,27 @@
+Design summary
+
+The program walks the input list once from first index to last and builds a new list containing only those elements strictly greater than zero. Order is preserved because elements are appended in traversal order. Zero and negative values are never appended.
+
+Expected behavior
+
+The solve function returns a ListInt64 of all positive entries from the input, in the same relative order as they appeared. An empty input yields an empty list. A list of only nonpositive values yields an empty list.
+
+Helper functions
+
+None.
+
+func solve(numbers: ListInt64): ListInt64
+
+Begin with an empty ListInt64 bound as the accumulating result. Bind the list length with listLen into an Int64. Initialize a mutable index of type Int64 to zero.
+
+Loop while the index is strictly less than the length; the condition is evaluated at the start of each iteration by binding a Bool with lt on the index and the length.
+
+Loop invariant: the result list contains exactly the positive elements from numbers at indices from zero up to but not including the current index, in order.
+
+Inside the loop, bind the current element with listGet from numbers at the index. Bind a Bool with lt comparing zero and the current element, which is true exactly when the element is positive. If that Bool is true, replace the result with listPush of the result and the current element. Increase the index by one with add and assign back to the index variable.
+
+When the loop ends, return the result list.
+
+func main(): Int64
+
+Return the integer zero.

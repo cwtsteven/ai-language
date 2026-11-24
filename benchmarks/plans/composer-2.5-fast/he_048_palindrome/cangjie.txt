@@ -1,0 +1,19 @@
+Design summary
+
+The task checks whether a string equals its reverse. Symmetric comparison from both ends toward the center uses rune indexing via the string’s rune array; a single mismatch yields false, and an empty string is accepted immediately.
+
+Expected behavior
+
+solve returns true when every character at position i from the start matches the character at the mirrored position from the end, for all valid i. The empty string returns true. Non-empty strings use only lowercase ASCII letters as given.
+
+Helper functions
+
+None.
+
+func solve(text: String): Bool
+
+If text.size equals zero, return true. Initialize a mutable Int64 left to zero and a mutable Int64 right to one less than text.size. Obtain the rune array from text once for indexed access. While left is strictly less than right, compare the rune at left with the rune at right using equality; if they differ, return false. Otherwise add one to left and subtract one from right, then continue. The condition left less than right is checked before each iteration. Invariant: all positions before left match their mirrors after right, and all positions after right match their mirrors before left. When left is not less than right, return true.
+
+func main(): Int64
+
+Return the integer zero.

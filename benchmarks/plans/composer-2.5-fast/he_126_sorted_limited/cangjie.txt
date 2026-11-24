@@ -1,0 +1,23 @@
+Design summary: The program validates two independent properties on an ArrayList of Int64: adjacent elements must be in nondecreasing order, and every distinct value may appear at most twice. The list length is at most ten and values are small, so a straightforward linear scan plus per-value counting suffices without external maps beyond a fixed scan for duplicates.
+
+Expected behavior: solve returns true for an empty list. For nonempty lists, true exactly when each element is greater than or equal to the previous element and no integer value occurs three or more times. Otherwise false.
+
+Helper functions (declaration order):
+
+func countOccurrences(numbers: ArrayList<Int64>, target: Int64): Int64
+func isNondecreasing(numbers: ArrayList<Int64>): Bool
+func withinTwiceLimit(numbers: ArrayList<Int64>): Bool
+
+func solve(numbers: ArrayList<Int64>): Bool
+
+func main(): Int64
+
+countOccurrences: Initialize a running count to zero. Iterate index from zero up to one less than numbers.size; before each iteration the condition compares index to size, and the invariant is that the count equals how many times target appears among indices strictly less than the current index. When numbers at the current index equals target, increase the count by one. After the loop, return the count.
+
+isNondecreasing: If size is zero or one, return true immediately. Otherwise initialize index to one. While index is less than size, compare the element at index minus one with the element at index; if the earlier is greater than the later, return false. Increment index and continue. Invariant: all pairs before the current index are nondecreasing. If the loop finishes, return true.
+
+withinTwiceLimit: Iterate each position i from zero to size minus one as the candidate distinct value (the value at index i). Skip positions whose value was already checked by seeing an equal value at any earlier index j less than i. For the chosen value v, call countOccurrences with numbers and v; if the count exceeds two, return false. Invariant: every value that appears in a prefix of indices has been verified to occur at most twice. If all candidates pass, return true.
+
+solve: If numbers.size equals zero, return true. Otherwise return the logical and of isNondecreasing applied to numbers and withinTwiceLimit applied to numbers.
+
+main: Return zero as Int64.

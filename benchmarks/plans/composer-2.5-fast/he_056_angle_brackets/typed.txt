@@ -1,0 +1,19 @@
+Design summary
+
+The input is a short string over the two bracket characters less-than and greater-than. Correctness means proper nesting: reading left to right, a greater-than never appears when no unmatched less-than remains, and at the end no unmatched less-than remains. A single nonnegative depth counter acts as a stack height. Each character is compared to the two bracket literals via string equality on one-character substrings.
+
+Expected behavior
+
+The empty string is matched. A string of only opening brackets is unmatched unless empty. Interleaved valid pairs and nested sequences return true; any premature closing or leftover opening returns false.
+
+Helper functions
+
+None beyond solve and main.
+
+func solve(text: String): Bool
+
+Bind the string length to an Int64. Initialize a depth variable to zero and an index variable to zero. While the index is less than the length, read the character at the index. If it equals the less-than literal, increase depth by one. Else if it equals the greater-than literal, decrease depth by one, and if depth becomes negative return false immediately because a closing bracket exceeded openings. Increase the index by one each pass. The invariant is that depth equals the number of unmatched less-than characters among the prefix already processed, and depth is never negative except at the moment of detecting failure. The while condition is evaluated before each iteration. After processing every character, return true exactly when depth equals zero.
+
+main(): Int64
+
+Return zero.

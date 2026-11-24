@@ -1,0 +1,19 @@
+Design summary: The program derives the set of distinct Int64 values from the input list and returns them sorted from smallest to largest in a new list.
+
+Expected behavior: Given an ArrayList of Int64 with at most twelve elements each between negative ten and one hundred fifty, the output is an ArrayList containing each distinct value exactly once, ordered ascending. Duplicate inputs collapse to a single occurrence; sorting uses numeric less-than comparisons among distinct values.
+
+Helper functions: none.
+
+func solve(numbers: ArrayList<Int64>): ArrayList<Int64>
+
+Initial values: An empty ArrayList of Int64 holds unique values. An Int64 outer index starts at zero for scanning the input.
+
+Computation order for uniqueness: While the outer index is strictly less than numbers.size, check the condition at each iteration start. Invariant: the unique list contains exactly the distinct values seen among indices less than the outer index. Read the value at the current index. Scan the unique list from its start; if any stored element equals that value, the value is already recorded and must not be added again. If no match is found, append the value to the unique list. Advance the outer index by one.
+
+After uniqueness is complete, sort the unique list using nested indices. Use an outer sort index from zero up to unique.size minus one, and for each position an inner index from the next position through the end. When an element at the inner index is less than the element at the outer index, exchange the two entries so smaller values move toward lower indices. Repeat until the nested passes finish; invariant after each complete outer pass is that the smallest remaining unsorted value occupies the correct sorted position at the front of the unsorted suffix.
+
+Returned value: The unique ArrayList after ascending sort.
+
+main(): Int64
+
+The body performs no input or solving work for this planning task. It returns the Int64 zero.

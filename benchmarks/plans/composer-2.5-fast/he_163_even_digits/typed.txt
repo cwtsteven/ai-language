@@ -1,0 +1,35 @@
+Design summary
+
+The program normalizes the two bounds to a low and high inclusive interval, then appends each fixed even integer from two through eight that lies in that interval, preserving ascending order in the result list.
+
+Expected behavior
+
+solve returns a ListInt64 containing 2, 4, 6, and 8 in ascending order, restricted to those values that lie between a and b inclusive. The order of a and b does not matter. Inputs are between zero and two hundred.
+
+Helper and entry signatures in declaration order
+
+func minInt64(u: Int64, v: Int64): Int64
+func maxInt64(u: Int64, v: Int64): Int64
+func inInclusiveRange(value: Int64, low: Int64, high: Int64): Bool
+func solve(a: Int64, b: Int64): ListInt64
+func main(): Int64
+
+func minInt64(u: Int64, v: Int64): Int64
+
+If lt shows u is less than v, return u; else return v.
+
+func maxInt64(u: Int64, v: Int64): Int64
+
+If lt shows u is less than v, return v; else return u.
+
+func inInclusiveRange(value: Int64, low: Int64, high: Int64): Bool
+
+Let notBelow be the negation of lt applied to value and low. Let notAbove be the negation of lt applied to high and value. Return the and of notBelow and notAbove.
+
+func solve(a: Int64, b: Int64): ListInt64
+
+Let low be minInt64 of a and b. Let high be maxInt64 of a and b. Initialize an empty ListInt64 with emptyList. For each fixed candidate in the sequence two, four, six, eight in order, if inInclusiveRange reports the candidate lies between low and high, replace the accumulator list with listPush of the accumulator and the candidate. After all four candidates are considered, return the final list.
+
+func main(): Int64
+
+Return zero as Int64.

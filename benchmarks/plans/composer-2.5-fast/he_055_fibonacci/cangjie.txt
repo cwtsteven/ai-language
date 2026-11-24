@@ -1,0 +1,17 @@
+Design summary: Fibonacci terms are defined from index zero with value zero, index one with value one, and each later index as the sum of the two immediately preceding terms. Because n is at most twenty, an iterative forward build from low indices to n avoids deep recursion and keeps only the last two terms in mutable Int64 variables.
+
+Expected behavior: For each n from zero to twenty inclusive, solve returns the nth Fibonacci number: zero when n is zero, one when n is one, and otherwise the sum of the two prior terms in the sequence.
+
+Helper functions: None.
+
+func solve(n: Int64): Int64
+
+If n equals zero, return zero immediately. If n equals one, return one immediately.
+
+Otherwise initialize mutable Int64 variables prev to zero and curr to one. Initialize mutable Int64 i to two. While i is less than or equal to n, the invariant is that prev holds the Fibonacci value at index i minus two and curr holds the value at index i minus one. Compute next as prev plus curr using Int64 addition. Assign prev to the old curr and curr to next. Increase i by one. The condition i less than or equal to n is checked at the start of each while iteration; the loop stops when i becomes greater than n.
+
+After the loop, return curr, which is the term at index n.
+
+func main(): Int64
+
+The body of main returns the Int64 zero.

@@ -1,0 +1,13 @@
+Design summary: A positive even integer is at least two and divisible by two. The smallest sum of four positive even integers is eight. Any even integer at least eight can be written as two plus two plus two plus the remainder, which remains an even integer at least two. Thus representability reduces to parity and a lower bound check on n.
+
+Expected behavior: solve returns true exactly when n is greater than or equal to eight and n is even (remainder zero when divided by two). It returns false for odd n or for n less than eight.
+
+Helper functions (declaration order): none before solve.
+
+func solve(n: Int64): Bool
+
+func main(): Int64
+
+solve: Evaluate whether n is at least eight using numeric comparison. Evaluate whether n modulo two equals zero. Return the logical and of those two Bool results.
+
+main: Return zero as Int64.

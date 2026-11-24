@@ -1,0 +1,20 @@
+Design summary
+
+The program returns the character count of a printable ASCII string with length at most sixteen. The typed language provides a built-in operation that maps a string to its length as a sixty-four-bit integer. The solve function applies that operation directly to the input text without helpers. Main returns zero.
+
+Expected behavior
+
+solve returns the same nonnegative integer as the built-in string length operation applied to text, equal to the number of characters in text. An empty string yields zero.
+
+Helper and entry signatures in declaration order
+
+func solve(text: String): Int64
+main(): Int64
+
+solve body
+
+Bind the result of the string length built-in applied to text and return that Int64 value.
+
+main body
+
+Return the integer zero.

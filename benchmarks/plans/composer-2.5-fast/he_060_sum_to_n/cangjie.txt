@@ -1,0 +1,17 @@
+Design summary: The program aggregates every integer from one through n inclusive using either a closed arithmetic formula or an ascending accumulation loop, with n restricted to zero through one thousand.
+
+Expected behavior: When n is zero, the result is zero. For positive n up to one thousand, the result is the full triangular sum one plus two plus three through n, independent of which valid input is supplied.
+
+Helper functions: none.
+
+func solve(n: Int64): Int64
+
+Initial values: If n equals zero, return zero immediately.
+
+Computation order: Otherwise form the product of n and n plus one, then divide that product by two with integer division toward zero. No loop is required because the input bound keeps the product within Int64 range.
+
+Returned value: The quotient from the formula, equal to the sum from one through n inclusive.
+
+main(): Int64
+
+The body returns zero as an Int64 without invoking solve.

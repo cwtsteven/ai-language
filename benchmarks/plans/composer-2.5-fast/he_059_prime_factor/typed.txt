@@ -1,0 +1,34 @@
+Design summary
+
+The program finds the largest prime divisor of a composite integer n greater than one by repeated trial division without built-in division or remainder. A helper decides exact divisibility by subtracting the divisor from a mutable copy until the copy is below the divisor, then comparing the remainder to zero. Another helper returns the integer quotient when division is exact by counting subtractions. The solve function keeps the unfactored portion, walks trial divisors starting at two, and whenever the trial divides the portion, records that trial as the latest prime factor seen, then replaces the portion with the quotient. When the trial squared exceeds the portion, any portion left above one is itself prime and becomes the largest factor. Because n is composite, at least one nontrivial prime factor is found before the process finishes.
+
+Expected behavior
+
+solve returns the greatest prime integer that divides n. For every composite n in the test range, the returned value is prime, divides n, and no larger prime divides n.
+
+Helper and entry signatures in declaration order
+
+func divides(n: Int64, d: Int64): Bool
+func intDivide(n: Int64, d: Int64): Int64
+func solve(n: Int64): Int64
+main(): Int64
+
+divides body
+
+Initialize a remainder variable of type Int64 to n. Loop while the remainder is not less than d, meaning the condition is checked at each iteration start using lt with remainder and d negated by branching structure or while-true with inner break as appropriate to the typed language pattern. Subtract d from remainder using sub each time. Invariant: remainder equals the original n minus d times the number of complete subtractions performed. After the loop, return whether remainder equals zero using eq.
+
+intDivide body
+
+Assume d divides n evenly. Initialize quotient to zero and remainder to n. Loop while remainder is not less than d, subtract d from remainder and add one to quotient using add. Condition at loop head. Invariant: quotient times d plus remainder equals original n. Return quotient when remainder becomes zero for the inputs used by solve.
+
+solve body
+
+Initialize the working value to n. Initialize the recorded largest factor to zero. Initialize the trial divisor to two. Continue while the trial divisor is less than or equal to the working value, comparing with lt or its negation via if-else as required so the search stops when the trial passes the working value and the working value is one.
+
+Inside each iteration, if divides reports that the trial divides the working value, enter an inner loop that while divides still holds, assign the working value to intDivide of the working value and the trial, and assign the recorded largest factor to the trial so repeated powers of the same prime update the record correctly. When the inner processing for this trial finishes, advance the trial by one with add, or after fully extracting two advance by two for odd-only trials if the implementation chooses that optimization; stepping by one always remains correct.
+
+When the trial divisor squared would exceed the working value, detect this by binding mul of trial and trial and comparing to the working value with lt so that if the working value is still greater than one while the trial is too large, assign the working value to the recorded largest factor as the final prime cofactor. When the working value becomes one, end the outer search. Return the recorded largest factor.
+
+main body
+
+Return the integer zero.

@@ -1,0 +1,31 @@
+Design summary
+
+The program decides whether a string reads identically from left to right and right to left. It compares the character at symmetric positions moving inward from both ends. The empty string is accepted immediately. Comparison uses one-character strings from strAt and equality from strEq. Only lowercase ASCII letters appear in the input.
+
+Expected behavior
+
+The solve function returns true exactly when text is a palindrome, including when text has length zero. It returns false when some symmetric pair of positions holds different characters.
+
+Helper functions
+
+None.
+
+func solve(text: String): Bool
+
+Bind the length of text with strLen into an Int64 length. Bind a Bool with eq comparing length to zero. If that Bool is true, return true.
+
+Bind the last index as sub of length and one into an Int64 last value. Initialize a mutable left index of type Int64 to zero. Initialize a mutable right index of type Int64 to last.
+
+Loop while the left index is strictly less than the right index; the condition is checked at the start of each iteration using lt on the left index and right index.
+
+Loop invariant: all positions with index strictly less than the left index match their mirror positions with index strictly greater than the right index.
+
+Inside the loop, bind the left character with strAt from text at the left index. Bind the right character with strAt from text at the right index. Bind a Bool same with strEq comparing the left character and the right character. Bind a Bool mismatch with not applied to same. If mismatch is true, return false.
+
+Increase the left index by one with add and assign back. Decrease the right index by one with sub and assign back. Continue the loop.
+
+When the loop ends because the left index is no longer strictly less than the right index, return true.
+
+func main(): Int64
+
+Return the integer zero.

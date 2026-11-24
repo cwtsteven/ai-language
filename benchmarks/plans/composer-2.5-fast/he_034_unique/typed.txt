@@ -1,0 +1,53 @@
+Design summary
+
+The program first collects distinct values from the input without regard to order, then sorts that collection ascending using a simple selection-style pass that rebuilds the list. Duplication is detected by scanning the accumulator and comparing with eq. Sorting repeatedly takes the smallest remaining element and appends it to a new list until the working set is empty.
+
+Expected behavior
+
+The solve function returns a ListInt64 containing each distinct value from the input exactly once, ordered from smallest to largest. Duplicates in the input appear once. An empty input yields an empty list.
+
+Helper functions
+
+func containsValue(values: ListInt64, target: Int64): Bool
+
+Bind the length with listLen. Initialize a mutable index to zero. Loop while the index is strictly less than the length, checked each iteration with lt.
+
+Loop invariant: no element at indices below the current index equals target.
+
+Bind the element at the index with listGet. Bind a Bool with eq on the element and target. If true, return true. Otherwise increment the index and continue.
+
+After the loop, return false.
+
+func removeValueAt(values: ListInt64, removeIndex: Int64): ListInt64
+
+Build a new list by copying every element whose index is not removeIndex. Initialize result to emptyList and index to zero. Bind length with listLen. Loop while index is less than length.
+
+Inside the loop, bind a Bool with eq comparing index and removeIndex. If false, bind the element with listGet and set result to listPush of result and that element. Increment index. Return result when the loop ends.
+
+func findMinimumIndex(values: ListInt64): Int64
+
+Bind length with listLen. Initialize bestIndex to zero. Initialize bestValue with listGet at index zero. Initialize index to one. Loop while index is less than length.
+
+Inside the loop, bind candidate with listGet at index. Bind a Bool with lt comparing candidate and bestValue. If true, assign index to bestIndex and candidate to bestValue. Increment index. Return bestIndex when the loop ends.
+
+func solve(numbers: ListInt64): ListInt64
+
+Phase one: distinct accumulation.
+
+Initialize unique to emptyList. Bind length with listLen. Initialize index to zero. Loop while index is less than length.
+
+Bind element with listGet. Call containsValue on unique and element and bind the result into a Bool named alreadyPresent. If alreadyPresent is false, set unique to listPush of unique and element. Otherwise leave unique unchanged. Increment index.
+
+Phase two: sort by repeated minimum extraction.
+
+Initialize sorted to emptyList. Initialize working to the unique list copy bound at end of phase one.
+
+Initialize a mutable length of working with listLen on each iteration or use a while loop whose condition binds a Bool with lt on zero and the current length of working, checked at the start of each iteration.
+
+Bind minIdx with findMinimumIndex on working. Bind minVal with listGet at minIdx. Set sorted to listPush of sorted and minVal. Set working to removeValueAt of working and minIdx.
+
+Return sorted.
+
+func main(): Int64
+
+Return the integer zero.

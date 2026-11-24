@@ -1,0 +1,30 @@
+Design summary
+
+The program evaluates the fibfib sequence at index n for n between zero and twenty inclusive. The first three terms at indices zero, one, and two are zero, zero, and one. Each later term is the sum of the three immediately preceding terms. Indices up to two are answered directly. For larger n, three mutable values hold the last three terms and advance together in a loop without storing the full sequence, using only integer add and comparisons.
+
+Expected behavior
+
+solve returns zero for n zero and n one, returns one for n two, and for n from three through twenty returns the fibfib number defined by the three-term recurrence. Values stay within signed sixty-four-bit range for the given n bound.
+
+Helper and entry signatures in declaration order
+
+func solve(n: Int64): Int64
+main(): Int64
+
+solve body
+
+Bind a Bool for index zero with eq comparing n and zero. If true, return zero. Bind a Bool for index one with eq comparing n and one. If true, return zero. Bind a Bool for index two with eq comparing n and two. If true, return one.
+
+Initialize a mutable value for the term two steps back to zero. Initialize a mutable value for the term one step back to zero. Initialize a mutable current of type Int64 to one representing the term at index two. Initialize a mutable index of type Int64 to three.
+
+Loop while the index is less than or equal to n, checking the condition at each iteration start by binding a Bool with lt comparing index and n and handling equality with eq and not or as needed.
+
+Invariant: current is the fibfib term at index minus one, the one-step-back value is the term at index minus two, and the two-steps-back value is the term at index minus three.
+
+Inside the loop, bind the next term with add applied twice: first add current and the one-step-back value, then add that sum and the two-steps-back value. Assign the two-steps-back mutable to the old one-step-back value, assign the one-step-back mutable to the old current value, and assign current to the next term. Increase index by one.
+
+When the loop ends because index exceeds n, return current.
+
+main body
+
+Return the integer zero.

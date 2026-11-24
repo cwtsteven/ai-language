@@ -1,18 +1,8 @@
 # Typed language specification
 
-This is the specification of the typed ANF language. The build embeds this file
-verbatim in `typed-cangjie` planning and code prompts, and the C++ prefix checker
-implements it. The benchmark's direct Cangjie arm does not use this file; it
-appends [docs/cangjie-subset.md](cangjie-subset.md) instead.
+This file defines the whole language. A program is helpers followed by `main`. Call arguments, conditions, and returned values are atoms (a literal or a variable), never nested calls or infix expressions.
 
-The syntax follows Cangjie's `main(): Int64 { ... }`, typed `let` and `var`
-declarations, and braced control flow. A name reads the binding's current value.
-`var` bindings can be updated with `name = atom;`. This is a small
-Cangjie-inspired language, not a complete Cangjie parser or compiler.
-Punctuation may touch surrounding tokens: `add(x, 1)` and `main()` are
-accepted, as are spaced versions. Whitespace may contain spaces, tabs, or
-newlines. Statements currently require semicolons so the prefix checker can
-recognize their ends without relying on line breaks.
+Punctuation may touch neighboring tokens (`add(x, 1)`, `main()`). Whitespace is spaces, tabs, or newlines. Every statement ends with `;`.
 
 ```text
 program       ::= function* "main" "(" ")" ":" "Int64" "{" statement* "}"
@@ -31,87 +21,89 @@ atom          ::= integer | "true" | "false" | string | in_scope_identifier
 string        ::= '"' printable-ASCII* '"'
 rhs           ::= atom | call
 call          ::= callable "(" [atom ("," atom)*] ")"
-callable      ::= a built-in operation name or a visible user function name
-int_atom      ::= an atom of type Int64
-bool_atom     ::= an atom of type Bool
-typed_atom    ::= an atom of the enclosing function's declared return type
+callable      ::= a built-in operation or a visible user function
+int_atom      ::= an Int64 atom
+bool_atom     ::= a Bool atom
+typed_atom    ::= an atom of the enclosing function's return type
 mutable_identifier ::= an in-scope var of the assigned atom's type
-identifier    ::= lowercase ASCII letter followed by ASCII letters, digits, or underscores
-integer       ::= optional "-" followed by one or more decimal digits, within signed 64-bit range
+identifier    ::= a lowercase ASCII letter, then ASCII letters, digits, or underscores
+integer       ::= an optional "-" and one or more decimal digits, within signed 64-bit range
 ```
 
-Quoted strings are literal tokens, `*` means zero or more, and square brackets
-mark an optional part. This grammar describes structure; the type and scope
-rules below determine which atoms, calls, and operators are valid.
+`"..."` is a literal token, `*` means zero or more, and `[...]` is optional.
 
-Functions are declared before `main`. Parameters and return values are `Int64`,
-`Bool`, `ListInt64`, or `String`. Each helper sees earlier helpers and itself, so self recursion
-is allowed; forward calls, mutual recursion, nested functions, and overloading
-are not supported. `main` takes no parameters and returns `Int64`.
+## Scope
 
-Calls require exactly the declared number and types of atomic arguments. Bind
-call results before using them in another call, condition, or return.
-`return atom;` is an ordinary statement and may appear inside `if` or `while`
-blocks. It exits the enclosing function. Every returned atom must match that function's declared return
-type (`Int64` in `main`). The checker does not require a final return or check
-that every path returns; it also typechecks statements after a return.
-Parameters and locals are scoped to that body, and cannot shadow
-visible function names or built-in operations. See [the recursive factorial
-example](../examples/functions.typed).
+Helpers come before `main`. Each helper sees earlier helpers and itself, so self recursion is allowed. Forward calls, mutual recursion, nested functions, and overloading are rejected. `main` takes no parameters and returns `Int64`. Any other function returns `Int64`, `Bool`, `ListInt64`, or `String`.
 
-Arithmetic, comparisons, and Boolean computations use named calls:
-`add`, `sub`, `mul`, `eq`, `lt`, `not`, `and`, and `or`. Infix expressions are not
-supported. Every call argument must be atomic; bind intermediate call results
-with typed `let` or `var` declarations. `let` bindings and parameters cannot be
-assigned. `var count: Int64 = 0;` introduces a mutable `Int64`. Using `count`
-reads its current value; there is no dereference operator. `count = next;`
-stores an atom of the same type. Assignment is a statement with no result.
-Bind a computed value first; the right-hand side cannot be a call.
+Parameters and locals belong to that function. They cannot shadow a visible function or a built-in, and a name cannot be declared again while it is in scope. A name introduced in `if` or `while` ends at that block's `}`.
 
-Conditions and return values currently accept atoms only. Bind comparisons
-before `if`. A `while` condition that should change must be a `Bool` var updated
-in the body, as in `while (running)`. An immutable `Bool` bound before the loop
-does not change. For example, bind `let done: Bool = eq(counter, limit);` before
-`if (done)`.
+`let` and parameters are immutable. `var` is updated by `name = atom;`, a statement with no result; the atom must have the variable's type. A name reads the current value. `let copy: Int64 = count;` copies the value at that statement. Storing a `ListInt64` copies the list, so a later `listPush` does not change the earlier copy. There is no `:=`, `assign()`, reference cell, or `!`.
 
-`break;` exits the nearest enclosing `while`. `continue;` skips the remaining
-statements in that loop's current iteration and rechecks its condition. Both
-statements require semicolons and are allowed only inside a loop, including
-inside its nested `if` branches. They cannot be used as variable names.
-For `while (true)`, use `break;` to leave the loop; updating a local flag does
-not change a literal `true` condition. The checker validates these rules but
-does not execute the control flow or prove termination.
+Reserved names are `main`, `func`, `let`, `var`, `if`, `else`, `while`, `break`, `continue`, `return`, `true`, `false`, the four type names, every operation below, and `assign`, `refInt`, `refBool`, `write`, `readInt`, `readBool`.
 
-`Int64` literals are signed 64-bit decimal integers, optionally prefixed
-with `-`; leading zeroes are allowed. A `String` literal is a pair of double quotes
-around printable ASCII. A space may occur inside the quotes. The literal has no
-backslash escapes and cannot cross a line. `""` is the empty string. `ListInt64`
-has no literal: `emptyList()` creates an empty list, and `listPush(items, value)`
-returns a new list with `value` added at the end. `listLen` and `listGet` read a
-list. Indexes start at 0 and must be inside the list; a negative or past-the-end
-index is a runtime error. `strLen` counts the characters of an ASCII string,
-`strEq` compares two strings, `concat` joins them, and `strAt(text, index)`
-returns the one-character string at that character index.
-Names start with a lowercase ASCII letter,
-then contain ASCII letters, digits, or underscores. Keywords, built-in operation
-names, `assign`, `refInt`, `refBool`, `write`, `readInt`, and `readBool` are reserved.
-Variables cannot be redefined in an active scope; parameters and locals do not
-leak between functions, and names introduced inside `if` or `while` blocks
-disappear at the closing brace. `let` and parameters are immutable. `var` stores
-a value, so `let copy: Int64 = count;` keeps the value `count` had at that
-statement; a later assignment to `count` does not change `copy`. Storing a
-`ListInt64` name copies the list, so a later `listPush` does not change the
-earlier copy. There is no `:=`, `assign()`, reference cell, or `!` syntax. The intended runtime model has
-signed 64-bit integers; this prototype checks code but does not execute it.
+## Statements
 
-| Result | Operations |
-| --- | --- |
-| `Int64` | `add(Int64, Int64)`, `sub(Int64, Int64)`, `mul(Int64, Int64)`, `listLen(ListInt64)`, `listGet(ListInt64, Int64)`, `strLen(String)` |
-| `Bool` | `eq(Int64, Int64)`, `lt(Int64, Int64)`, `not(Bool)`, `and(Bool, Bool)`, `or(Bool, Bool)`, `strEq(String, String)` |
-| `ListInt64` | `emptyList()`, `listPush(ListInt64, Int64)` |
-| `String` | `concat(String, String)`, `strAt(String, Int64)` |
+A call takes exactly its declared arguments, each an atom of the declared type. Bind the result with `let` or `var` before using it in another call, a condition, or a return. Infix expressions are rejected.
 
-Full programs are not included here. See [Fibonacci with break](../examples/fibonacci-5-break.typed),
-[Fibonacci with a flag](../examples/fibonacci-5.typed),
-[typed functions](../examples/functions.typed),
-and [lists and strings](../examples/collections.typed).
+`return atom;` exits the enclosing function and may occur inside `if` or `while`. The atom must match that function's return type. The checker does not require a return on every path, and it still typechecks statements after a return. `if` and `while` bodies are statement lists and have no type, so the two branches need not match.
+
+`if` requires `else`. Its condition is a `Bool` atom, so bind the comparison first: `let done: Bool = eq(counter, limit);` then `if (done)`. A `while` condition is also a `Bool` atom. `while (true)` ends only by `break;`. A condition that should change must be a `Bool` `var` assigned in the body, as in `while (running)`.
+
+`break;` leaves the nearest `while`. `continue;` skips the rest of this iteration and rechecks the condition. Both are legal only inside a loop, including in a nested `if`. The checker does not run the program or prove that a loop ends.
+
+An `Int64` literal may have a leading `-` and leading zeroes. A `String` literal is printable ASCII between `"`, may contain spaces, has no escapes, and cannot cross a line. `""` is empty. `ListInt64` has no literal. Indexes start at 0; a negative or past-the-end index is a runtime error.
+
+## Operations
+
+- `add(Int64, Int64): Int64`
+- `sub(Int64, Int64): Int64`
+- `mul(Int64, Int64): Int64`
+- `listLen(ListInt64): Int64`
+- `listGet(ListInt64, Int64): Int64` reads the element at the index
+- `strLen(String): Int64`
+- `eq(Int64, Int64): Bool`
+- `lt(Int64, Int64): Bool`
+- `not(Bool): Bool`
+- `and(Bool, Bool): Bool`
+- `or(Bool, Bool): Bool`
+- `strEq(String, String): Bool`
+- `emptyList(): ListInt64`
+- `listPush(ListInt64, Int64): ListInt64` appends the value and returns the new list
+- `concat(String, String): String`
+- `strAt(String, Int64): String` returns the one-character string at the index
+
+```text
+func groups(n: Int64): Int64 {
+    let small: Bool = lt(n, 10);
+    if (small) {
+        return 0;
+    } else {
+        let rest: Int64 = sub(n, 10);
+        let counted: Int64 = groups(rest);
+        let result: Int64 = add(counted, 1);
+        return result;
+    }
+}
+main(): Int64 {
+    let result: Int64 = groups(25);
+    return result;
+}
+```
+
+```text
+main(): Int64 {
+    let empty: ListInt64 = emptyList();
+    let items: ListInt64 = listPush(empty, 4);
+    let n: Int64 = listGet(items, 0);
+    var running: Bool = true;
+    while (running) {
+        let done: Bool = eq(n, 0);
+        if (done) { break; } else { running = false; }
+    }
+    let text: String = "a b";
+    let letter: String = strAt(text, 0);
+    let same: Bool = strEq(letter, "a");
+    if (same) { return n; } else { return 0; }
+}
+```

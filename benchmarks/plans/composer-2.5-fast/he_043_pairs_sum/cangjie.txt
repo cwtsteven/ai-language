@@ -1,0 +1,19 @@
+Design summary
+
+The task decides whether some pair of distinct positions holds values whose sum is zero. A nested index scan compares each unordered pair once; the first matching pair makes the answer true, otherwise false.
+
+Expected behavior
+
+solve returns true when there exist two different indices into the list such that the sum of the two Int64 values at those indices equals zero. If no such pair exists, or the list has fewer than two elements, return false.
+
+Helper functions
+
+None.
+
+func solve(numbers: ArrayList<Int64>): Bool
+
+Initialize a mutable Bool result to false. Initialize a mutable Int64 outer index to zero. While the outer index is less than numbers.size and the result is still false, initialize a mutable Int64 inner index to one greater than the outer index. While the inner index is less than numbers.size and the result is still false, take the element at the outer index and the element at the inner index, add them, and if that sum equals zero set result to true. Advance the inner index by one after each inner step. After the inner loop, advance the outer index by one. Outer loop condition is checked before each outer iteration; inner loop condition before each inner iteration. Invariant for the outer loop: if result is still false, no pair with first index less than the current outer index sums to zero. Return result.
+
+func main(): Int64
+
+Return the integer zero.

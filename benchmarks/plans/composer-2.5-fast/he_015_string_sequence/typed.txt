@@ -1,0 +1,30 @@
+Design summary
+
+The program builds one space-separated string of decimal numerals from zero through n inclusive. Inputs n range from zero to twelve, so every numeral needs at most two characters. A helper maps each single digit zero through nine to its one-character string form using equality tests against each value. Another helper maps any whole number from zero through twelve to its decimal string by delegating to the digit helper when the value is below ten, and by concatenating the string for one with the string for the units digit when the value is ten, eleven, or twelve. The solve function accumulates the sequence starting with zero, then appends a space and the next numeral for each successive index until the index passes n. Built-in string concatenation and integer add, subtract, less-than, and equality operations support the loop and formatting. Main ignores inputs and returns zero as required.
+
+Expected behavior
+
+For any n from zero through twelve, solve returns a string whose tokens are the decimal representations of every integer from zero to n in order, with exactly one ASCII space between consecutive tokens and no leading or trailing space beyond the numerals themselves. For n equal to zero the result is the single character string for zero. For larger n the length grows with each additional numeral and separating space.
+
+Helper and entry signatures in declaration order
+
+func digitToStr(d: Int64): String
+func intToStr(x: Int64): String
+func solve(n: Int64): String
+main(): Int64
+
+digitToStr body
+
+Compare d against each integer zero through nine in order using equality. Return the corresponding one-character string literal for the first match. The comparisons are independent branches; exactly one digit value is returned for valid inputs zero through nine.
+
+intToStr body
+
+If x is less than ten, return the result of digitToStr applied to x. Otherwise test whether x equals ten, eleven, or twelve in turn. For ten, return the concatenation of digitToStr for one and digitToStr for zero. For eleven, concatenate digitToStr for one twice. For twelve, concatenate digitToStr for one and digitToStr for two. Valid task inputs only use zero through twelve.
+
+solve body
+
+Initialize the accumulator string to the decimal form of zero via intToStr. Initialize the running index variable to one. While the index is not greater than n, form the next piece by concatenating a single-space string with intToStr applied to the current index, append that piece to the accumulator, then increase the index by one using add. The loop condition is checked at the start of each iteration: continue while n is not less than the index, equivalently while the index is still at most n. Invariant: before each iteration the accumulator equals the space-separated sequence of numerals from zero through one less than the current index. After the loop finishes, return the accumulator.
+
+main body
+
+Return the integer zero without calling solve.

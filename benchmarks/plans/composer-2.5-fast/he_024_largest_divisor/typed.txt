@@ -1,0 +1,25 @@
+Design summary
+
+The program finds the largest positive integer that divides n evenly and is strictly less than n, for n between two and two hundred. There is no built-in division or remainder, so divisibility is decided by repeatedly subtracting the candidate divisor from a mutable copy of n until the copy is smaller than the divisor; the candidate divides n exactly when that remainder equals zero and the candidate is at least one. The solve function tries candidates downward from n minus one until one divides n, which must succeed at least at one. Main returns zero.
+
+Expected behavior
+
+For each n in the valid range, solve returns the greatest integer d such that d is positive, d is less than n, and n is an integer multiple of d. For prime n the answer is one. For composite n the answer is the largest proper divisor.
+
+Helper and entry signatures in declaration order
+
+func divides(n: Int64, d: Int64): Bool
+func solve(n: Int64): Int64
+main(): Int64
+
+divides body
+
+Initialize a remainder variable to n. While the remainder is not less than d, subtract d from the remainder using sub. The loop condition is checked at the start of each iteration. Invariant: the remainder equals the original n minus d times the number of subtractions performed so far. After the loop, return whether the remainder equals zero using eq.
+
+solve body
+
+Initialize the candidate divisor to n minus one using sub. While the candidate is greater than zero, expressed by checking that zero is less than the candidate, test divides with n and the candidate. If true, return the candidate immediately. Otherwise decrease the candidate by one and continue. Loop condition checked at iteration start. Invariant: no integer larger than the current candidate and still below n has been found to divide n. When the loop exits without an earlier return, the logic still returns one because one divides every n in range; the downward search reaches one. Normal exit returns the first successful candidate encountered, which is the largest proper divisor.
+
+main body
+
+Return the integer zero.

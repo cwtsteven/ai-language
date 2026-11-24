@@ -1,0 +1,19 @@
+Design summary
+
+Fibonacci numbers follow the usual definition with index zero equal to zero and index one equal to one. For n between zero and twenty inclusive, solve returns the n-th term. An iterative loop with two mutable or updating Int64 accumulators avoids deep recursion and matches the small bound on n.
+
+Expected behavior
+
+solve(0) returns 0, solve(1) returns 1, and for larger n within range each result equals the sum of the two preceding terms in the sequence. Multiple test indices must all be computed by the same loop logic, not by unrolling a single example.
+
+Helper functions
+
+None required beyond solve and main.
+
+func solve(n: Int64): Int64
+
+If n is zero, return zero. If n is one, return one. Otherwise initialize two Int64 values representing the term at index zero and the term at index one to zero and one respectively. Initialize a counter variable to two. While the counter is strictly less than n, compute the sum of the two current terms, assign that sum as the new later term, shift the earlier term forward to the previous later value, and increment the counter by one. The loop invariant is that after each complete iteration the two held values are the Fibonacci terms at indices counter minus two and counter minus one. The while condition is checked at the beginning of each iteration. When the counter reaches n, the later of the two held values is the desired term; return it.
+
+main(): Int64
+
+Return zero.

@@ -1,0 +1,21 @@
+Design summary: The program builds a new ArrayList of Int64 by copying the input sequence and writing the delimiter between consecutive source values, never after the final value.
+
+Expected behavior: An empty input ArrayList yields an empty result ArrayList. A list of one element yields a new list containing only that element. Longer lists produce the first element, then for each following element append the delimiter then the element, preserving order.
+
+Helper functions: none.
+
+func solve(numbers: ArrayList<Int64>, delimiter: Int64): ArrayList<Int64>
+
+Initial values: Allocate an empty ArrayList<Int64> for the result. Let the input length be taken from numbers.size.
+
+Computation order: If the length equals zero, return the empty result immediately. Otherwise append numbers at index zero to the result. Set an Int64 index to one.
+
+Loop: While the index is less than numbers.size, checked at each iteration start. Invariant: the result holds the first index elements of numbers in order, with delimiter already placed between every pair of adjacent elements among those included. Each iteration appends delimiter, then appends numbers at the current index, then increments the index.
+
+Loop exit: When the index reaches numbers.size, all elements after the first are present with delimiters before them.
+
+Returned value: The constructed ArrayList<Int64>.
+
+main(): Int64
+
+The body returns zero as an Int64 without calling solve.

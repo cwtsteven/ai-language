@@ -1,0 +1,33 @@
+Design summary
+
+The program sums selected elements from a list of at most ten integers. Only positions with odd index count, where index zero is the first element, are considered. At each such position, if the stored value is even, including negative even values, its value is added to the running total. Evenness is decided without remainder by a helper that tests exact divisibility by two using repeated subtraction. Odd-index positions are visited by stepping the index by two starting at one, or by scanning all indices and skipping even index positions with an integer parity test implemented via divisibility of the index by two.
+
+Expected behavior
+
+solve returns the sum of every list element whose index is odd and whose value is divisible by two with no remainder. Elements at even indices are ignored regardless of parity. An empty list or a list with only index zero yields zero. Values lie between negative fifty and two hundred per problem constraints.
+
+Helper and entry signatures in declaration order
+
+func divides(n: Int64, d: Int64): Bool
+func solve(numbers: ListInt64): Int64
+main(): Int64
+
+divides body
+
+Initialize remainder to n. Loop while remainder is not less than d, subtract d from remainder. Condition checked at loop start. Invariant: remainder equals n minus d times the subtraction count. After the loop, return whether remainder equals zero.
+
+solve body
+
+Bind list length with listLen. Initialize a mutable total to zero. Initialize a mutable index to one so the first examined position is the second element.
+
+Loop while the index is strictly less than the length, checking lt at iteration start.
+
+Invariant: total equals the sum of even values at odd indices strictly less than the current index among positions one, three, five, and so on visited by the stepping scheme.
+
+Inside the loop, bind the element with listGet of numbers at index. Call divides with the element and two. If the result is true, add the element to total with add and assign back. Increase index by two with add so only odd indices are visited.
+
+When the loop ends, return total.
+
+main body
+
+Return the integer zero.

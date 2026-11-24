@@ -1,0 +1,27 @@
+Design summary
+
+The program treats two equal-length strings of ASCII digits zero and one. It walks both strings in parallel by index. At each index it takes the one-character strings at that index from the left and right inputs. If those characters are the same under strEq, the result digit is zero; otherwise the result digit is one. The output string is built by successive concat operations in index order.
+
+Expected behavior
+
+The solve function returns a String of the same length as the inputs. Each output character is zero when the corresponding input characters match and one when they differ.
+
+Helper functions
+
+None.
+
+func solve(left: String, right: String): String
+
+Bind the string length with strLen from left into an Int64 length value. Initialize a mutable result string of type String to the empty string literal. Initialize a mutable index of type Int64 to zero.
+
+Loop while the index is strictly less than the length; the condition is checked at the start of each iteration with lt on index and length.
+
+Loop invariant: the result string equals the exclusive-or prefix of left and right for all indices from zero up to but not including the current index.
+
+Inside the loop, bind the left character with strAt from left at the index. Bind the right character with strAt from right at the index. Bind a Bool same with strEq comparing the left character and the right character. If same is true, bind an outChar string to the zero digit literal; otherwise bind outChar to the one digit literal. Replace the result with concat of the previous result and outChar. Increase the index by one and assign back. Continue the loop.
+
+When the loop finishes, return the result string.
+
+func main(): Int64
+
+Return the integer zero.

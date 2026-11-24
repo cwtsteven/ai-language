@@ -1,0 +1,26 @@
+Design summary
+
+The program computes the inclusive sum of every integer from one through n for n between zero and one thousand inclusive. There is no built-in division for a closed-form formula, so the solve function accumulates the total with a simple upward loop. When n is zero, no positive addends exist and the answer is zero without altering the initial accumulator.
+
+Expected behavior
+
+solve returns zero when n is zero. For positive n up to one thousand, solve returns the arithmetic sum of all integers from one through n inclusive, which is n times n plus one divided by two in ordinary mathematics but here is obtained by explicit accumulation.
+
+Helper and entry signatures in declaration order
+
+func solve(n: Int64): Int64
+main(): Int64
+
+solve body
+
+Initialize a mutable accumulator of type Int64 to zero. Initialize a mutable current value of type Int64 to one. Bind a Bool that is true when n is zero using eq comparing n and zero. If that Bool is true, return the accumulator immediately as zero.
+
+Otherwise loop while the current value is less than or equal to n. The condition is checked at the start of each iteration by binding a Bool with lt comparing current to n and combining with eq for the equal case using not and or as needed, or by using while with a comparison that current is not greater than n expressed via lt between n and current.
+
+Invariant: the accumulator equals the sum of all integers from one up to but not including the current value.
+
+Inside the loop, add the current value to the accumulator with add and assign back. Increase the current value by one. When the loop ends because current exceeds n, return the accumulator.
+
+main body
+
+Return the integer zero.

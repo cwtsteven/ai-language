@@ -1,0 +1,21 @@
+Design summary: The program scans the input once from left to right, maintaining the best Int64 seen so far and recording that value after each input element is considered.
+
+Expected behavior: An empty input yields an empty output ArrayList. For each position, the output entry is the maximum among all input values from the start through that position inclusive.
+
+Helper functions: none.
+
+func solve(numbers: ArrayList<Int64>): ArrayList<Int64>
+
+Initial values: An empty ArrayList<Int64> receives results. A mutable Int64 variable holds the running maximum. An Int64 index starts at zero.
+
+Computation order: If numbers.size is zero, return the empty result. While the index is less than numbers.size, condition checked at loop entry. Invariant: for every index less than the current index, the result list already contains the correct running maximum for that prefix, and the running maximum equals the maximum of numbers from index zero through index minus one after the previous iteration completes.
+
+Each iteration: Read the Int64 at numbers indexed by index. If the index is zero, set the running maximum to that value; otherwise, if the value is greater than the running maximum, replace the running maximum with the value. Append the running maximum to the result. Increment the index.
+
+Loop exit: Index equals numbers.size.
+
+Returned value: The filled ArrayList<Int64>.
+
+main(): Int64
+
+Returns the Int64 constant zero.

@@ -1,0 +1,25 @@
+Design summary: The program decomposes n into prime factors in nondecreasing order by trial division, appending each prime as many times as it divides the remaining quotient before advancing to the next trial divisor.
+
+Expected behavior: The returned ArrayList<Int64> lists every prime factor of n from smallest to largest with repetition; multiplying all entries reproduces n. Inputs range from two through two hundred thousand.
+
+Helper functions: none.
+
+func solve(n: Int64): ArrayList<Int64>
+
+Initial values: Allocate an empty ArrayList<Int64> for factors. Store the original n in a mutable Int64 remainder. Set a mutable Int64 divisor to two.
+
+Computation order: While divisor multiplied by divisor is less than or equal to remainder, condition checked at the start of each outer iteration. Invariant: remainder equals the original n divided by the product of all values already in factors; any prime factor of the original n smaller than divisor already appears in factors with full multiplicity.
+
+Within each outer iteration, while remainder modulo divisor equals zero, condition checked at the start of each inner iteration. Inner invariant: remainder remains divisible by divisor until the inner loop ends. Each inner step appends divisor to factors, then replaces remainder with the quotient of remainder divided by divisor using truncating integer division.
+
+After the inner loop, if divisor equals two, set divisor to three; otherwise set divisor to divisor plus two so only two and odd integers are tried as divisors.
+
+Outer loop exit: When divisor times divisor exceeds remainder, no further composite factor at or below the square root of remainder remains untested.
+
+Final step: If remainder is greater than one, append remainder once to factors because the leftover is prime.
+
+Returned value: The populated ArrayList<Int64>.
+
+main(): Int64
+
+The body returns zero as an Int64 without calling solve.

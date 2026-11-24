@@ -1,10 +1,6 @@
 # Cangjie translation
 
-`typed-cangjie generate` samples the [typed language](language.md) and, when that
-program is complete and well-typed, writes standalone Cangjie. Translation needs
-no extra command and no Cangjie SDK. An unfinished sample writes a diagnostic
-to stderr and no source. This is not the benchmark's direct Cangjie arm: that
-arm samples Cangjie with `plain-llama` and the [Cangjie excerpt](cangjie-subset.md).
+`generate` writes standalone Cangjie once the [typed program](language.md) is complete and well-typed. No extra command or Cangjie SDK is required. An unfinished sample writes a diagnostic to stderr and no source. The benchmark's other arm is `plain-llama`, which samples Cangjie from [the Cangjie excerpt](cangjie-subset.md).
 
 ```sh
 ./build/typed-cangjie generate 'Compute Fibonacci(5) iteratively.' --model /path/to/model.gguf --n 512 > fibonacci.cj
@@ -13,40 +9,23 @@ cjc fibonacci.cj -o fibonacci --set-runtime-rpath
 echo $?  # 5
 ```
 
-Checked-in `.typed` fixtures are still the constraint language. The benchmark
-and runtime tests translate those with `emit-cangjie`, which reads one program
-on stdin. Model output does not go through that step.
+Checked-in `.typed` fixtures stay in the constraint language. The benchmark and runtime tests translate them with `emit-cangjie`, which reads one program on stdin. Model output does not.
 
-`main` keeps its `Int64` return value; the generated executable uses it as its
-exit status, rather than printing it. Operating systems may truncate exit status
-values, so use a Cangjie harness to inspect larger results.
+`main`'s `Int64` is the process exit status, not printed output. Operating systems may truncate it; use a Cangjie harness for larger results.
 
 | Source | Cangjie |
 | --- | --- |
-| `Int64`, `Bool` | Native `Int64`, `Bool` |
-| `let` | `let` |
-| `var` | `var` |
-| `name = value;` | `name = value` |
-| `add`, `sub`, `mul`, `eq`, `lt` | Native arithmetic and comparison expressions |
-| `not`, `and`, `or` | Native Boolean expressions |
-| `func`, calls, `if`, `while`, `return`, `break`, `continue` | Corresponding Cangjie control flow |
+| `Int64`, `Bool` | The same native types |
+| `let`, `var`, `name = value;` | The same forms |
+| `add(Int64, Int64): Int64`, `sub(Int64, Int64): Int64`, `mul(Int64, Int64): Int64` | `+`, `-`, `*` |
+| `eq(Int64, Int64): Bool`, `lt(Int64, Int64): Bool` | `==`, `<` |
+| `not(Bool): Bool`, `and(Bool, Bool): Bool`, `or(Bool, Bool): Bool` | `!`, `&&`, `\|\|` |
+| `emptyList(): ListInt64`, `listPush(ListInt64, Int64): ListInt64`, `listLen(ListInt64): Int64`, `listGet(ListInt64, Int64): Int64` | `ArrayList<Int64>` construction, a copying push, `.size`, and indexing |
+| `strLen(String): Int64`, `strEq(String, String): Bool`, `concat(String, String): String`, `strAt(String, Int64): String` | `.size`, `==`, `+`, and a one-character read |
+| `func`, calls, `if`, `while`, `return`, `break`, `continue` | The corresponding Cangjie forms |
 
-`let` copies the current value. `var` is re-read by later uses and by `while`
-conditions, and assignment updates that binding only. User functions and
-variables receive separate name prefixes to avoid Cangjie keywords and generated
-runtime names. Decimal literals are normalized without converting
-through a smaller host integer type. Arithmetic uses Cangjie's integer overflow
-behavior.
+`let` copies the current value. `var` is read again by later uses and by `while`, and assignment updates that binding only. User functions and variables get separate name prefixes so they do not collide with Cangjie keywords or generated runtime names. Decimal literals are normalized without passing through a smaller host integer. Arithmetic uses Cangjie's overflow behavior.
 
-The grammar permits functions without a return on every path. If execution
-reaches the end of such a generated function, it throws an exception identifying
-the function. The generator does not invent a return value or reject those source
-programs. Statements after an unconditional return remain in the output and may
-produce an unreachable-code warning from `cjc`.
+A function need not return on every path. If execution reaches the end, the generated function throws an exception that names it. The generator does not invent a return value. Statements after an unconditional return stay in the output and may draw an unreachable-code warning from `cjc`.
 
-The generator validates with `typed::Prefix`, parses a structured syntax tree,
-then emits Cangjie. `cj-codegen-test` runs without an SDK. CMake adds
-`cj-runtime-test` when it finds `cjc`; this compiles and executes fixtures for
-Fibonacci, recursive factorial, value copies, mutable `Bool` loops, loop control,
-identifier collisions, integer limits, and fallthrough exceptions. Tested with
-Cangjie 1.1.0 on macOS arm64.
+Translation checks the source with `typed::Prefix`, parses it, and emits Cangjie. `cj-codegen-test` needs no SDK. When CMake finds `cjc`, `cj-runtime-test` compiles and runs the fixtures: Fibonacci, recursive factorial, value copies, mutable `Bool` loops, loop control, identifier collisions, integer limits, and fallthrough exceptions. Tested with Cangjie 1.1.0 on macOS arm64.

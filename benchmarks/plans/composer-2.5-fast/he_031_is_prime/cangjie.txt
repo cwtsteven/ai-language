@@ -1,0 +1,19 @@
+Design summary: The program decides whether a single Int64 is a prime number by rejecting values below two and then testing divisibility by every integer from two up through the square root of the candidate.
+
+Expected behavior: For n less than two the result is false. For n equal to two or greater, the result is true only when no integer divisor between two and the largest divisor needed exists; otherwise false. Composite numbers with a factor return false; integers with no proper divisors return true.
+
+Helper functions: none.
+
+func solve(n: Int64): Bool
+
+Initial values: If n is less than two, return false immediately.
+
+Computation order: Let a mutable Int64 trial divisor start at two. While the trial divisor multiplied by itself is less than or equal to n, the condition is checked before each trial. Invariant: every integer from two through one less than the current trial divisor has been checked and none divides n evenly. If the remainder of n modulo the trial divisor equals zero, return false. Otherwise increase the trial divisor by one and continue.
+
+Loop exit: No divisor was found while trial divisor squared still did not exceed n.
+
+Returned value: true when no proper divisor was found; false when n is below two or a divisor was found.
+
+main(): Int64
+
+The body performs no input or solving work for this planning task. It returns the Int64 zero.

@@ -1,0 +1,17 @@
+Design summary: Two lowercase strings must be compared by character set, not by sequence or multiplicity. Each distinct letter appearing in either string is recorded once in a fixed-size presence structure indexed by letter offset from a. After both strings are scanned, the two presence structures are compared elementwise; any mismatch means the sets differ.
+
+Expected behavior: solve returns true when left and right contain exactly the same collection of distinct lowercase letters, and false otherwise. Repeated letters in either input do not change the outcome once a letter is marked present.
+
+Helper functions: None.
+
+func solve(left: String, right: String): Bool
+
+Initialize a mutable array of twenty-six Bool values, all false, representing whether each letter a through z has been seen in left. Walk indices from zero up to but not including left.size; at each index, read the rune at that position, map it to an index in zero through twenty-five, and set the corresponding Bool entry to true. Build a second mutable array of twenty-six Bool values initialized false and perform the same scan over right using right.size and right’s runes.
+
+Initialize a mutable Bool result to true. Loop index i from zero through twenty-five inclusive; before each iteration the result still reflects agreement on all indices less than i. On each iteration, if the left presence at i does not equal the right presence at i, set result to false. Exit the loop when i exceeds twenty-five.
+
+Return result.
+
+func main(): Int64
+
+The body of main returns the Int64 zero.

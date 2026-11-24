@@ -1,0 +1,19 @@
+Design summary
+
+The task computes two raised to the power n, reduced modulo p, without letting intermediate values grow past what modulo reduction allows. Iterative repeated squaring multiplies the running result by two modulo p once per unit of exponent, keeping each stored Int64 within the modulus range.
+
+Expected behavior
+
+For nonnegative n and p greater than one, solve returns the Int64 value equal to two to the power n taken modulo p. Results match modular exponentiation for all valid test inputs without integer overflow in intermediate steps.
+
+Helper functions
+
+None.
+
+func solve(n: Int64, p: Int64): Int64
+
+Initialize a mutable Int64 accumulator to one modulo p, representing two to the power zero. Initialize a mutable Int64 counter to zero. While the counter is strictly less than n, replace the accumulator with the remainder of the product of the accumulator and two divided by p, using multiplication followed by remainder with modulus p. Add one to the counter. The condition counter less than n is checked before each iteration. Invariant: after counter equals k complete iterations, the accumulator equals two to the power k modulo p. When the counter reaches n, return the accumulator.
+
+func main(): Int64
+
+Return the integer zero.
