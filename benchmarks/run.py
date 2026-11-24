@@ -142,10 +142,10 @@ def load_suite(path):
             if not NAME.fullmatch(parameter["name"]) or parameter["name"] in names:
                 raise ValueError("invalid or duplicate parameter name")
             names.add(parameter["name"])
-            if parameter["type"] not in ("Int64", "Bool"):
-                raise ValueError("benchmark arguments currently support only Int64 and Bool")
-        if task["return_type"] not in ("Int64", "Bool"):
-            raise ValueError("tasks require scalar results")
+            if parameter["type"] not in ("Int64", "Bool", "ListInt64", "String"):
+                raise ValueError("benchmark arguments support Int64, Bool, ListInt64, and String")
+        if task["return_type"] not in ("Int64", "Bool", "ListInt64", "String"):
+            raise ValueError("tasks require an Int64, Bool, ListInt64, or String result")
         if "tests" in task:
             raise ValueError("inline tests arrays are obsolete; use benchmarks/cjtests/<id>_test.cj")
         tests = unittest_path(task, path.parent)

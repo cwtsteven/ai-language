@@ -8,7 +8,7 @@
 
 namespace typed {
 
-enum class Type { Int, Bool };
+enum class Type { Int, Bool, List, String };
 
 struct Symbol {
     std::string name;
@@ -83,6 +83,7 @@ private:
     Type new_type_ = Type::Int;
     bool assignment_ = false;
     bool mutable_binding_ = false;
+    bool quoting_ = false;
     bool after_return_ = false; // Prefer a closing brace during deterministic completion.
     std::vector<Type> call_arguments_;
     size_t argument_ = 0;
@@ -114,6 +115,7 @@ private:
     std::string diagnose_message(std::string_view lexeme) const;
     Type expected_atom_type() const;
     bool expects_atom() const;
+    bool string_literal_context() const;
 };
 
 } // namespace typed

@@ -27,7 +27,10 @@ std::optional<std::string> format_program(std::string_view source) {
     for (size_t i = 0; i < source.size();) {
         if (std::isspace(static_cast<unsigned char>(source[i]))) { ++i; continue; }
         const size_t start = i++;
-        if (word_char(source[start]) ||
+        if (source[start] == '"') {
+            while (i < source.size() && source[i] != '"') ++i;
+            if (i < source.size()) ++i;
+        } else if (word_char(source[start]) ||
             (source[start] == '-' && !tokens.empty() && expects_atom(tokens.back()) &&
              i < source.size() && std::isdigit(static_cast<unsigned char>(source[i])))) {
             while (i < source.size() && word_char(source[i])) ++i;

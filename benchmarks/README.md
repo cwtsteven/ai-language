@@ -67,7 +67,7 @@ recorded in [tasks.json](tasks.json). HumanEval's MIT notice is retained in
 | `he_138_four_even` | 138: is_equal_to_sum_even | Bool |
 | `he_150_prime_choice` | 150: x_or_y | Int64 |
 
-Strings, lists, floats, and tuples cannot be expressed by the current grammar.
+The typed language also has `ListInt64` and `String`. Floats, tuples, and other collections still cannot be expressed.
 The selected tasks use bounded Int64 input domains stated in their prompts, with
 all expected results fitting Int64. Inputs with zero, negative values, repeated
 factors, sequence boundaries, and large results are included where applicable.

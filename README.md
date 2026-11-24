@@ -97,7 +97,7 @@ The [prompt](examples/fibonacci-5-prompt.txt) supplies the algorithm explicitly.
 ## Language
 
 `let` bindings are immutable and `var` bindings can be updated with
-`name = atom;`. A name reads the current value. Types are `Int64` and `Bool`.
+`name = atom;`. A name reads the current value. Types are `Int64`, `Bool`, `ListInt64`, and `String`.
 An atom is a literal or an in-scope variable. Statements require semicolons. Conditions
 are Boolean atoms; `break;` and `continue;` are allowed only inside loops. Typed `func`
 declarations go before `main`; see the [function example](examples/functions.typed).

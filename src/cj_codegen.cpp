@@ -45,7 +45,16 @@ public:
             const unsigned char ch = source[i];
             if (std::isspace(ch)) { ++i; continue; }
             const size_t start = i++;
-            if (std::isalnum(ch) || ch == '_' || ch == '-') {
+            if (ch == '"') {
+                while (i < source.size() && source[i] != '"') {
+                    const unsigned char inside = static_cast<unsigned char>(source[i]);
+                    if (inside == '\\' || inside < 0x20 || inside > 0x7e)
+                        throw std::logic_error("invalid string literal in checked source");
+                    ++i;
+                }
+                if (i >= source.size()) throw std::logic_error("unterminated string literal in checked source");
+                ++i;
+            } else if (std::isalnum(ch) || ch == '_' || ch == '-') {
                 while (i < source.size() &&
                        (std::isalnum(static_cast<unsigned char>(source[i])) || source[i] == '_')) ++i;
             }
@@ -62,8 +71,14 @@ public:
     }
 
 private:
+    struct Binding {
+        std::string name;
+        Type type;
+    };
+
     std::vector<std::string> tokens_;
     size_t position_ = 0;
+    std::vector<Binding> symbols_;
 
     bool peek(std::string_view token) const {
         return position_ < tokens_.size() && tokens_[position_] == token;
@@ -79,11 +94,20 @@ private:
         const auto name = take();
         if (name == "Int64") return Type::Int;
         if (name == "Bool") return Type::Bool;
+        if (name == "ListInt64") return Type::List;
+        if (name == "String") return Type::String;
         throw std::logic_error("unknown type in checked source");
+    }
+    Type lookup(const std::string & name) const {
+        for (auto binding = symbols_.rbegin(); binding != symbols_.rend(); ++binding) {
+            if (binding->name == name) return binding->type;
+        }
+        throw std::logic_error("unbound name in checked source");
     }
     Atom atom() {
         auto text = take();
-        if (text == "true" || text == "false") return {Atom::Kind::Literal, std::move(text)};
+        if (text == "true" || text == "false" || (!text.empty() && text.front() == '"'))
+            return {Atom::Kind::Literal, std::move(text)};
         if (text.front() == '-' || std::isdigit(static_cast<unsigned char>(text.front()))) {
             const bool negative = text.front() == '-';
             const size_t digits = negative ? 1 : 0;
@@ -109,9 +133,11 @@ private:
     }
     std::vector<Statement> block() {
         expect("{");
+        const size_t scope = symbols_.size();
         std::vector<Statement> body;
         while (!peek("}")) body.push_back(statement());
         expect("}");
+        symbols_.resize(scope);
         return body;
     }
     Statement statement() {
@@ -124,6 +150,7 @@ private:
             result.type = type();
             expect("=");
             result.value = expression();
+            symbols_.push_back({result.name, result.type});
         } else if (keyword == "if" || keyword == "while") {
             result.kind = keyword == "if" ? Statement::Kind::If : Statement::Kind::While;
             expect("(");
@@ -143,6 +170,7 @@ private:
         else {
             result.kind = Statement::Kind::Assign;
             result.name = keyword;
+            result.type = lookup(keyword);
             expect("=");
             result.value.atom = atom();
         }
@@ -165,7 +193,10 @@ private:
         expect(")");
         expect(":");
         result.result = type();
+        const size_t scope = symbols_.size();
+        for (const auto & parameter : result.parameters) symbols_.push_back({parameter.name, parameter.type});
         result.body = block();
+        symbols_.resize(scope);
         return result;
     }
 };
@@ -174,12 +205,39 @@ class Emitter {
 public:
     std::string program(const std::vector<Function> & functions) {
         for (const auto & function : functions) emit_function(function);
+        std::string body = std::move(output_);
+        output_.clear();
+        depth_ = 0;
+        if (needs_list_) line("import std.collection.ArrayList");
+        if (needs_list_) {
+            line("func typed_rt_list_push(typed_rt_items: ArrayList<Int64>, typed_rt_value: Int64): ArrayList<Int64> {");
+            ++depth_;
+            line("let typed_rt_copy = typed_rt_items.clone()");
+            line("typed_rt_copy.add(typed_rt_value)");
+            line("typed_rt_copy");
+            --depth_;
+            line("}");
+        }
+        if (needs_character_) {
+            if (!output_.empty()) output_ += '\n';
+            line("func typed_rt_str_at(typed_rt_text: String, typed_rt_index: Int64): String {");
+            ++depth_;
+            line("let typed_rt_chars = typed_rt_text.toRuneArray()");
+            line("String([typed_rt_chars[typed_rt_index]])");
+            --depth_;
+            line("}");
+        }
+        if (!output_.empty()) output_ += '\n';
+        output_ += body;
         return output_;
     }
 
 private:
     std::string output_;
     size_t depth_ = 0;
+    bool needs_list_ = false;
+    bool needs_character_ = false;
+    Type return_type_ = Type::Int;
 
     // Disjoint prefixes avoid collisions with Cangjie keywords, runtime classes,
     // and later function names that an earlier body used as a local variable.
@@ -189,8 +247,17 @@ private:
         switch (value) {
             case Type::Int: return "Int64";
             case Type::Bool: return "Bool";
+            case Type::List: needs_list_ = true; return "ArrayList<Int64>";
+            case Type::String: return "String";
         }
         throw std::logic_error("unknown checked type");
+    }
+    // A list name is cloned when it is stored. listPush already returns a new list.
+    std::string stored(Type destination, const Expression & value) {
+        std::string text = expression(value);
+        if (destination == Type::List && value.atom && value.atom->kind == Atom::Kind::Name)
+            text += ".clone()";
+        return text;
     }
     void line(const std::string & text) { output_ += std::string(depth_ * 4, ' ') + text + '\n'; }
     static std::string atom(const Atom & value) {
@@ -206,6 +273,23 @@ private:
                           name == "and" ? "&&" : name == "or" ? "||" : nullptr;
         if (op) return "(" + atom(args.at(0)) + " " + op + " " + atom(args.at(1)) + ")";
         if (name == "not") return "(!" + atom(args.at(0)) + ")";
+        if (name == "emptyList") { needs_list_ = true; return "ArrayList<Int64>()"; }
+        if (name == "listLen") { needs_list_ = true; return "(" + atom(args.at(0)) + ".size)"; }
+        if (name == "listGet") {
+            needs_list_ = true;
+            return "(" + atom(args.at(0)) + "[" + atom(args.at(1)) + "])";
+        }
+        if (name == "listPush") {
+            needs_list_ = true;
+            return "typed_rt_list_push(" + atom(args.at(0)) + ", " + atom(args.at(1)) + ")";
+        }
+        if (name == "strLen") return "(" + atom(args.at(0)) + ".size)";
+        if (name == "strEq") return "(" + atom(args.at(0)) + " == " + atom(args.at(1)) + ")";
+        if (name == "concat") return "(" + atom(args.at(0)) + " + " + atom(args.at(1)) + ")";
+        if (name == "strAt") {
+            needs_character_ = true;
+            return "typed_rt_str_at(" + atom(args.at(0)) + ", " + atom(args.at(1)) + ")";
+        }
         std::string result = callable(name) + "(";
         for (size_t i = 0; i < args.size(); ++i) result += (i ? ", " : "") + atom(args[i]);
         return result + ")";
@@ -220,13 +304,13 @@ private:
                 case Statement::Kind::Let:
                 case Statement::Kind::Var: {
                     const auto declared_type = type(statement.type);
-                    const auto rhs = expression(statement.value);
+                    const auto rhs = stored(statement.type, statement.value);
                     const char * keyword = statement.kind == Statement::Kind::Var ? "var " : "let ";
                     line(std::string(keyword) + variable(statement.name) + ": " + declared_type + " = " + rhs);
                     break;
                 }
                 case Statement::Kind::Assign:
-                    line(variable(statement.name) + " = " + expression(statement.value));
+                    line(variable(statement.name) + " = " + stored(statement.type, statement.value));
                     break;
                 case Statement::Kind::If: {
                     line("if (" + expression(statement.value) + ") {");
@@ -249,7 +333,7 @@ private:
                     line("}");
                     break;
                 case Statement::Kind::Return:
-                    line("return " + expression(statement.value));
+                    line("return " + stored(return_type_, statement.value));
                     continues = false;
                     break;
                 case Statement::Kind::Break:
@@ -263,6 +347,7 @@ private:
         return falls_through;
     }
     void emit_function(const Function & function) {
+        return_type_ = function.result;
         if (!output_.empty()) output_ += '\n';
         std::string header = function.name == "main" ? "main(" : "func " + callable(function.name) + "(";
         for (size_t i = 0; i < function.parameters.size(); ++i) {

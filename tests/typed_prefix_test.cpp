@@ -258,6 +258,16 @@ int main() {
     expect_error("main(): Int64 { let x: Int64 = 1; x = 2; return x; }", 1, 35,
                  "cannot assign to immutable 'x'",
                  "main(): Int64 { let x: Int64 = 1; return x; }");
+    complete("main(): Int64 { let empty: ListInt64 = emptyList(); "
+             "let grown: ListInt64 = listPush(empty, 4); "
+             "let n: Int64 = listLen(grown); let item: Int64 = listGet(grown, 0); "
+             "let sum: Int64 = add(n, item); return sum; }");
+    complete("main(): Int64 { let text: String = \"a b\"; let letter: String = strAt(text, 0); "
+             "let joined: String = concat(text, letter); let same: Bool = strEq(letter, \"a\"); "
+             "let length: Int64 = strLen(joined); if (same) { return length; } else { return 0; } }");
+    rejected("main(): Int64 { let text: String = ", "1", "\"ok\"; return 0; }");
+    rejected("main(): Int64 { let items: ListInt64 = emptyList(); let n: Int64 = ", "items",
+             "listLen(items); return n; }");
 
     Prefix unfinished;
     CHECK(unfinished.append("main(): Int64 {"));

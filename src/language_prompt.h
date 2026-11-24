@@ -22,7 +22,7 @@ inline const std::string & planning_prompt() {
         "For loops, state the invariant and when the condition is checked. For recursion, state the base case and how the argument decreases. "
         "The language grammar, type rules, and scope rules apply to every pseudocode fragment and statement sketch in the plan itself. "
         "Use actual language syntax with explicit typed let bindings for intermediate computations. "
-        "Use named calls such as add, sub, mul, eq, lt, not, and, and or; infix expressions are not allowed. "
+        "Use named calls such as add, sub, mul, eq, lt, not, and, or, emptyList, listLen, listGet, listPush, strLen, strEq, concat, and strAt; infix expressions are not allowed. "
         "Call arguments must be atoms; never nest calls or compound expressions. "
         "Bind a call result before using it in another call, a condition, or a return. "
         "Use var for a binding that later statements assign. Assignment is name = atom; and the name reads its current value. "

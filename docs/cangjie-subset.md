@@ -251,3 +251,13 @@ Quick reference: `!` is not (a unary prefix); `&&` is and; `||` is or.
 - Parameters: none, or `Array<String>`
 - Return type: `Unit` or an integer type
 - The definition does not use the `func` keyword
+
+
+## Lists and strings
+
+These forms are included so a Cangjie program can use the same values as the typed language's `ListInt64` and `String`. They are not a separate upstream page.
+
+- `import std.collection.ArrayList` before using `ArrayList`
+- `ArrayList<Int64>()` creates an empty list. `items.add(value)` appends one element. `items.size` is the length. `items[index]` reads an element. `items.clone()` copies the list
+- A string literal is `"text"`. `text.size` is its length for an ASCII string. `left + right` joins strings. `left == right` compares them
+- `text.toRuneArray()[index]` reads one character. Indexes start at 0

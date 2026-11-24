@@ -57,5 +57,20 @@ int main() {
         "main(): Int64 { if(true){let x: Int64 = 0;}else{} return x; }",
         "func a(): Int64 { let r: Int64 = b(); return r; } func b(): Int64 {return 1;} main(): Int64 {}"
     }) CHECK(!typed::generate_cangjie(invalid));
+    const auto collections = typed::generate_cangjie(
+        "main(): Int64 { let empty: ListInt64 = emptyList(); "
+        "let first: ListInt64 = listPush(empty, 4); var items: ListInt64 = first; "
+        "let copy: ListInt64 = items; let second: ListInt64 = listPush(items, 5); items = second; "
+        "let n: Int64 = listLen(copy); let text: String = \"a b\"; "
+        "let letter: String = strAt(text, 0); let same: Bool = strEq(letter, \"a\"); "
+        "if (same) { return n; } else { return 0; } }");
+    CHECK(collections);
+    CHECK(collections->find("import std.collection.ArrayList") != std::string::npos);
+    CHECK(collections->find("typed_rt_list_push") != std::string::npos);
+    CHECK(collections->find("let typed_var_copy: ArrayList<Int64> = typed_var_items.clone()") != std::string::npos);
+    CHECK(collections->find("typed_var_items = typed_var_second.clone()") != std::string::npos);
+    CHECK(collections->find("typed_rt_str_at(typed_var_text, 0)") != std::string::npos);
+    CHECK(collections->find("\"a b\"") != std::string::npos);
+
     std::puts("Cangjie generator tests passed");
 }

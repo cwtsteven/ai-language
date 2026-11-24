@@ -46,7 +46,7 @@ execute_process(COMMAND "${CLI}" check "${program}"
 if(NOT status EQUAL 0 OR NOT output MATCHES "viable; complete=yes")
     message(FATAL_ERROR "Checking valid code failed: ${output}${error}")
 endif()
-foreach(example fibonacci-5.typed fibonacci-5-break.typed functions.typed)
+foreach(example fibonacci-5.typed fibonacci-5-break.typed functions.typed collections.typed)
     execute_process(COMMAND "${CLI}" check -
         INPUT_FILE "${CMAKE_CURRENT_LIST_DIR}/../examples/${example}"
         RESULT_VARIABLE status OUTPUT_VARIABLE output ERROR_VARIABLE error)

@@ -9,7 +9,7 @@
     "license": "MIT"
   },
   "adaptations": [
-    "Select 12 problems expressible with Int64 and Bool; no strings, lists, floats, or tuples.",
+    "Select 12 problems expressible with Int64 and Bool. The language also has ListInt64 and String; floats, tuples, and other collections are still absent.",
     "Rename each entry point to solve, avoiding reserved built-ins such as add.",
     "Require a complete typed-language program with helpers before solve and a dummy main.",
     "Retain all literal upstream assertions for selected tasks and add deterministic boundary and seeded-random cases as checked-in std.unittest files under cjtests/.",

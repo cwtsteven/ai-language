@@ -42,6 +42,23 @@ foreach(example fibonacci-5 fibonacci-5-break functions)
     run_case("${example}" "${source}" "${expected}")
 endforeach()
 
+run_case(collections "main(): Int64 {
+    let empty: ListInt64 = emptyList();
+    let first: ListInt64 = listPush(empty, 4);
+    var items: ListInt64 = first;
+    let copy: ListInt64 = items;
+    let second: ListInt64 = listPush(items, 5);
+    items = second;
+    let n: Int64 = listLen(copy);
+    let text: String = \"a b\";
+    let letter: String = strAt(text, 0);
+    let joined: String = concat(text, letter);
+    let same: Bool = strEq(letter, \"a\");
+    let length: Int64 = strLen(joined);
+    let total: Int64 = add(n, length);
+    if(same){return total;}else{return 0;}
+}" 5)
+
 run_case(builtins "main(): Int64 {
     let sum: Int64 = add(2,3); let difference: Int64 = sub(sum,1);
     let product: Int64 = mul(difference,3); let small: Bool = lt(product,13);

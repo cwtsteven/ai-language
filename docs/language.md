@@ -26,8 +26,9 @@ statement     ::= "let" identifier ":" Type "=" rhs ";"
                 | "while" "(" bool_atom ")" "{" statement* "}"
                 | "break" ";" | "continue" ";"
                 | "return" typed_atom ";"
-Type          ::= "Int64" | "Bool"
-atom          ::= integer | "true" | "false" | in_scope_identifier
+Type          ::= "Int64" | "Bool" | "ListInt64" | "String"
+atom          ::= integer | "true" | "false" | string | in_scope_identifier
+string        ::= '"' printable-ASCII* '"'
 rhs           ::= atom | call
 call          ::= callable "(" [atom ("," atom)*] ")"
 callable      ::= a built-in operation name or a visible user function name
@@ -43,8 +44,8 @@ Quoted strings are literal tokens, `*` means zero or more, and square brackets
 mark an optional part. This grammar describes structure; the type and scope
 rules below determine which atoms, calls, and operators are valid.
 
-Functions are declared before `main`. Parameters and return values are `Int64`
-or `Bool`. Each helper sees earlier helpers and itself, so self recursion
+Functions are declared before `main`. Parameters and return values are `Int64`,
+`Bool`, `ListInt64`, or `String`. Each helper sees earlier helpers and itself, so self recursion
 is allowed; forward calls, mutual recursion, nested functions, and overloading
 are not supported. `main` takes no parameters and returns `Int64`.
 
@@ -82,22 +83,35 @@ not change a literal `true` condition. The checker validates these rules but
 does not execute the control flow or prove termination.
 
 `Int64` literals are signed 64-bit decimal integers, optionally prefixed
-with `-`; leading zeroes are allowed. Names start with a lowercase ASCII letter,
+with `-`; leading zeroes are allowed. A `String` literal is a pair of double quotes
+around printable ASCII. A space may occur inside the quotes. The literal has no
+backslash escapes and cannot cross a line. `""` is the empty string. `ListInt64`
+has no literal: `emptyList()` creates an empty list, and `listPush(items, value)`
+returns a new list with `value` added at the end. `listLen` and `listGet` read a
+list. Indexes start at 0 and must be inside the list; a negative or past-the-end
+index is a runtime error. `strLen` counts the characters of an ASCII string,
+`strEq` compares two strings, `concat` joins them, and `strAt(text, index)`
+returns the one-character string at that character index.
+Names start with a lowercase ASCII letter,
 then contain ASCII letters, digits, or underscores. Keywords, built-in operation
 names, `assign`, `refInt`, `refBool`, `write`, `readInt`, and `readBool` are reserved.
 Variables cannot be redefined in an active scope; parameters and locals do not
 leak between functions, and names introduced inside `if` or `while` blocks
 disappear at the closing brace. `let` and parameters are immutable. `var` stores
 a value, so `let copy: Int64 = count;` keeps the value `count` had at that
-statement; a later assignment to `count` does not change `copy`. There is no
-`:=`, `assign()`, reference cell, or `!` syntax. The intended runtime model has
+statement; a later assignment to `count` does not change `copy`. Storing a
+`ListInt64` name copies the list, so a later `listPush` does not change the
+earlier copy. There is no `:=`, `assign()`, reference cell, or `!` syntax. The intended runtime model has
 signed 64-bit integers; this prototype checks code but does not execute it.
 
 | Result | Operations |
 | --- | --- |
-| `Int64` | `add(Int64, Int64)`, `sub(Int64, Int64)`, `mul(Int64, Int64)` |
-| `Bool` | `eq(Int64, Int64)`, `lt(Int64, Int64)`, `not(Bool)`, `and(Bool, Bool)`, `or(Bool, Bool)` |
+| `Int64` | `add(Int64, Int64)`, `sub(Int64, Int64)`, `mul(Int64, Int64)`, `listLen(ListInt64)`, `listGet(ListInt64, Int64)`, `strLen(String)` |
+| `Bool` | `eq(Int64, Int64)`, `lt(Int64, Int64)`, `not(Bool)`, `and(Bool, Bool)`, `or(Bool, Bool)`, `strEq(String, String)` |
+| `ListInt64` | `emptyList()`, `listPush(ListInt64, Int64)` |
+| `String` | `concat(String, String)`, `strAt(String, Int64)` |
 
 Full programs are not included here. See [Fibonacci with break](../examples/fibonacci-5-break.typed),
 [Fibonacci with a flag](../examples/fibonacci-5.typed),
-and [typed functions](../examples/functions.typed).
+[typed functions](../examples/functions.typed),
+and [lists and strings](../examples/collections.typed).

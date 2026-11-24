@@ -24,6 +24,14 @@ constexpr Operation operations[] = {
     { "not",     Type::Bool,    { Type::Bool,    Type::Bool }, 1 },
     { "and",     Type::Bool,    { Type::Bool,    Type::Bool }, 2 },
     { "or",      Type::Bool,    { Type::Bool,    Type::Bool }, 2 },
+    { "emptyList", Type::List,  { Type::Int,     Type::Int }, 0 },
+    { "listLen", Type::Int,     { Type::List,    Type::Int }, 1 },
+    { "listGet", Type::Int,     { Type::List,    Type::Int }, 2 },
+    { "listPush", Type::List,   { Type::List,    Type::Int }, 2 },
+    { "strLen",  Type::Int,     { Type::String,  Type::Int }, 1 },
+    { "strEq",   Type::Bool,    { Type::String,  Type::String }, 2 },
+    { "concat",  Type::String,  { Type::String,  Type::String }, 2 },
+    { "strAt",   Type::String,  { Type::String,  Type::Int }, 2 },
 };
 
 bool starts_with(std::string_view word, std::string_view prefix) {
@@ -61,13 +69,29 @@ bool integer_complete(std::string_view s) {
     return integer_prefix(s) && s != "-";
 }
 
+// A string literal is one token, including its quotes and any spaces inside it.
+// Backslash escapes and line breaks are not part of the literal.
+bool string_literal_prefix(std::string_view s) {
+    if (s.empty() || s.front() != '"') return false;
+    for (size_t i = 1; i < s.size(); ++i) {
+        const unsigned char ch = static_cast<unsigned char>(s[i]);
+        if (ch == '\\' || ch < 0x20 || ch > 0x7e) return false;
+        if (ch == '"') return i + 1 == s.size();
+    }
+    return true;
+}
+
+bool string_literal_complete(std::string_view s) {
+    return s.size() >= 2 && string_literal_prefix(s) && s.back() == '"';
+}
+
 const Operation * operation(std::string_view name) {
     for (const auto & op : operations) if (op.name == name) return &op;
     return nullptr;
 }
 
 bool reserved(std::string_view name) {
-    for (auto keyword : { "main", "func", "Int64", "Bool", "let", "var",
+    for (auto keyword : { "main", "func", "Int64", "Bool", "ListInt64", "String", "let", "var",
                           "if", "else", "while", "break", "continue", "return", "assign", "write",
                           "readInt", "readBool", "refInt", "refBool", "true", "false" }) {
         if (name == keyword) return true;
@@ -78,6 +102,8 @@ bool reserved(std::string_view name) {
 std::optional<Type> parse_type(std::string_view token) {
     if (token == "Int64") return Type::Int;
     if (token == "Bool") return Type::Bool;
+    if (token == "ListInt64") return Type::List;
+    if (token == "String") return Type::String;
     return std::nullopt;
 }
 
@@ -85,6 +111,8 @@ const char * type_name(Type type) {
     switch (type) {
         case Type::Int: return "Int64";
         case Type::Bool: return "Bool";
+        case Type::List: return "ListInt64";
+        case Type::String: return "String";
     }
     return "?";
 }
@@ -182,18 +210,20 @@ bool Prefix::symbol_prefix(Type type, std::string_view partial) const {
 }
 
 bool Prefix::has_atom(Type type) const {
-    return type == Type::Int || type == Type::Bool || symbol_prefix(type, "");
+    return type == Type::Int || type == Type::Bool || type == Type::String || symbol_prefix(type, "");
 }
 
 bool Prefix::atom_possible(Type type, std::string_view partial) const {
     if (type == Type::Int && integer_prefix(partial)) return true;
     if (type == Type::Bool && one_of(partial, { "true", "false" })) return true;
+    if (type == Type::String && string_literal_prefix(partial)) return true;
     return symbol_prefix(type, partial);
 }
 
 bool Prefix::atom_complete(Type type, std::string_view token) const {
     if (type == Type::Int && integer_complete(token)) return true;
     if (type == Type::Bool && (token == "true" || token == "false")) return true;
+    if (type == Type::String && string_literal_complete(token)) return true;
     const auto * symbol = find(token);
     return symbol && symbol->type == type;
 }
@@ -253,7 +283,7 @@ bool Prefix::possible(std::string_view p) const {
         case Phase::ParamColon:
         case Phase::FunctionColon:return one_of(p, { ":" });
         case Phase::ParamType:
-        case Phase::FunctionType:return one_of(p, { "Int64", "Bool" });
+        case Phase::FunctionType:return one_of(p, { "Int64", "Bool", "ListInt64", "String" });
         case Phase::AfterParam:  return one_of(p, { ",", ")" });
         case Phase::FunctionOpen:return one_of(p, { "{" });
         case Phase::OpenParen:   return one_of(p, { "(" });
@@ -269,7 +299,7 @@ bool Prefix::possible(std::string_view p) const {
                 (!blocks_.empty() && one_of(p, { "}" }));
         case Phase::LetName:     return identifier_prefix(p);
         case Phase::LetColon:    return one_of(p, { ":" });
-        case Phase::LetType:     return one_of(p, { "Int64", "Bool" });
+        case Phase::LetType:     return one_of(p, { "Int64", "Bool", "ListInt64", "String" });
         case Phase::LetEqual:    return one_of(p, { "=" });
         case Phase::Rhs:         return atom_possible(new_type_, p) || operation_possible(new_type_, p);
         case Phase::CallOpen:    return one_of(p, { "(" });
@@ -409,6 +439,8 @@ bool Prefix::commit(std::string_view token) {
         case Phase::LetType:
             if      (token == "Int64") new_type_ = Type::Int;
             else if (token == "Bool")  new_type_ = Type::Bool;
+            else if (token == "ListInt64") new_type_ = Type::List;
+            else if (token == "String") new_type_ = Type::String;
             else return false;
             phase_ = Phase::LetEqual;
             return true;
@@ -505,7 +537,26 @@ bool Prefix::commit(std::string_view token) {
     return false;
 }
 
+bool Prefix::string_literal_context() const {
+    return expects_atom() && expected_atom_type() == Type::String;
+}
+
 bool Prefix::step(unsigned char ch) {
+    if (quoting_) {
+        if (ch == '"') {
+            pending_.push_back('"');
+            quoting_ = false;
+            const std::string token = std::move(pending_);
+            pending_.clear();
+            return commit(token);
+        }
+        // A space stays inside the literal. Tabs, line breaks, and backslashes do not.
+        if (ch == ' ' || (ch >= 0x21 && ch <= 0x7e && ch != '\\')) {
+            pending_.push_back(static_cast<char>(ch));
+            return true;
+        }
+        return false;
+    }
     if (ch == ' ' || ch == '\n' || ch == '\t' || ch == '\r') {
         if (pending_.empty()) return true;
         const std::string token = std::move(pending_);
@@ -535,6 +586,12 @@ bool Prefix::step(unsigned char ch) {
             if (!commit(token)) return false;
         }
         return commit(std::string(1, static_cast<char>(ch)));
+    }
+    if (ch == '"') {
+        if (!pending_.empty() || !string_literal_context()) return false;
+        quoting_ = true;
+        pending_ = "\"";
+        return true;
     }
     pending_.push_back(static_cast<char>(ch));
     return possible(pending_);
@@ -594,6 +651,8 @@ std::string Prefix::diagnose_message(std::string_view lexeme) const {
             found = Type::Bool;
         } else if (integer_complete(lexeme)) {
             found = Type::Int;
+        } else if (string_literal_complete(lexeme)) {
+            found = Type::String;
         } else if (const auto * symbol = find(lexeme)) {
             found = symbol->type;
         }
@@ -763,6 +822,12 @@ std::string Prefix::completion_atom(Type type) const {
             if (starts_with(literal, pending_)) return literal;
         }
     }
+    if (type == Type::String) {
+        if (pending_.empty()) return "\"\"";
+        if (string_literal_prefix(pending_) && !string_literal_complete(pending_))
+            return std::string(pending_) + "\"";
+        if (string_literal_complete(pending_)) return std::string(pending_);
+    }
     for (const auto & symbol : symbols_) {
         if (symbol.type == type && starts_with(symbol.name, pending_)) return symbol.name;
     }
@@ -792,7 +857,7 @@ std::string Prefix::completion_token() const {
         case Phase::ParamColon:
         case Phase::FunctionColon:return fixed({ ":" });
         case Phase::ParamType:
-        case Phase::FunctionType:return fixed({ "Int64", "Bool" });
+        case Phase::FunctionType:return fixed({ "Int64", "Bool", "ListInt64", "String" });
         case Phase::AfterParam:  return fixed({ ")", "," });
         case Phase::FunctionOpen:return fixed({ "{" });
         case Phase::OpenParen:   return fixed({ "(" });
@@ -826,7 +891,7 @@ std::string Prefix::completion_token() const {
         case Phase::LetName:     return fresh_name();
         case Phase::LetColon:    return fixed({ ":" });
         case Phase::LetType:
-            return fixed({ "Int64", "Bool" });
+            return fixed({ "Int64", "Bool", "ListInt64", "String" });
         case Phase::LetEqual:    return fixed({ "=" });
         case Phase::Rhs: {
             if (const auto atom = completion_atom(new_type_); !atom.empty()) return atom;
@@ -888,6 +953,8 @@ std::string Prefix::expected_for_debug() const {
         switch (type) {
             case Type::Int: return "Int64";
             case Type::Bool: return "Bool";
+            case Type::List: return "ListInt64";
+            case Type::String: return "String";
         }
         return "?";
     };
