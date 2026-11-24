@@ -109,9 +109,9 @@ Both arms are asked for `solve`. The typed language reserves names such as `add(
   loading multiple model instances simultaneously.
 - Defaults: one sample per task/mode, temperature 0.8, seed 42, physical batch
   size 64. `--ngl 0` selects CPU inference.
-- Each task's `--n` is twice the language-token count of its typed reference.
-  A string literal counts as one token. Both arms use that budget, recorded in
-  `code_tokens_by_task` and the per-attempt results.
+- Each task's `--n` is twice the model's token count of its typed reference,
+  or **2048**, whichever is higher. Both arms use that budget. `model_tokens_by_task`
+  and `code_tokens_by_task` record the count and the budget.
 - Planning, code generation, compilation, and execution have separate wall-clock
   limits (`600`, `300`, `20`, and `5` seconds by default). The execution limit is
   per `std.unittest` case via `--timeout-each`; the process-group backstop is

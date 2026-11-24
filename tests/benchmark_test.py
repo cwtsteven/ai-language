@@ -16,6 +16,9 @@ from benchmarks import run as bench
 
 
 SUITE = bench.load_suite(bench.ROOT / "benchmarks/tasks.json")
+for task in SUITE["tasks"]:
+    task["model_tokens"] = 100
+    task["code_tokens"] = bench.code_budget_for(task["model_tokens"])
 ADD = next(task for task in SUITE["tasks"] if task["id"] == "he_053_add")
 CLI = os.environ.get("BENCHMARK_CLI", str(bench.ROOT / "build/typed-cangjie"))
 TRANSLATOR = os.environ.get("BENCHMARK_TRANSLATOR", str(bench.ROOT / "build/emit-cangjie"))
@@ -36,6 +39,15 @@ def process(code=0, stdout="", timed_out=False):
 
 
 class BenchmarkTests(unittest.TestCase):
+    def setUp(self):
+        self.token_counts = patch.object(
+            bench, "model_token_counts",
+            side_effect=lambda model, paths: [100] * len(list(paths)))
+        self.token_counts.start()
+
+    def tearDown(self):
+        self.token_counts.stop()
+
     def test_normal_run_generates_every_task_in_both_modes_with_planning(self):
         self.run_generation_fixture()
 
@@ -377,19 +389,24 @@ class BenchmarkTests(unittest.TestCase):
             self.assertIn((bench.ROOT / "docs/cangjie-subset.md").read_text(),
                           Path(cangjie[cangjie.index("--system-file") + 1]).read_text())
 
-    def test_code_budget_is_twice_the_reference(self):
+    def test_code_budget_is_twice_the_model_tokens_or_2048(self):
         addition = "func solve(x: Int64, y: Int64): Int64 {\n    let result: Int64 = add(x, y);\n    return result;\n}\nmain(): Int64 { return 0; }\n"
         self.assertEqual(bench.reference_token_count(addition), bench.reference_token_count(
             (bench.ROOT / "benchmarks/references/he_053_add.typed").read_text()))
         self.assertEqual(bench.reference_token_count('let text: String = "a b";'), 7)
+        self.assertEqual(bench.code_budget_for(100), 2048)
+        self.assertEqual(bench.code_budget_for(1024), 2048)
+        self.assertEqual(bench.code_budget_for(1025), 2050)
+        task = copy.deepcopy(ADD)
+        with patch.object(bench, "model_token_counts", return_value=[1500]):
+            bench.assign_code_budgets([task], Path("model.gguf"), bench.ROOT / "benchmarks")
+        self.assertEqual(task["model_tokens"], 1500)
+        self.assertEqual(task["code_tokens"], 3000)
         with tempfile.TemporaryDirectory() as temporary:
             directory = Path(temporary)
-            for task in SUITE["tasks"]:
-                self.assertEqual(task["code_tokens"], task["reference_tokens"] * 2)
-                self.assertGreater(task["reference_tokens"], 0)
-                for mode in bench.MODES:
-                    command = bench.generation_command(settings(), task, mode, 42, directory)
-                    self.assertEqual(command[command.index("--n") + 1], str(task["code_tokens"]))
+            for mode in bench.MODES:
+                command = bench.generation_command(settings(), task, mode, 42, directory)
+                self.assertEqual(command[command.index("--n") + 1], "3000")
 
     def test_unittest_harness_renames_main_and_parses_summary(self):
         renamed = bench.rename_candidate_main("main(): Int64 {\n    return 0\n}\n")

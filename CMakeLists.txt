@@ -57,6 +57,10 @@ add_executable(plain-llama src/plain_main.cpp)
 target_link_libraries(plain-llama PRIVATE token_sampling model_plugin language_spec)
 target_compile_features(plain-llama PRIVATE cxx_std_17)
 
+add_executable(count-tokens src/count_tokens.cpp)
+target_link_libraries(count-tokens PRIVATE llama)
+target_compile_features(count-tokens PRIVATE cxx_std_17)
+
 enable_testing()
 add_test(NAME typed-prefix-test COMMAND typed-prefix-test)
 add_executable(functions-test tests/functions_test.cpp)

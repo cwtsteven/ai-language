@@ -32,6 +32,7 @@ from prompts import code_user, planning_user, system_text, task_text
 ROOT = Path(__file__).resolve().parents[1]
 MODES = ("constrained", "cangjie")
 NAME = re.compile(r"[a-z][a-zA-Z0-9_]*\Z")
+MINIMUM_CODE_TOKENS = 2048
 
 
 @contextlib.contextmanager
@@ -201,13 +202,49 @@ def load_suite(path):
         reference = path.parent / task["reference"]
         if not reference.is_file():
             raise ValueError(f"missing reference: {reference}")
-        tokens = reference_token_count(reference.read_text())
-        budget = tokens * 2
-        if budget >= 2**31:
-            raise ValueError("code token budget does not fit a signed 32-bit integer")
-        task["reference_tokens"] = tokens
-        task["code_tokens"] = budget
     return suite
+
+
+def code_budget_for(model_tokens):
+    """Code token budget: twice the reference in model tokens, and at least 2048."""
+    if model_tokens <= 0:
+        raise ValueError("reference model-token count must be positive")
+    budget = max(model_tokens * 2, MINIMUM_CODE_TOKENS)
+    if budget >= 2**31:
+        raise ValueError("code token budget does not fit a signed 32-bit integer")
+    return budget
+
+
+def model_token_counts(model_path, paths):
+    """Token counts from the GGUF vocabulary. One count per reference file."""
+    counter = ROOT / "build" / "count-tokens"
+    if not counter.is_file():
+        raise ValueError(f"missing {counter}; rebuild the project")
+    paths = [Path(path) for path in paths]
+    result = subprocess.run([str(counter), str(model_path), *[str(path) for path in paths]],
+                            capture_output=True, text=True)
+    if result.returncode != 0:
+        detail = result.stderr.strip() or "tokenizer failed"
+        raise ValueError(detail)
+    lines = [line for line in result.stdout.splitlines() if line.strip()]
+    if len(lines) != len(paths):
+        raise ValueError("tokenizer returned the wrong number of counts")
+    counts = []
+    for line in lines:
+        if not line.isdigit():
+            raise ValueError(f"invalid token count: {line}")
+        count = int(line)
+        if count <= 0:
+            raise ValueError(f"invalid token count: {line}")
+        counts.append(count)
+    return counts
+
+
+def assign_code_budgets(tasks, model_path, suite_dir):
+    paths = [Path(suite_dir) / task["reference"] for task in tasks]
+    for task, count in zip(tasks, model_token_counts(model_path, paths)):
+        task["model_tokens"] = count
+        task["code_tokens"] = code_budget_for(count)
 
 
 def task_prompt(task):
@@ -268,7 +305,7 @@ def generation_command(args, task, mode, seed, directory, plan_file=None):
 
 
 def code_budget(task):
-    """Code token budget: twice the reference implementation's language-token count."""
+    """Code token budget already derived from the loaded model's tokenizer."""
     return task["code_tokens"]
 
 
@@ -798,6 +835,7 @@ def main(argv=None):
             if args.model.suffix.lower() == ".json":
                 weights = json.loads(args.model.read_text())["model"]
                 model_files.append((args.model.parent / weights).resolve(strict=True))
+            assign_code_budgets(tasks, model_files[-1], args.suite.parent)
         timestamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
         output = (args.output or ROOT / "benchmark-results" / timestamp).resolve()
         output.mkdir(parents=True, exist_ok=False)
@@ -811,7 +849,8 @@ def main(argv=None):
                   "plan_source": "saved" if args.plans is not None else ("local_model" if args.plan else "none"),
                   "saved_plans": str(args.plans) if args.plans is not None else None,
                   "local_planning": bool(args.plan and args.plans is None),
-                  "code_tokens_by_task": {t["id"]: code_budget(t) for t in tasks},
+                  "model_tokens_by_task": {t["id"]: t["model_tokens"] for t in tasks} if not args.validate else {},
+                  "code_tokens_by_task": {t["id"]: code_budget(t) for t in tasks} if not args.validate else {},
                   "ngl": args.ngl, "ubatch": args.ubatch, "cli": str(args.cli), "cli_sha256": sha256(args.cli),
                   "plain": None if args.validate else str(args.plain),
                   "plain_sha256": None if args.validate else sha256(args.plain),
