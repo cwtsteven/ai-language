@@ -272,8 +272,7 @@ def planning_command(args, task, seed, mode, directory):
                    "--ubatch", str(args.ubatch)]
     else:
         raise ValueError(f"unknown mode: {mode}")
-    if args.ngl is not None:
-        command.extend(["--ngl", str(args.ngl)])
+    append_runtime_flags(command, args)
     return command
 
 
@@ -299,9 +298,14 @@ def generation_command(args, task, mode, seed, directory, plan_file=None):
                    "--ubatch", str(args.ubatch)]
     else:
         raise ValueError(f"unknown mode: {mode}")
-    if args.ngl is not None:
-        command.extend(["--ngl", str(args.ngl)])
+    append_runtime_flags(command, args)
     return command
+
+
+def append_runtime_flags(command, args):
+    command.extend(["--threads", str(getattr(args, "threads", 4))])
+    if getattr(args, "ngl", None) is not None:
+        command.extend(["--ngl", str(args.ngl)])
 
 
 def code_budget(task):
@@ -778,6 +782,7 @@ def main(argv=None):
                         help="given-plan mode: generate from saved plans and do not call the planner. "
                              "DIR is a --plan-only output, or <task>/typed.txt and <task>/cangjie.txt")
     parser.add_argument("--ngl", type=int, help="GPU layer override for both modes")
+    parser.add_argument("--threads", type=positive, default=4, help="CPU threads for prompt processing and generation")
     parser.add_argument("--ubatch", type=positive, default=64, help="physical prompt batch size for both modes")
     parser.add_argument("--planning-timeout", type=float, default=600, help="wall seconds for each arm's planning stage")
     parser.add_argument("--generation-timeout", type=float, default=300, help="wall seconds per code generation attempt")
@@ -799,8 +804,8 @@ def main(argv=None):
         parser.error("temperature must be finite and nonnegative; seed must be an unsigned 32-bit integer")
     if args.ngl is not None and args.ngl < 0:
         parser.error("--ngl must be nonnegative")
-    if args.ubatch >= 2**31 or (args.ngl is not None and args.ngl >= 2**31):
-        parser.error("--ubatch and --ngl must fit signed 32-bit integers")
+    if args.ubatch >= 2**31 or args.threads >= 2**31 or (args.ngl is not None and args.ngl >= 2**31):
+        parser.error("--ubatch, --threads, and --ngl must fit signed 32-bit integers")
     if any(not math.isfinite(t) or t <= 0 for t in
            (args.planning_timeout, args.generation_timeout, args.compile_timeout, args.run_timeout)):
         parser.error("timeouts must be finite and positive")
@@ -851,7 +856,8 @@ def main(argv=None):
                   "local_planning": bool(args.plan and args.plans is None),
                   "model_tokens_by_task": {t["id"]: t["model_tokens"] for t in tasks} if not args.validate else {},
                   "code_tokens_by_task": {t["id"]: code_budget(t) for t in tasks} if not args.validate else {},
-                  "ngl": args.ngl, "ubatch": args.ubatch, "cli": str(args.cli), "cli_sha256": sha256(args.cli),
+                  "ngl": args.ngl, "threads": args.threads, "ubatch": args.ubatch,
+                  "cli": str(args.cli), "cli_sha256": sha256(args.cli),
                   "plain": None if args.validate else str(args.plain),
                   "plain_sha256": None if args.validate else sha256(args.plain),
                   "compiler": args.cjc, "compiler_version": execute([args.cjc, "--version"], 10).stdout.strip(),
