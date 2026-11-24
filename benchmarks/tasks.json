@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "name": "humaneval-scalar-anf-v1",
-  "description": "Adapted scalar subset, not the official HumanEval benchmark or score.",
+  "description": "Adapted HumanEval subset using Int64, Bool, ListInt64, and String. Not an official HumanEval score.",
   "upstream": {
     "repository": "https://github.com/openai/human-eval",
     "revision": "b9453e8f1865df0a0057a1383767caa400acfbcf",
@@ -9,7 +9,7 @@
     "license": "MIT"
   },
   "adaptations": [
-    "Select 12 problems expressible with Int64 and Bool. The language also has ListInt64 and String; floats, tuples, and other collections are still absent.",
+    "Select problems expressible with Int64, Bool, ListInt64, and String. Floats, tuples, nested lists, lists of strings, and optional results are still absent.",
     "Rename each entry point to solve, avoiding reserved built-ins such as add.",
     "Require a complete typed-language program with helpers before solve and a dummy main.",
     "Retain all literal upstream assertions for selected tasks and add deterministic boundary and seeded-random cases as checked-in std.unittest files under cjtests/.",
@@ -17,6 +17,78 @@
   ],
   "extra_test_seed": 20261123,
   "tasks": [
+    {
+      "id": "he_003_below_zero",
+      "source_id": "HumanEval/3",
+      "original_entry_point": "below_zero",
+      "entry_point": "solve",
+      "parameters": [
+        {
+          "name": "operations",
+          "type": "ListInt64"
+        }
+      ],
+      "return_type": "Bool",
+      "description": "Return true exactly when the running sum of operations falls below zero. An empty list does not. The list has at most 12 values, each between -20 and 20.",
+      "reference": "references/he_003_below_zero.typed",
+      "upstream_literal_tests": 6
+    },
+    {
+      "id": "he_005_intersperse",
+      "source_id": "HumanEval/5",
+      "original_entry_point": "intersperse",
+      "entry_point": "solve",
+      "parameters": [
+        {
+          "name": "numbers",
+          "type": "ListInt64"
+        },
+        {
+          "name": "delimiter",
+          "type": "Int64"
+        }
+      ],
+      "return_type": "ListInt64",
+      "description": "Return numbers with delimiter inserted between neighbors, not after the last value. An empty list stays empty. The list has at most 8 values, each between -10 and 30, and the delimiter is in that range.",
+      "reference": "references/he_005_intersperse.typed",
+      "upstream_literal_tests": 3
+    },
+    {
+      "id": "he_009_rolling_max",
+      "source_id": "HumanEval/9",
+      "original_entry_point": "rolling_max",
+      "entry_point": "solve",
+      "parameters": [
+        {
+          "name": "numbers",
+          "type": "ListInt64"
+        }
+      ],
+      "return_type": "ListInt64",
+      "description": "Return the running maximum of numbers, one value per input element. An empty list stays empty. The list has at most 8 values, each between -20 and 100.",
+      "reference": "references/he_009_rolling_max.typed",
+      "upstream_literal_tests": 4
+    },
+    {
+      "id": "he_011_string_xor",
+      "source_id": "HumanEval/11",
+      "original_entry_point": "string_xor",
+      "entry_point": "solve",
+      "parameters": [
+        {
+          "name": "left",
+          "type": "String"
+        },
+        {
+          "name": "right",
+          "type": "String"
+        }
+      ],
+      "return_type": "String",
+      "description": "Return the character-wise exclusive or of two equal-length strings of the characters 0 and 1. Equal characters become 0 and different characters become 1. Each string has length 1 to 8.",
+      "reference": "references/he_011_string_xor.typed",
+      "upstream_literal_tests": 3
+    },
     {
       "id": "he_013_gcd",
       "source_id": "HumanEval/13",
@@ -38,6 +110,106 @@
       "upstream_literal_tests": 4
     },
     {
+      "id": "he_015_string_sequence",
+      "source_id": "HumanEval/15",
+      "original_entry_point": "string_sequence",
+      "entry_point": "solve",
+      "parameters": [
+        {
+          "name": "n",
+          "type": "Int64"
+        }
+      ],
+      "return_type": "String",
+      "description": "Return the decimal numerals from 0 through n, separated by single spaces. n is an integer from 0 to 12.",
+      "reference": "references/he_015_string_sequence.typed",
+      "upstream_literal_tests": 3
+    },
+    {
+      "id": "he_018_how_many_times",
+      "source_id": "HumanEval/18",
+      "original_entry_point": "how_many_times",
+      "entry_point": "solve",
+      "parameters": [
+        {
+          "name": "text",
+          "type": "String"
+        },
+        {
+          "name": "pattern",
+          "type": "String"
+        }
+      ],
+      "return_type": "Int64",
+      "description": "Return how many times pattern occurs in text, counting overlapping occurrences. pattern is nonempty and no longer than text when it occurs. Both strings are printable ASCII without quotes or backslashes, and text has length at most 16.",
+      "reference": "references/he_018_how_many_times.typed",
+      "upstream_literal_tests": 4
+    },
+    {
+      "id": "he_023_strlen",
+      "source_id": "HumanEval/23",
+      "original_entry_point": "strlen",
+      "entry_point": "solve",
+      "parameters": [
+        {
+          "name": "text",
+          "type": "String"
+        }
+      ],
+      "return_type": "Int64",
+      "description": "Return the number of characters in text. text is printable ASCII without quotes or backslashes and has length at most 16.",
+      "reference": "references/he_023_strlen.typed",
+      "upstream_literal_tests": 3
+    },
+    {
+      "id": "he_024_largest_divisor",
+      "source_id": "HumanEval/24",
+      "original_entry_point": "largest_divisor",
+      "entry_point": "solve",
+      "parameters": [
+        {
+          "name": "n",
+          "type": "Int64"
+        }
+      ],
+      "return_type": "Int64",
+      "description": "Return the largest positive divisor of n that is strictly less than n. n is an integer from 2 to 200.",
+      "reference": "references/he_024_largest_divisor.typed",
+      "upstream_literal_tests": 5
+    },
+    {
+      "id": "he_025_factorize",
+      "source_id": "HumanEval/25",
+      "original_entry_point": "factorize",
+      "entry_point": "solve",
+      "parameters": [
+        {
+          "name": "n",
+          "type": "Int64"
+        }
+      ],
+      "return_type": "ListInt64",
+      "description": "Return the prime factors of n from smallest to largest, repeating a prime as many times as it divides n. n is an integer from 2 to 200000.",
+      "reference": "references/he_025_factorize.typed",
+      "upstream_literal_tests": 8
+    },
+    {
+      "id": "he_030_get_positive",
+      "source_id": "HumanEval/30",
+      "original_entry_point": "get_positive",
+      "entry_point": "solve",
+      "parameters": [
+        {
+          "name": "numbers",
+          "type": "ListInt64"
+        }
+      ],
+      "return_type": "ListInt64",
+      "description": "Return the positive values from numbers, in their original order. Zero and negative values are omitted. The list has at most 12 values, each between -20 and 150.",
+      "reference": "references/he_030_get_positive.typed",
+      "upstream_literal_tests": 4
+    },
+    {
       "id": "he_031_is_prime",
       "source_id": "HumanEval/31",
       "original_entry_point": "is_prime",
@@ -54,6 +226,38 @@
       "upstream_literal_tests": 12
     },
     {
+      "id": "he_034_unique",
+      "source_id": "HumanEval/34",
+      "original_entry_point": "unique",
+      "entry_point": "solve",
+      "parameters": [
+        {
+          "name": "numbers",
+          "type": "ListInt64"
+        }
+      ],
+      "return_type": "ListInt64",
+      "description": "Return the distinct values of numbers sorted from smallest to largest. The list has at most 12 values, each between -10 and 150.",
+      "reference": "references/he_034_unique.typed",
+      "upstream_literal_tests": 1
+    },
+    {
+      "id": "he_035_max_element",
+      "source_id": "HumanEval/35",
+      "original_entry_point": "max_element",
+      "entry_point": "solve",
+      "parameters": [
+        {
+          "name": "numbers",
+          "type": "ListInt64"
+        }
+      ],
+      "return_type": "Int64",
+      "description": "Return the largest value in numbers. The list is nonempty, has at most 12 values, and each value is between -20 and 150.",
+      "reference": "references/he_035_max_element.typed",
+      "upstream_literal_tests": 2
+    },
+    {
       "id": "he_041_collisions",
       "source_id": "HumanEval/41",
       "original_entry_point": "car_race_collision",
@@ -68,6 +272,54 @@
       "description": "Two groups of n cars travel toward each other along one straight road, all at equal speed. Each car passes through every oncoming car and continues. Return the total number of encounters between the groups. n is nonnegative.",
       "reference": "references/he_041_collisions.typed",
       "upstream_literal_tests": 5
+    },
+    {
+      "id": "he_042_incr_list",
+      "source_id": "HumanEval/42",
+      "original_entry_point": "incr_list",
+      "entry_point": "solve",
+      "parameters": [
+        {
+          "name": "numbers",
+          "type": "ListInt64"
+        }
+      ],
+      "return_type": "ListInt64",
+      "description": "Return numbers with one added to every value. An empty list stays empty. The list has at most 12 values, each between -20 and 150.",
+      "reference": "references/he_042_incr_list.typed",
+      "upstream_literal_tests": 3
+    },
+    {
+      "id": "he_043_pairs_sum",
+      "source_id": "HumanEval/43",
+      "original_entry_point": "pairs_sum_to_zero",
+      "entry_point": "solve",
+      "parameters": [
+        {
+          "name": "numbers",
+          "type": "ListInt64"
+        }
+      ],
+      "return_type": "Bool",
+      "description": "Return true exactly when two values at different positions sum to zero. The list has at most 10 values, each between -30 and 30.",
+      "reference": "references/he_043_pairs_sum.typed",
+      "upstream_literal_tests": 9
+    },
+    {
+      "id": "he_048_palindrome",
+      "source_id": "HumanEval/48",
+      "original_entry_point": "is_palindrome",
+      "entry_point": "solve",
+      "parameters": [
+        {
+          "name": "text",
+          "type": "String"
+        }
+      ],
+      "return_type": "Bool",
+      "description": "Return true exactly when text reads the same forwards and backwards. The empty string is a palindrome. text is lowercase ASCII letters and has length at most 12.",
+      "reference": "references/he_048_palindrome.typed",
+      "upstream_literal_tests": 7
     },
     {
       "id": "he_049_modp",
@@ -90,6 +342,26 @@
       "upstream_literal_tests": 7
     },
     {
+      "id": "he_052_below_threshold",
+      "source_id": "HumanEval/52",
+      "original_entry_point": "below_threshold",
+      "entry_point": "solve",
+      "parameters": [
+        {
+          "name": "numbers",
+          "type": "ListInt64"
+        },
+        {
+          "name": "limit",
+          "type": "Int64"
+        }
+      ],
+      "return_type": "Bool",
+      "description": "Return true exactly when every value in numbers is strictly less than limit. An empty list returns true. The list has at most 8 values, each between -5 and 100, and limit is in that range.",
+      "reference": "references/he_052_below_threshold.typed",
+      "upstream_literal_tests": 6
+    },
+    {
       "id": "he_053_add",
       "source_id": "HumanEval/53",
       "original_entry_point": "add",
@@ -110,6 +382,26 @@
       "upstream_literal_tests": 5
     },
     {
+      "id": "he_054_same_chars",
+      "source_id": "HumanEval/54",
+      "original_entry_point": "same_chars",
+      "entry_point": "solve",
+      "parameters": [
+        {
+          "name": "left",
+          "type": "String"
+        },
+        {
+          "name": "right",
+          "type": "String"
+        }
+      ],
+      "return_type": "Bool",
+      "description": "Return true exactly when left and right use the same set of characters. Order and repeated characters do not matter. Both strings are lowercase letters and have length at most 20.",
+      "reference": "references/he_054_same_chars.typed",
+      "upstream_literal_tests": 7
+    },
+    {
       "id": "he_055_fibonacci",
       "source_id": "HumanEval/55",
       "original_entry_point": "fib",
@@ -125,6 +417,38 @@
       "reference": "references/he_055_fibonacci.typed",
       "upstream_literal_tests": 5,
       "min_code_tokens": 2048
+    },
+    {
+      "id": "he_056_angle_brackets",
+      "source_id": "HumanEval/56",
+      "original_entry_point": "correct_bracketing",
+      "entry_point": "solve",
+      "parameters": [
+        {
+          "name": "text",
+          "type": "String"
+        }
+      ],
+      "return_type": "Bool",
+      "description": "Return true exactly when text is a correctly matched string of < and > brackets. The empty string is matched. text has length at most 40.",
+      "reference": "references/he_056_angle_brackets.typed",
+      "upstream_literal_tests": 12
+    },
+    {
+      "id": "he_057_monotonic",
+      "source_id": "HumanEval/57",
+      "original_entry_point": "monotonic",
+      "entry_point": "solve",
+      "parameters": [
+        {
+          "name": "numbers",
+          "type": "ListInt64"
+        }
+      ],
+      "return_type": "Bool",
+      "description": "Return true exactly when numbers is sorted nondecreasing or nonincreasing. Equal neighbors are allowed. The list has at most 8 values, each between -20 and 60.",
+      "reference": "references/he_057_monotonic.typed",
+      "upstream_literal_tests": 8
     },
     {
       "id": "he_059_prime_factor",
@@ -159,6 +483,22 @@
       "upstream_literal_tests": 5
     },
     {
+      "id": "he_061_parens",
+      "source_id": "HumanEval/61",
+      "original_entry_point": "correct_bracketing",
+      "entry_point": "solve",
+      "parameters": [
+        {
+          "name": "text",
+          "type": "String"
+        }
+      ],
+      "return_type": "Bool",
+      "description": "Return true exactly when text is a correctly matched string of parentheses. The empty string is matched. text has length at most 40.",
+      "reference": "references/he_061_parens.typed",
+      "upstream_literal_tests": 12
+    },
+    {
       "id": "he_063_fibfib",
       "source_id": "HumanEval/63",
       "original_entry_point": "fibfib",
@@ -174,6 +514,22 @@
       "reference": "references/he_063_fibfib.typed",
       "upstream_literal_tests": 7,
       "min_code_tokens": 2048
+    },
+    {
+      "id": "he_085_even_at_odd",
+      "source_id": "HumanEval/85",
+      "original_entry_point": "add",
+      "entry_point": "solve",
+      "parameters": [
+        {
+          "name": "numbers",
+          "type": "ListInt64"
+        }
+      ],
+      "return_type": "Int64",
+      "description": "Return the sum of the even values at odd indexes. Index 0 is the first element, and an even negative value counts. The list has at most 10 values, each between -50 and 200.",
+      "reference": "references/he_085_even_at_odd.typed",
+      "upstream_literal_tests": 4
     },
     {
       "id": "he_097_unit_digits",
@@ -194,6 +550,22 @@
       "description": "Return the product of the decimal units digits of the absolute values of a and b. The inputs may be negative and have absolute values at most ten thousand.",
       "reference": "references/he_097_unit_digits.typed",
       "upstream_literal_tests": 8
+    },
+    {
+      "id": "he_126_sorted_limited",
+      "source_id": "HumanEval/126",
+      "original_entry_point": "is_sorted",
+      "entry_point": "solve",
+      "parameters": [
+        {
+          "name": "numbers",
+          "type": "ListInt64"
+        }
+      ],
+      "return_type": "Bool",
+      "description": "Return true exactly when numbers is sorted nondecreasing and no value occurs more than twice. An empty list returns true. The list has at most 10 values, each between -5 and 10.",
+      "reference": "references/he_126_sorted_limited.typed",
+      "upstream_literal_tests": 13
     },
     {
       "id": "he_138_four_even",
@@ -234,6 +606,26 @@
       "description": "Return x when n is prime, otherwise return y. Integers smaller than two are not prime. x and y may be negative.",
       "reference": "references/he_150_prime_choice.typed",
       "upstream_literal_tests": 10
+    },
+    {
+      "id": "he_163_even_digits",
+      "source_id": "HumanEval/163",
+      "original_entry_point": "generate_integers",
+      "entry_point": "solve",
+      "parameters": [
+        {
+          "name": "a",
+          "type": "Int64"
+        },
+        {
+          "name": "b",
+          "type": "Int64"
+        }
+      ],
+      "return_type": "ListInt64",
+      "description": "Return the even integers from 2 through 8 that lie between a and b, inclusive, in ascending order. The order of a and b does not matter. a and b are integers from 0 to 200.",
+      "reference": "references/he_163_even_digits.typed",
+      "upstream_literal_tests": 4
     }
   ]
 }

@@ -31,16 +31,15 @@ The Cangjie planner is `plain-llama` with the Cangjie specification and no token
 Each arm then generates from its own plan. The typed arm's stdout is already Cangjie.
 Cangjie-arm programs are compiled as generated. Both are scored with the
 checked-in `std.unittest` files under [cjtests/](cjtests/); the Cangjie arm calls
-`solve` where the translated arm calls `typed_fn_solve`. The 366 `@Test` cases are
-inputs for the 12 generated functions, not 366 separate prompts. Reference validation
+`solve` where the translated arm calls `typed_fn_solve`. The 592 `@Test` cases are
+inputs for the 35 generated functions, not 592 separate prompts. Reference validation
 checks the typed evaluator; it is not a model benchmark result.
 
 ## Suite and provenance
 
-The bundled `humaneval-scalar-anf-v1` suite adapts **12 of HumanEval's 164 tasks**
-to this project's Int64/Bool language. It contains **366 cases**, including **81
-distinct literal upstream input cases**, plus fixed boundary and seeded-random
-cases. The cases live in [cjtests/](cjtests/) as one `@Test` / `@Expect` per
+The bundled `humaneval-scalar-anf-v1` suite adapts **35 of HumanEval's 164 tasks**
+to Int64, Bool, ListInt64, and String. It contains **592 cases**, including **212
+distinct literal upstream input cases**, plus fixed boundary cases. The cases live in [cjtests/](cjtests/) as one `@Test` / `@Expect` per
 input against `typed_fn_solve`. [tasks.json](tasks.json) holds signatures,
 prompts, and provenance only. The suite does not use the upstream randomized
 loops. These are **not official HumanEval or HumanEval+ scores**.
@@ -54,21 +53,44 @@ recorded in [tasks.json](tasks.json). HumanEval's MIT notice is retained in
 
 | Task ID | HumanEval task | Result |
 | --- | --- | --- |
+| `he_003_below_zero` | 3: below_zero | Bool |
+| `he_005_intersperse` | 5: intersperse | ListInt64 |
+| `he_009_rolling_max` | 9: rolling_max | ListInt64 |
+| `he_011_string_xor` | 11: string_xor | String |
 | `he_013_gcd` | 13: greatest_common_divisor | Int64 |
+| `he_015_string_sequence` | 15: string_sequence | String |
+| `he_018_how_many_times` | 18: how_many_times | Int64 |
+| `he_023_strlen` | 23: strlen | Int64 |
+| `he_024_largest_divisor` | 24: largest_divisor | Int64 |
+| `he_025_factorize` | 25: factorize | ListInt64 |
+| `he_030_get_positive` | 30: get_positive | ListInt64 |
 | `he_031_is_prime` | 31: is_prime | Bool |
+| `he_034_unique` | 34: unique | ListInt64 |
+| `he_035_max_element` | 35: max_element | Int64 |
 | `he_041_collisions` | 41: car_race_collision | Int64 |
+| `he_042_incr_list` | 42: incr_list | ListInt64 |
+| `he_043_pairs_sum` | 43: pairs_sum_to_zero | Bool |
+| `he_048_palindrome` | 48: is_palindrome | Bool |
 | `he_049_modp` | 49: modp | Int64 |
+| `he_052_below_threshold` | 52: below_threshold | Bool |
 | `he_053_add` | 53: add | Int64 |
+| `he_054_same_chars` | 54: same_chars | Bool |
 | `he_055_fibonacci` | 55: fib | Int64 |
+| `he_056_angle_brackets` | 56: correct_bracketing | Bool |
+| `he_057_monotonic` | 57: monotonic | Bool |
 | `he_059_prime_factor` | 59: largest_prime_factor | Int64 |
 | `he_060_sum_to_n` | 60: sum_to_n | Int64 |
+| `he_061_parens` | 61: correct_bracketing | Bool |
 | `he_063_fibfib` | 63: fibfib | Int64 |
+| `he_085_even_at_odd` | 85: add | Int64 |
 | `he_097_unit_digits` | 97: multiply | Int64 |
+| `he_126_sorted_limited` | 126: is_sorted | Bool |
 | `he_138_four_even` | 138: is_equal_to_sum_even | Bool |
 | `he_150_prime_choice` | 150: x_or_y | Int64 |
+| `he_163_even_digits` | 163: generate_integers | ListInt64 |
 
-The typed language also has `ListInt64` and `String`. Floats, tuples, and other collections still cannot be expressed.
-The selected tasks use bounded Int64 input domains stated in their prompts, with
+Floats, tuples, nested lists, lists of strings, and optional results still cannot be expressed.
+The selected tasks use the bounded domains stated in their prompts, with
 all expected results fitting Int64. Inputs with zero, negative values, repeated
 factors, sequence boundaries, and large results are included where applicable.
 Both arms are asked for `solve`. The typed language reserves names such as `add`,

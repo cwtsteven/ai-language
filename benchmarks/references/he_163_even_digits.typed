@@ -1,0 +1,76 @@
+func mod(left: Int64, right: Int64): Int64 {
+    var u1: Int64 = left;
+    while (true) {
+        let v2: Bool = lt(u1, right);
+        if (v2) {
+            return u1;
+        } else {
+        }
+        let v3: Int64 = sub(u1, right);
+        u1 = v3;
+    }
+}
+func isEven(value: Int64): Bool {
+    let v4: Bool = lt(value, 0);
+    var u5: Int64 = value;
+    if (v4) {
+        let v6: Int64 = sub(0, value);
+        u5 = v6;
+    } else {
+    }
+    let v7: Int64 = mod(u5, 2);
+    let v8: Bool = eq(v7, 0);
+    return v8;
+}
+func solve(a: Int64, b: Int64): ListInt64 {
+    let v9: Bool = lt(a, b);
+    var u10: Int64 = a;
+    var u11: Int64 = b;
+    if (v9) {
+    } else {
+        u10 = b;
+        u11 = a;
+    }
+    let v12: Bool = lt(u10, 2);
+    if (v12) {
+        u10 = 2;
+    } else {
+    }
+    let v13: Bool = lt(8, u11);
+    if (v13) {
+        u11 = 8;
+    } else {
+    }
+    let v14: Bool = lt(u11, u10);
+    if (v14) {
+        let v15: ListInt64 = emptyList();
+        return v15;
+    } else {
+    }
+    let v16: Bool = isEven(u10);
+    if (v16) {
+    } else {
+        let v17: Int64 = add(u10, 1);
+        u10 = v17;
+    }
+    let v18: Bool = lt(u11, u10);
+    if (v18) {
+        let v19: ListInt64 = emptyList();
+        return v19;
+    } else {
+    }
+    var u20: ListInt64 = emptyList();
+    var u21: Int64 = u10;
+    while (true) {
+        let v22: Bool = lt(u11, u21);
+        if (v22) {
+            return u20;
+        } else {
+        }
+        let v23: ListInt64 = listPush(u20, u21);
+        u20 = v23;
+        let v24: Int64 = add(u21, 2);
+        u21 = v24;
+    }
+}
+main(): Int64 { return 0; }

@@ -1,0 +1,56 @@
+func insert(items: ListInt64, value: Int64): ListInt64 {
+    let v1: Int64 = listLen(items);
+    var u2: Int64 = 0;
+    var u3: ListInt64 = emptyList();
+    var u4: Bool = false;
+    while (true) {
+        let v5: Bool = eq(u2, v1);
+        if (v5) {
+            let v6: Bool = not(u4);
+            if (v6) {
+                let v7: ListInt64 = listPush(u3, value);
+                u3 = v7;
+            } else {
+            }
+            return u3;
+        } else {
+        }
+        let v8: Int64 = listGet(items, u2);
+        let v9: Bool = eq(v8, value);
+        if (v9) {
+            return items;
+        } else {
+        }
+        let v10: Bool = lt(value, v8);
+        let v11: Bool = not(u4);
+        let v12: Bool = and(v10, v11);
+        if (v12) {
+            let v13: ListInt64 = listPush(u3, value);
+            u3 = v13;
+            u4 = true;
+        } else {
+        }
+        let v14: ListInt64 = listPush(u3, v8);
+        u3 = v14;
+        let v15: Int64 = add(u2, 1);
+        u2 = v15;
+    }
+}
+func solve(numbers: ListInt64): ListInt64 {
+    var u16: ListInt64 = emptyList();
+    let v17: Int64 = listLen(numbers);
+    var u18: Int64 = 0;
+    while (true) {
+        let v19: Bool = eq(u18, v17);
+        if (v19) {
+            return u16;
+        } else {
+        }
+        let v20: Int64 = listGet(numbers, u18);
+        let v21: ListInt64 = insert(u16, v20);
+        u16 = v21;
+        let v22: Int64 = add(u18, 1);
+        u18 = v22;
+    }
+}
+main(): Int64 { return 0; }

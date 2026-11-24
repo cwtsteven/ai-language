@@ -1,0 +1,25 @@
+func solve(left: String, right: String): String {
+    let v1: Int64 = strLen(left);
+    var u2: Int64 = 0;
+    var u3: String = "";
+    while (true) {
+        let v4: Bool = eq(u2, v1);
+        if (v4) {
+            return u3;
+        } else {
+        }
+        let v5: String = strAt(left, u2);
+        let v6: String = strAt(right, u2);
+        let v7: Bool = strEq(v5, v6);
+        if (v7) {
+            let v8: String = concat(u3, "0");
+            u3 = v8;
+        } else {
+            let v9: String = concat(u3, "1");
+            u3 = v9;
+        }
+        let v10: Int64 = add(u2, 1);
+        u2 = v10;
+    }
+}
+main(): Int64 { return 0; }

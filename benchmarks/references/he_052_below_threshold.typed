@@ -1,0 +1,21 @@
+func solve(numbers: ListInt64, limit: Int64): Bool {
+    let v1: Int64 = listLen(numbers);
+    var u2: Int64 = 0;
+    while (true) {
+        let v3: Bool = eq(u2, v1);
+        if (v3) {
+            return true;
+        } else {
+        }
+        let v4: Int64 = listGet(numbers, u2);
+        let v5: Bool = lt(v4, limit);
+        let v6: Bool = not(v5);
+        if (v6) {
+            return false;
+        } else {
+        }
+        let v7: Int64 = add(u2, 1);
+        u2 = v7;
+    }
+}
+main(): Int64 { return 0; }

@@ -1,0 +1,5 @@
+func solve(text: String): Int64 {
+    let v1: Int64 = strLen(text);
+    return v1;
+}
+main(): Int64 { return 0; }

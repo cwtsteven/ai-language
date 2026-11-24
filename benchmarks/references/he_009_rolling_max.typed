@@ -1,0 +1,36 @@
+func solve(numbers: ListInt64): ListInt64 {
+    let v1: Int64 = listLen(numbers);
+    let v2: Bool = eq(v1, 0);
+    if (v2) {
+        let v3: ListInt64 = emptyList();
+        return v3;
+    } else {
+    }
+    let v4: Int64 = listGet(numbers, 0);
+    var u5: Int64 = v4;
+    let v6: ListInt64 = emptyList();
+    let v7: ListInt64 = listPush(v6, u5);
+    var u8: ListInt64 = v7;
+    var u9: Int64 = 1;
+    while (true) {
+        let v10: Bool = eq(u9, v1);
+        if (v10) {
+            return u8;
+        } else {
+        }
+        let v11: Int64 = listGet(numbers, u9);
+        let v12: Bool = lt(v11, u5);
+        let v13: Bool = eq(v11, u5);
+        let v14: Bool = or(v12, v13);
+        let v15: Bool = not(v14);
+        if (v15) {
+            u5 = v11;
+        } else {
+        }
+        let v16: ListInt64 = listPush(u8, u5);
+        u8 = v16;
+        let v17: Int64 = add(u9, 1);
+        u9 = v17;
+    }
+}
+main(): Int64 { return 0; }

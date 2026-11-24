@@ -1,0 +1,32 @@
+func solve(numbers: ListInt64): Bool {
+    let v1: Int64 = listLen(numbers);
+    var u2: Bool = true;
+    var u3: Bool = true;
+    var u4: Int64 = 1;
+    while (true) {
+        let v5: Bool = lt(u4, v1);
+        let v6: Bool = not(v5);
+        if (v6) {
+            break;
+        } else {
+        }
+        let v7: Int64 = sub(u4, 1);
+        let v8: Int64 = listGet(numbers, v7);
+        let v9: Int64 = listGet(numbers, u4);
+        let v10: Bool = lt(v9, v8);
+        if (v10) {
+            u2 = false;
+        } else {
+        }
+        let v11: Bool = lt(v8, v9);
+        if (v11) {
+            u3 = false;
+        } else {
+        }
+        let v12: Int64 = add(u4, 1);
+        u4 = v12;
+    }
+    let v13: Bool = or(u2, u3);
+    return v13;
+}
+main(): Int64 { return 0; }

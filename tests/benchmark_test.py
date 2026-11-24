@@ -83,9 +83,9 @@ class BenchmarkTests(unittest.TestCase):
             self.assertEqual(status, 0)
             typed = [command for command in commands if len(command) > 1 and command[1] == "generate"]
             cangjie = [command for command in commands if "--user-file" in command]
-            self.assertEqual(len(typed), 12)
-            self.assertEqual(len(cangjie), 12)
-            self.assertEqual(len(plan_commands), 24)
+            self.assertEqual(len(typed), 35)
+            self.assertEqual(len(cangjie), 35)
+            self.assertEqual(len(plan_commands), 70)
             self.assertEqual(sum("--unconstrained" in command for command in commands), 0)
             for command in typed:
                 self.assertNotIn("--skip-plan", command)
@@ -115,12 +115,12 @@ class BenchmarkTests(unittest.TestCase):
                 self.assertEqual(len({row["plan_file"] for row in group}), 2)
                 self.assertTrue(all(row["plan_sha256"] for row in group))
             for mode in bench.MODES:
-                self.assertEqual(summary["modes"][mode]["attempts"], 12)
+                self.assertEqual(summary["modes"][mode]["attempts"], 35)
 
     def test_suite_and_prompt_separation(self):
-        self.assertEqual(len(SUITE["tasks"]), 12)
-        self.assertEqual(sum(t["tests_total"] for t in SUITE["tasks"]), 366)
-        self.assertEqual(sum(t["upstream_literal_tests"] for t in SUITE["tasks"]), 81)
+        self.assertEqual(len(SUITE["tasks"]), 35)
+        self.assertEqual(sum(t["tests_total"] for t in SUITE["tasks"]), 592)
+        self.assertEqual(sum(t["upstream_literal_tests"] for t in SUITE["tasks"]), 212)
         for task in SUITE["tasks"]:
             prompt = bench.task_prompt(task)
             self.assertIn("func solve(", prompt)

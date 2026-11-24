@@ -1,0 +1,34 @@
+func balanced(text: String, openCh: String): Bool {
+    var u1: Int64 = 0;
+    var u2: Int64 = 0;
+    let v3: Int64 = strLen(text);
+    while (true) {
+        let v4: Bool = eq(u2, v3);
+        if (v4) {
+            let v5: Bool = eq(u1, 0);
+            return v5;
+        } else {
+        }
+        let v6: String = strAt(text, u2);
+        let v7: Bool = strEq(v6, openCh);
+        if (v7) {
+            let v8: Int64 = add(u1, 1);
+            u1 = v8;
+        } else {
+            let v9: Int64 = sub(u1, 1);
+            u1 = v9;
+        }
+        let v10: Bool = lt(u1, 0);
+        if (v10) {
+            return false;
+        } else {
+        }
+        let v11: Int64 = add(u2, 1);
+        u2 = v11;
+    }
+}
+func solve(text: String): Bool {
+    let v12: Bool = balanced(text, "(");
+    return v12;
+}
+main(): Int64 { return 0; }
