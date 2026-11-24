@@ -7,7 +7,11 @@ Typechecking does not guarantee algorithm correctness.
 
 ## Build
 
-Requires macOS, Xcode command line tools, CMake 3.16+, and Git.
+Requires CMake 3.16+, a C++17 compiler, and Git. Tests need no model weights.
+If CMake finds `cjc`, they also compile and run generated Cangjie; the SDK is
+otherwise optional.
+
+### macOS
 
 ```sh
 brew install cmake git
@@ -18,9 +22,22 @@ cmake --build build --parallel 4
 ctest --test-dir build --output-on-failure
 ```
 
-For CPU builds, replace the Metal options with `-DGGML_METAL=OFF -DGGML_BLAS=OFF`
-and run tasks with `--ngl 0`. Tests need no model weights. If CMake finds `cjc`,
-they also compile and run generated Cangjie; the SDK is otherwise optional.
+### Linux
+
+Metal is macOS-only. This CPU build matches the Ubuntu CI job. `GGML_NATIVE`
+stays on, so the binary uses the host CPU (AVX-512 on this class of Xeon).
+
+```sh
+sudo apt install cmake g++ git
+git clone --recurse-submodules https://github.com/cwtsteven/typed-cangjie.git
+cd typed-cangjie
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DGGML_METAL=OFF -DGGML_BLAS=OFF
+cmake --build build --parallel
+ctest --test-dir build --output-on-failure
+```
+
+GPU layers default to 0 off macOS. Pass `--ngl 0` when a plugin requests GPU
+offload, or when you built without a GPU backend.
 
 ## Use
 
@@ -62,6 +79,7 @@ Code goes to stdout; diagnostics go to stderr. Each command has `--help`.
 | `--unconstrained` | Disable code token filtering. Translate only when the text is a complete typed program. |
 | `--debug` | Show the implementation plan and token traces on stderr; default off. |
 | `--debug-limit N` | Rejected candidates shown per code token; default **20**. Enables debug mode. |
+| `--threads N` | CPU threads for prompt processing and generation. Default **4**. |
 | `--ngl N` | GPU layers: plugin setting, otherwise **99** on macOS. Use **0** for CPU inference. |
 | `--ubatch N` | Physical batch size: plugin setting, otherwise llama.cpp's default. |
 | `-h`, `--help` | Command help. |

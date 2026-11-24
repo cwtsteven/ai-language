@@ -44,7 +44,7 @@ int main() {
     CHECK(options.tokens == 256 && options.constrained && options.plan);
     CHECK(!options.force_postfix);
     CHECK(options.temperature == 0.8f && !options.seed);
-    CHECK(!options.gpu_layers && options.ubatch == 0);
+    CHECK(!options.gpu_layers && options.ubatch == 0 && options.threads == 4);
     options = parse({"generate", "--model", "plugin.json", "--n", "512", "request"});
     CHECK(options.model_path == "plugin.json" && options.tokens == 512);
     CHECK(parse({"generate", "request", "--model", "x", "--n", "32"}).tokens == 32);
@@ -62,6 +62,7 @@ int main() {
     CHECK(options.input == "request");
     CHECK(!options.constrained && options.debug && options.debug_limit == 0);
     CHECK(options.gpu_layers && *options.gpu_layers == 0 && options.ubatch == 64);
+    CHECK(parse({"generate", "request", "--model", "x", "--threads", "24"}).threads == 24);
     CHECK(parse({"generate", "request", "--model", "x", "--debug"}).debug);
     CHECK(parse({"generate", "--model", "x", "--", "--help"}).input == "--help");
     CHECK(parse({"check", ""}).input.empty());
@@ -87,6 +88,7 @@ int main() {
     fails({"generate", "request", "--model", "x", "--n", "12oops"}, "integer");
     fails({"generate", "request", "--model", "x", "--n", "2147483648"}, "integer");
     fails({"generate", "request", "--model", "x", "--ubatch", "0"}, "positive integer");
+    fails({"generate", "request", "--model", "x", "--threads", "0"}, "positive integer");
     fails({"generate", "request", "--model", "x", "--ngl", "-1"}, "nonnegative integer");
     fails({"generate", "request", "--model", "x", "--debug-limit", "-1"}, "nonnegative integer");
     for (auto value : {"-0.1", "nan", "inf", "1e100", "1e-100", "0.8oops", "", " 0.8"})

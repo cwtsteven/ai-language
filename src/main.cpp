@@ -50,7 +50,8 @@ void batch_set(llama_batch_ext * batch, const llama_token * tokens, int count, l
 }
 
 planning::Plan run_planner(llama_model * model, const models::Plugin & plugin,
-                           const planning::Request & request, int ubatch, float temperature, uint32_t seed) {
+                           const planning::Request & request, int ubatch, int threads,
+                           float temperature, uint32_t seed) {
     const auto prompt = models::task_prompt(model, plugin, request.system, request.user);
     const auto * vocab = llama_model_get_vocab(model);
     if (prompt.size() > static_cast<size_t>(std::numeric_limits<int>::max()))
@@ -65,6 +66,8 @@ planning::Plan run_planner(llama_model * model, const models::Plugin & plugin,
     auto params = llama_context_default_params();
     params.n_ctx = std::max(4096, count + 2048);
     params.n_batch = params.n_ctx;
+    params.n_threads = threads;
+    params.n_threads_batch = threads;
     if (ubatch > 0) params.n_ubatch = ubatch;
     std::unique_ptr<llama_context, decltype(&llama_free)> context(llama_init_from_model(model, params), llama_free);
     if (!context) throw std::runtime_error("failed to create planning context");
@@ -77,9 +80,11 @@ planning::Plan run_planner(llama_model * model, const models::Plugin & plugin,
     std::vector<llama_token> history;
     int position = 0;
     int batch_count = count;
+    int output_tokens = 0;
     while (true) {
         if (llama_process(context.get(), LLAMA_PROCESS_TYPE_DECODE, batch.get()))
             throw std::runtime_error("planning model decode failed");
+        ++output_tokens;
         position += batch_count;
         const auto token = llama_sampler_sample(sampler.get(), context.get(), -1);
         if (llama_vocab_is_eog(vocab, token)) { plan.complete = true; break; }
@@ -96,6 +101,7 @@ planning::Plan run_planner(llama_model * model, const models::Plugin & plugin,
             batch_count = 1;
         }
     }
+    std::fprintf(stderr, "planning_tokens: input=%d output=%d\n", count, output_tokens);
     // The planner context and sampler are freed before code generation begins.
     return plan;
 }
@@ -205,7 +211,7 @@ int main(int argc, char ** argv) {
     }
 
     const uint32_t seed = options.seed ? *options.seed : std::random_device{}();
-    std::fprintf(stderr, "Sampling: temperature=%g seed=%u\n", options.temperature, seed);
+    std::fprintf(stderr, "Sampling: temperature=%g seed=%u threads=%d\n", options.temperature, seed, options.threads);
 
     llama_log_set(quiet_log, nullptr);
     ggml_log_set(quiet_log, nullptr);
@@ -224,7 +230,7 @@ int main(int argc, char ** argv) {
                     std::fputs("Planning implementation...\n", stderr);
                     std::fflush(stderr);
                 }
-                return run_planner(model, model_plugin, request, n_ubatch, options.temperature, seed);
+                return run_planner(model, model_plugin, request, n_ubatch, options.threads, options.temperature, seed);
             });
         if (options.plan_only) {
             std::fwrite(prepared.plan->text.data(), 1, prepared.plan->text.size(), stdout);
@@ -254,6 +260,8 @@ int main(int argc, char ** argv) {
     llama_context_params context_params = llama_context_default_params();
     context_params.n_ctx = token_count + n_predict + 8;
     context_params.n_batch = token_count;
+    context_params.n_threads = options.threads;
+    context_params.n_threads_batch = options.threads;
     if (n_ubatch > 0) context_params.n_ubatch = n_ubatch;
     llama_context * context = llama_init_from_model(model, context_params);
     if (!context) { std::fputs("failed to create context\n", stderr); return 1; }
@@ -293,7 +301,7 @@ int main(int argc, char ** argv) {
         batch_set(batch, &token, 1, position);
         batch_count = 1;
     }
-    std::fprintf(stderr, "generated_tokens=%d\n", generated_tokens);
+    std::fprintf(stderr, "code_tokens: input=%d output=%d\n", token_count, generated_tokens);
     if (constrained && options.force_postfix && !complete && !failed) {
         const auto suffix = emitted.completion();
         if (suffix && emitted.append(*suffix) && emitted.can_end()) {

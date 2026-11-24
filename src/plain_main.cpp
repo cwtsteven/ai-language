@@ -58,6 +58,7 @@ struct Options {
     float temperature = 0.8f;
     std::optional<uint32_t> seed;
     int ubatch = 0;
+    int threads = 4;
     std::optional<int> gpu_layers;
     bool help = false;
 };
@@ -73,6 +74,7 @@ void print_help(const char * executable) {
         "  --n N                Maximum generated tokens. Omit it to sample until the end token.\n"
         "  --temperature T      Sampling randomness (default 0.8; 0 = greedy).\n"
         "  --seed N             Sampling seed (default random, printed to stderr).\n"
+        "  --threads N          CPU threads for prompt processing and generation (default 4).\n"
         "  --ngl N              GPU layers (default 99 on macOS, 0 elsewhere).\n"
         "  --ubatch N           Physical batch size.\n"
         "  -h, --help           Show this help.\n",
@@ -130,6 +132,16 @@ Options parse(int argc, char ** argv) {
                 options.gpu_layers = parsed;
             } catch (const std::exception &) {
                 throw std::runtime_error("--ngl requires a nonnegative integer");
+            }
+        } else if (arg == "--threads") {
+            const std::string value = require_value(i, argc, argv);
+            try {
+                size_t used = 0;
+                const int parsed = std::stoi(value, &used);
+                if (used != value.size() || parsed <= 0) throw std::invalid_argument("threads");
+                options.threads = parsed;
+            } catch (const std::exception &) {
+                throw std::runtime_error("--threads requires a positive integer");
             }
         } else if (arg == "--ubatch") {
             const std::string value = require_value(i, argc, argv);
@@ -192,7 +204,7 @@ int main(int argc, char ** argv) {
 #endif
     const int n_gpu_layers = options.gpu_layers.value_or(model_plugin.gpu_layers.value_or(platform_gpu_layers));
     const uint32_t seed = options.seed ? *options.seed : std::random_device{}();
-    std::fprintf(stderr, "Sampling: temperature=%g seed=%u\n", options.temperature, seed);
+    std::fprintf(stderr, "Sampling: temperature=%g seed=%u threads=%d\n", options.temperature, seed, options.threads);
 
     llama_log_set(quiet_log, nullptr);
     ggml_log_set(quiet_log, nullptr);
@@ -224,6 +236,8 @@ int main(int argc, char ** argv) {
 
     const bool until_end = options.tokens < 0;
     llama_context_params context_params = llama_context_default_params();
+    context_params.n_threads = options.threads;
+    context_params.n_threads_batch = options.threads;
     if (until_end) {
         if (token_count > std::numeric_limits<int>::max() - 2048 - 8) {
             std::fputs("failed to tokenize prompt within the context limit\n", stderr);
@@ -279,7 +293,7 @@ int main(int argc, char ** argv) {
             batch_count = 1;
         }
     }
-    std::fprintf(stderr, "generated_tokens=%d\n", generated_tokens);
+    std::fprintf(stderr, "tokens: input=%d output=%d\n", token_count, generated_tokens);
     if (until_end && !failed)
         std::fwrite(generated.data(), 1, generated.size(), stdout);
     if (!until_end) std::fputc('\n', stdout);

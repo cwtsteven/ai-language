@@ -20,6 +20,7 @@ struct Options {
     float temperature = 0.8f;
     std::optional<uint32_t> seed;
     int ubatch = 0;
+    int threads = 4;
     std::optional<int> gpu_layers;
     bool constrained = true;
     bool plan = true;

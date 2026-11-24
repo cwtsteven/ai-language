@@ -68,7 +68,7 @@ Options parse(int argc, const char * const * argv) {
             if (arg == "--force-postfix") { options.force_postfix = true; continue; }
             if (arg == "--debug") { options.debug = true; continue; }
             if (arg != "--model" && arg != "--n" && arg != "--debug-limit" && arg != "--ngl" &&
-                arg != "--ubatch" && arg != "--temperature" && arg != "--seed" && arg != "--plan-file")
+                arg != "--ubatch" && arg != "--threads" && arg != "--temperature" && arg != "--seed" && arg != "--plan-file")
                 throw std::runtime_error("unknown generate option: " + arg);
             if (i + 1 >= argc) throw std::runtime_error(arg + " requires a value");
             const std::string value = argv[++i];
@@ -81,6 +81,7 @@ Options parse(int argc, const char * const * argv) {
             else if (arg == "--temperature") options.temperature = temperature(value);
             else if (arg == "--seed") options.seed = seed(value);
             else if (arg == "--ubatch") options.ubatch = number(arg, value, 1);
+            else if (arg == "--threads") options.threads = number(arg, value, 1);
             else if (arg == "--ngl") options.gpu_layers = number(arg, value, 0);
             else if (arg == "--debug-limit") {
                 options.debug_limit = number(arg, value, 0);
@@ -135,6 +136,7 @@ void print_help(FILE * output, const char * executable, Command command) {
             "  --unconstrained   Disable token constraints and translate the result when it is a complete typed program.\n"
             "  --debug           Show the implementation plan and token traces on stderr.\n"
             "  --debug-limit N   Rejected candidates shown per code token (default 20); enables debug mode.\n"
+            "  --threads N       CPU threads for prompt processing and generation (default 4).\n"
             "  --ngl N           Override GPU layers (default: plugin, then 99 on macOS/0 elsewhere).\n"
             "  --ubatch N        Override physical batch size (default: plugin, then llama.cpp).\n"
             "  -h, --help        Show this command's help without loading a model.\n\n"
