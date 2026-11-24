@@ -1,11 +1,11 @@
 func factorial(n: Int64): Int64 {
-    let base: Bool = lt(n, 2);
+    let base: Bool = n < 2;
     if (base) {
         return 1;
     } else {
-        let previous: Int64 = sub(n, 1);
+        let previous: Int64 = n - 1;
         let partial: Int64 = factorial(previous);
-        let result: Int64 = mul(n, partial);
+        let result: Int64 = n * partial;
         return result;
     }
 }

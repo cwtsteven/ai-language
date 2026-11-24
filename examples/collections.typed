@@ -7,10 +7,10 @@ main(): Int64 {
     items = second;
     let n: Int64 = listLen(copy);
     let text: String = "a b";
-    let letter: String = strAt(text, 0);
-    let joined: String = concat(text, letter);
-    let same: Bool = strEq(letter, "a");
+    let letter: String = text[0];
+    let joined: String = text + letter;
+    let same: Bool = letter == "a";
     let length: Int64 = strLen(joined);
-    let total: Int64 = add(n, length);
+    let total: Int64 = n + length;
     if (same) { return total; } else { return 0; }
 }

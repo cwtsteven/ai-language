@@ -1,9 +1,9 @@
 func remainder(n: Int64, p: Int64): Int64 {
     var r: Int64 = n;
     while (true) {
-        let done: Bool = lt(r, p);
+        let done: Bool = r < p;
         if (done) { return r; } else {}
-        let next: Int64 = sub(r, p);
+        let next: Int64 = r - p;
         r = next;
     }
 }
@@ -11,12 +11,12 @@ func solve(n: Int64, p: Int64): Int64 {
     var result: Int64 = 1;
     var i: Int64 = 0;
     while (true) {
-        let done: Bool = eq(i, n);
+        let done: Bool = i == n;
         if (done) { return result; } else {}
-        let doubled: Int64 = mul(result, 2);
+        let doubled: Int64 = result * 2;
         let next: Int64 = remainder(doubled, p);
         result = next;
-        let nextIndex: Int64 = add(i, 1);
+        let nextIndex: Int64 = i + 1;
         i = nextIndex;
     }
 }

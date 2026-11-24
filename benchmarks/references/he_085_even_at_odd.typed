@@ -1,25 +1,25 @@
 func mod(left: Int64, right: Int64): Int64 {
     var u1: Int64 = left;
     while (true) {
-        let v2: Bool = lt(u1, right);
+        let v2: Bool = u1 < right;
         if (v2) {
             return u1;
         } else {
         }
-        let v3: Int64 = sub(u1, right);
+        let v3: Int64 = u1 - right;
         u1 = v3;
     }
 }
 func isEven(value: Int64): Bool {
-    let v4: Bool = lt(value, 0);
+    let v4: Bool = value < 0;
     var u5: Int64 = value;
     if (v4) {
-        let v6: Int64 = sub(0, value);
+        let v6: Int64 = 0 - value;
         u5 = v6;
     } else {
     }
     let v7: Int64 = mod(u5, 2);
-    let v8: Bool = eq(v7, 0);
+    let v8: Bool = v7 == 0;
     return v8;
 }
 func solve(numbers: ListInt64): Int64 {
@@ -27,20 +27,20 @@ func solve(numbers: ListInt64): Int64 {
     var u10: Int64 = 1;
     var u11: Int64 = 0;
     while (true) {
-        let v12: Bool = lt(u10, v9);
-        let v13: Bool = not(v12);
+        let v12: Bool = u10 < v9;
+        let v13: Bool = !v12;
         if (v13) {
             return u11;
         } else {
         }
-        let v14: Int64 = listGet(numbers, u10);
+        let v14: Int64 = numbers[u10];
         let v15: Bool = isEven(v14);
         if (v15) {
-            let v16: Int64 = add(u11, v14);
+            let v16: Int64 = u11 + v14;
             u11 = v16;
         } else {
         }
-        let v17: Int64 = add(u10, 2);
+        let v17: Int64 = u10 + 2;
         u10 = v17;
     }
 }

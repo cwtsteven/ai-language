@@ -17,11 +17,11 @@ Checked-in `.typed` fixtures stay in the constraint language. The benchmark and 
 | --- | --- |
 | `Int64`, `Bool` | The same native types |
 | `let`, `var`, `name = value;` | The same forms |
-| `add(Int64, Int64): Int64`, `sub(Int64, Int64): Int64`, `mul(Int64, Int64): Int64` | `+`, `-`, `*` |
-| `eq(Int64, Int64): Bool`, `lt(Int64, Int64): Bool` | `==`, `<` |
-| `not(Bool): Bool`, `and(Bool, Bool): Bool`, `or(Bool, Bool): Bool` | `!`, `&&`, `\|\|` |
-| `emptyList(): ListInt64`, `listPush(ListInt64, Int64): ListInt64`, `listLen(ListInt64): Int64`, `listGet(ListInt64, Int64): Int64` | `ArrayList<Int64>` construction, a copying push, `.size`, and indexing |
-| `strLen(String): Int64`, `strEq(String, String): Bool`, `concat(String, String): String`, `strAt(String, Int64): String` | `.size`, `==`, `+`, and a one-character read |
+| `+`, `-`, `*` on `Int64`; `+` on `String` | The same operators |
+| `==`, `<` on `Int64`; `==` on `String` | The same operators |
+| `!`, `&&`, `\|\|` on `Bool` | The same operators |
+| `emptyList()`, `listPush`, `listLen`, `xs[i]` | `ArrayList<Int64>` construction, a copying push, `.size`, and indexing |
+| `strLen`, `text[i]` | `.size` and a one-character read helper |
 | `func`, calls, `if`, `while`, `return`, `break`, `continue` | The corresponding Cangjie forms |
 
 `let` copies the current value. `var` is read again by later uses and by `while`, and assignment updates that binding only. User functions and variables get separate name prefixes so they do not collide with Cangjie keywords or generated runtime names. Decimal literals are normalized without passing through a smaller host integer. Arithmetic uses Cangjie's overflow behavior.

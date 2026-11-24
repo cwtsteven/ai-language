@@ -1,12 +1,12 @@
 func mod(left: Int64, right: Int64): Int64 {
     var u1: Int64 = left;
     while (true) {
-        let v2: Bool = lt(u1, right);
+        let v2: Bool = u1 < right;
         if (v2) {
             return u1;
         } else {
         }
-        let v3: Int64 = sub(u1, right);
+        let v3: Int64 = u1 - right;
         u1 = v3;
     }
 }
@@ -14,24 +14,24 @@ func div(left: Int64, right: Int64): Int64 {
     var u4: Int64 = 0;
     var u5: Int64 = left;
     while (true) {
-        let v6: Bool = lt(u5, right);
+        let v6: Bool = u5 < right;
         if (v6) {
             return u4;
         } else {
         }
-        let v7: Int64 = sub(u5, right);
+        let v7: Int64 = u5 - right;
         u5 = v7;
-        let v8: Int64 = add(u4, 1);
+        let v8: Int64 = u4 + 1;
         u4 = v8;
     }
 }
 func digitChar(digit: Int64): String {
     let v9: String = "0123456789";
-    let v10: String = strAt(v9, digit);
+    let v10: String = v9[digit];
     return v10;
 }
 func decimal(number: Int64): String {
-    let v11: Bool = eq(number, 0);
+    let v11: Bool = number == 0;
     if (v11) {
         return "0";
     } else {
@@ -39,39 +39,39 @@ func decimal(number: Int64): String {
     var u12: Int64 = number;
     var u13: String = "";
     while (true) {
-        let v14: Bool = eq(u12, 0);
+        let v14: Bool = u12 == 0;
         if (v14) {
             return u13;
         } else {
         }
         let v15: Int64 = mod(u12, 10);
         let v16: String = digitChar(v15);
-        let v17: String = concat(v16, u13);
+        let v17: String = v16 + u13;
         u13 = v17;
         let v18: Int64 = div(u12, 10);
         u12 = v18;
     }
 }
 func solve(n: Int64): String {
-    let v19: Bool = eq(n, 0);
+    let v19: Bool = n == 0;
     if (v19) {
         return "0";
     } else {
     }
     var u20: String = "0";
     var u21: Int64 = 1;
-    let v22: Int64 = add(n, 1);
+    let v22: Int64 = n + 1;
     while (true) {
-        let v23: Bool = eq(u21, v22);
+        let v23: Bool = u21 == v22;
         if (v23) {
             return u20;
         } else {
         }
-        let v24: String = concat(u20, " ");
+        let v24: String = u20 + " ";
         let v25: String = decimal(u21);
-        let v26: String = concat(v24, v25);
+        let v26: String = v24 + v25;
         u20 = v26;
-        let v27: Int64 = add(u21, 1);
+        let v27: Int64 = u21 + 1;
         u21 = v27;
     }
 }

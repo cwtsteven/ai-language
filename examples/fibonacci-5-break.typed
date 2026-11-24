@@ -3,14 +3,14 @@ main(): Int64 {
     var a: Int64 = 0;
     var b: Int64 = 1;
     while (true) {
-        let done: Bool = eq(i, 5);
+        let done: Bool = i == 5;
         if (done) {
             break;
         } else {
-            let next: Int64 = add(a, b);
+            let next: Int64 = a + b;
             a = b;
             b = next;
-            let nextIndex: Int64 = add(i, 1);
+            let nextIndex: Int64 = i + 1;
             i = nextIndex;
         }
     }

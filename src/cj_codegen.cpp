@@ -41,10 +41,17 @@ struct Function {
 class Parser {
 public:
     explicit Parser(std::string_view source) {
+        auto expects_atom = [](std::string_view previous) {
+            return previous == "=" || previous == "(" || previous == "," || previous == "return" ||
+                previous == "!" || previous == "[" || previous == "+" || previous == "-" ||
+                previous == "*" || previous == "==" || previous == "<" || previous == "&&" ||
+                previous == "||";
+        };
         for (size_t i = 0; i < source.size();) {
             const unsigned char ch = source[i];
             if (std::isspace(ch)) { ++i; continue; }
             const size_t start = i++;
+            const std::string_view previous = tokens_.empty() ? std::string_view{} : tokens_.back();
             if (ch == '"') {
                 while (i < source.size() && source[i] != '"') {
                     const unsigned char inside = static_cast<unsigned char>(source[i]);
@@ -54,10 +61,17 @@ public:
                 }
                 if (i >= source.size()) throw std::logic_error("unterminated string literal in checked source");
                 ++i;
-            } else if (std::isalnum(ch) || ch == '_' || ch == '-') {
+            } else if (ch == '-' && expects_atom(previous) && i < source.size() &&
+                       std::isdigit(static_cast<unsigned char>(source[i]))) {
+                while (i < source.size() &&
+                       std::isdigit(static_cast<unsigned char>(source[i]))) ++i;
+            } else if (ch == '=' || ch == '&' || ch == '|') {
+                if (i < source.size() && source[i] == static_cast<char>(ch)) ++i;
+            } else if (std::isalnum(ch) || ch == '_') {
                 while (i < source.size() &&
                        (std::isalnum(static_cast<unsigned char>(source[i])) || source[i] == '_')) ++i;
             }
+            // Single-character operators and punctuation are already one byte.
             tokens_.emplace_back(source.substr(start, i - start));
         }
     }
@@ -119,6 +133,12 @@ private:
     }
     Expression expression() {
         Expression result;
+        if (peek("!")) {
+            take();
+            result.callee = "!";
+            result.arguments.push_back(atom());
+            return result;
+        }
         if (position_ + 1 < tokens_.size() && tokens_[position_ + 1] == "(") {
             result.callee = take();
             expect("(");
@@ -128,7 +148,26 @@ private:
                 expect(",");
             }
             expect(")");
-        } else result.atom = atom();
+            return result;
+        }
+        Atom left = atom();
+        if (peek("[")) {
+            expect("[");
+            Atom index = atom();
+            expect("]");
+            const Type left_type = left.kind == Atom::Kind::Name ? lookup(left.text) : Type::String;
+            result.callee = left_type == Type::List ? "[]" : "str[]";
+            result.arguments = { std::move(left), std::move(index) };
+            return result;
+        }
+        for (auto op : { "+", "-", "*", "==", "<", "&&", "||" }) {
+            if (!peek(op)) continue;
+            take();
+            result.callee = op;
+            result.arguments = { std::move(left), atom() };
+            return result;
+        }
+        result.atom = std::move(left);
         return result;
     }
     std::vector<Statement> block() {
@@ -154,7 +193,7 @@ private:
         } else if (keyword == "if" || keyword == "while") {
             result.kind = keyword == "if" ? Statement::Kind::If : Statement::Kind::While;
             expect("(");
-            result.value.atom = atom();
+            result.value = expression();
             expect(")");
             result.body = block();
             if (keyword == "if") {
@@ -164,15 +203,15 @@ private:
             return result;
         } else if (keyword == "return") {
             result.kind = Statement::Kind::Return;
-            result.value.atom = atom();
-        }         else if (keyword == "break") result.kind = Statement::Kind::Break;
+            result.value = expression();
+        } else if (keyword == "break") result.kind = Statement::Kind::Break;
         else if (keyword == "continue") result.kind = Statement::Kind::Continue;
         else {
             result.kind = Statement::Kind::Assign;
             result.name = keyword;
             result.type = lookup(keyword);
             expect("=");
-            result.value.atom = atom();
+            result.value = expression();
         }
         expect(";");
         return result;
@@ -268,14 +307,14 @@ private:
         if (value.atom) return atom(*value.atom);
         const auto & name = value.callee;
         const auto & args = value.arguments;
-        const char * op = name == "add" ? "+" : name == "sub" ? "-" : name == "mul" ? "*" :
-                          name == "eq" ? "==" : name == "lt" ? "<" :
-                          name == "and" ? "&&" : name == "or" ? "||" : nullptr;
-        if (op) return "(" + atom(args.at(0)) + " " + op + " " + atom(args.at(1)) + ")";
-        if (name == "not") return "(!" + atom(args.at(0)) + ")";
+        if (name == "+" || name == "-" || name == "*" || name == "==" || name == "<" ||
+            name == "&&" || name == "||") {
+            return "(" + atom(args.at(0)) + " " + name + " " + atom(args.at(1)) + ")";
+        }
+        if (name == "!") return "(!" + atom(args.at(0)) + ")";
         if (name == "emptyList") { needs_list_ = true; return "ArrayList<Int64>()"; }
         if (name == "listLen") { needs_list_ = true; return "(" + atom(args.at(0)) + ".size)"; }
-        if (name == "listGet") {
+        if (name == "[]") {
             needs_list_ = true;
             return "(" + atom(args.at(0)) + "[" + atom(args.at(1)) + "])";
         }
@@ -284,9 +323,7 @@ private:
             return "typed_rt_list_push(" + atom(args.at(0)) + ", " + atom(args.at(1)) + ")";
         }
         if (name == "strLen") return "(" + atom(args.at(0)) + ".size)";
-        if (name == "strEq") return "(" + atom(args.at(0)) + " == " + atom(args.at(1)) + ")";
-        if (name == "concat") return "(" + atom(args.at(0)) + " + " + atom(args.at(1)) + ")";
-        if (name == "strAt") {
+        if (name == "str[]") {
             needs_character_ = true;
             return "typed_rt_str_at(" + atom(args.at(0)) + ", " + atom(args.at(1)) + ")";
         }

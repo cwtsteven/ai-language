@@ -1,14 +1,14 @@
 func solve(n: Int64): Bool {
-    let small: Bool = lt(n, 8);
+    let small: Bool = n < 8;
     if (small) { return false; } else {}
     var r: Int64 = n;
     while (true) {
-        let done: Bool = lt(r, 2);
+        let done: Bool = r < 2;
         if (done) {
-            let even: Bool = eq(r, 0);
+            let even: Bool = r == 0;
             return even;
         } else {}
-        let next: Int64 = sub(r, 2);
+        let next: Int64 = r - 2;
         r = next;
     }
 }

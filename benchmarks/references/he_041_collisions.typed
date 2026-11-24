@@ -1,5 +1,5 @@
 func solve(n: Int64): Int64 {
-    let result: Int64 = mul(n, n);
+    let result: Int64 = n * n;
     return result;
 }
 main(): Int64 { return 0; }

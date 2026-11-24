@@ -145,9 +145,9 @@ def reference_token_count(text):
             tokens += 1
             i = end + 1
             continue
-        if character == "-" or character.isdigit():
-            if character == "-" and (i + 1 >= size or not text[i + 1].isdigit()):
-                raise ValueError("reference has a minus that is not part of an integer")
+        if character.isdigit() or (
+            character == "-" and i + 1 < size and text[i + 1].isdigit()
+        ):
             i += 1
             while i < size and text[i].isdigit():
                 i += 1
@@ -159,7 +159,15 @@ def reference_token_count(text):
                 i += 1
             tokens += 1
             continue
-        if character in "(){}:;=,":
+        if character in "=&|" and i + 1 < size and text[i + 1] == character:
+            tokens += 1
+            i += 2
+            continue
+        if character in "(){}:;=,[]+*!<":
+            tokens += 1
+            i += 1
+            continue
+        if character == "-":
             tokens += 1
             i += 1
             continue

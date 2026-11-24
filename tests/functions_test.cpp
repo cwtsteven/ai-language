@@ -40,7 +40,7 @@ static void rejected(std::string_view prefix, std::string_view invalid, std::str
 
 int main() {
     const std::string identity = "func identity(x: Int64): Int64 { return x; } ";
-    const std::string pair = "func combine(a: Int64, b: Bool): Bool { let result: Bool = eq(a, 0); return result; } ";
+    const std::string pair = "func combine(a: Int64, b: Bool): Bool { let result: Bool = a == 0; return result; } ";
     const std::string extract = "func extract(r: Int64): Int64 { return r; } ";
     complete(identity + "main(): Int64 { let value: Int64 = identity(5); return value; }");
     complete("func answer(): Int64 { return 42; } main(): Int64 { let x: Int64 = answer(); return x; }");
@@ -53,18 +53,18 @@ int main() {
              "main(): Int64 { let value: Int64 = mutate(5, true); let updated: Int64 = mutate(6, false); return value; }");
     complete(identity + "func reuse(x: Bool): Bool { return x; } "
              "main(): Int64 { let x: Int64 = identity(5); let flag: Bool = reuse(true); return x; }");
-    complete("func factorial(n: Int64): Int64 { var result: Int64 = 1; let base: Bool = lt(n, 2); "
-             "if(base){}else{let previous: Int64 = sub(n, 1); let product: Int64 = factorial(previous); "
-             "let next: Int64 = mul(n, product); result = next;} return result; } "
+    complete("func factorial(n: Int64): Int64 { var result: Int64 = 1; let base: Bool = n < 2; "
+             "if(base){}else{let previous: Int64 = n - 1; let product: Int64 = factorial(previous); "
+             "let next: Int64 = n * product; result = next;} return result; } "
              "main(): Int64 { let result: Int64 = factorial(5); return result; }");
     complete("func loop(): Int64 { var flag: Bool = true; while(flag){if(flag){flag = false; continue;}else{break;}} return 1; } "
              "main(): Int64 { let value: Int64 = loop(); return value; }");
     complete("main(): Int64 { if(true){return 1;}else{return 2;} }");
     complete("main(): Int64 { while(true){if(false){return 1;}else{continue;} break;} return 2; }");
     complete("main(): Int64 { return 1; let value: Int64 = 2; return value; }");
-    complete("func factorial(n: Int64): Int64 { let base: Bool = lt(n, 2); if(base){return 1;}else{"
-             "let previous: Int64 = sub(n, 1); let partial: Int64 = factorial(previous); "
-             "let product: Int64 = mul(n, partial); return product;} } "
+    complete("func factorial(n: Int64): Int64 { let base: Bool = n < 2; if(base){return 1;}else{"
+             "let previous: Int64 = n - 1; let partial: Int64 = factorial(previous); "
+             "let product: Int64 = n * partial; return product;} } "
              "main(): Int64 { let result: Int64 = factorial(5); return result; }");
     complete("func flag(x: Bool): Bool { if(x){return true;}else{while(x){return false;}} return true; } "
              "main(): Int64 { let value: Bool = flag(false); return 0; }");
@@ -91,11 +91,11 @@ int main() {
     rejected(extract + "main(): Int64 { let flag: Bool = ", "extract(", "true; return 0; }");
     rejected(identity + "main(): Int64 { let result: Int64 = identity(", "identity(", "5); return result; }");
     rejected(identity + "main(): Int64 { let result: Int64 = identity(5)", "+", "; return result; }");
-    rejected(identity + "main(): Int64 { return ", "identity(", "0; }");
+    rejected(identity + "main(): Int64 { return ", "identity(true", "0; }");
     rejected(identity + "main(): Int64 { return ", "x;", "0; }");
     rejected(identity + "main(): Int64 { let ", "identity ", "value: Int64 = 0; return value; }");
     rejected(identity + "func ", "identity ", "other(): Int64 { return 0; } main(): Int64 { return 0; }");
-    rejected("func ", "add ", "addition(): Int64 { return 0; } main(): Int64 { return 0; }");
+    rejected("func ", "emptyList ", "addition(): Int64 { return 0; } main(): Int64 { return 0; }");
     rejected("func ", "assign ", "store(): Int64 { return 0; } main(): Int64 { return 0; }");
     rejected("func store(", "assign ", "cell: Int64): Int64 { return cell; } main(): Int64 {}");
     rejected("func ", "main ", "helper(): Int64 { return 0; } main(): Int64 { return 0; }");

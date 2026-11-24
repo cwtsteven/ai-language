@@ -67,17 +67,17 @@ int main() {
     CHECK(loop_example.append("main(): Int64 { while(true){break;} return 0; }"));
     CHECK(loop_example.can_end());
     typed::Prefix function_example;
-    CHECK(function_example.append("func increment(value: Int64): Int64 { let next: Int64 = add(value, 1); return next; } "
+    CHECK(function_example.append("func increment(value: Int64): Int64 { let next: Int64 = value + 1; return next; } "
                                   "main(): Int64 { let result: Int64 = increment(4); return result; }"));
     CHECK(function_example.can_end());
     const auto assert_grammar = [&](const std::string & prompt) {
         CHECK(prompt.find(language::specification) != std::string::npos);
         CHECK(prompt.find("\"func\" identifier") != std::string::npos);
-        CHECK(prompt.find("\"while\" \"(\" bool_atom") != std::string::npos);
+        CHECK(prompt.find("\"while\" \"(\" value") != std::string::npos);
         CHECK(prompt.find("\"let\" identifier") != std::string::npos);
         CHECK(prompt.find("\"break\" \";\"") != std::string::npos);
         CHECK(prompt.find("\"continue\" \";\"") != std::string::npos);
-        CHECK(prompt.find("\"return\" typed_atom \";\"") != std::string::npos);
+        CHECK(prompt.find("\"return\" value \";\"") != std::string::npos);
     };
     assert_grammar(format_prompt(plugin, nullptr, "other-model", rules, "sum 2 and 3"));
     plugin = {};

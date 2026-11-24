@@ -1,24 +1,24 @@
 func remainder(n: Int64, d: Int64): Int64 {
     var r: Int64 = n;
     while (true) {
-        let done: Bool = lt(r, d);
+        let done: Bool = r < d;
         if (done) { return r; } else {}
-        let next: Int64 = sub(r, d);
+        let next: Int64 = r - d;
         r = next;
     }
 }
 func prime(n: Int64): Bool {
-    let small: Bool = lt(n, 2);
+    let small: Bool = n < 2;
     if (small) { return false; } else {}
     var d: Int64 = 2;
     while (true) {
-        let square: Int64 = mul(d, d);
-        let done: Bool = lt(n, square);
+        let square: Int64 = d * d;
+        let done: Bool = n < square;
         if (done) { return true; } else {}
         let r: Int64 = remainder(n, d);
-        let divides: Bool = eq(r, 0);
+        let divides: Bool = r == 0;
         if (divides) { return false; } else {}
-        let next: Int64 = add(d, 1);
+        let next: Int64 = d + 1;
         d = next;
     }
 }

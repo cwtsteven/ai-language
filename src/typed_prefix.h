@@ -54,14 +54,16 @@ private:
         TopLevel, OpenParen, CloseParen, Colon, MainType, MainOpen,
         FunctionName, FunctionParen, ParamStart, ParamName, ParamColon, ParamType,
         AfterParam, FunctionColon, FunctionType, FunctionOpen,
-        Stmt, LetName, LetColon, LetType, LetEqual, Rhs,
+        Stmt, LetName, LetColon, LetType, LetEqual, ExprStart,
+        ExprAfterLeft, InfixRight, IndexArg, IndexClose, UnaryArg,
         CallOpen, CallArg, CallAfterArg, CallClose, LetSemi,
-        AssignEqual, AssignValue, LoopControlSemi,
-        IfOpenParen, IfCondition, IfCloseParen, IfOpen, Else, ElseOpen,
-        WhileOpenParen, WhileCondition, WhileCloseParen, WhileOpen,
-        ReturnValue, ReturnSemi, Done,
+        AssignEqual, LoopControlSemi,
+        IfOpenParen, IfCloseParen, IfOpen, Else, ElseOpen,
+        WhileOpenParen, WhileCloseParen, WhileOpen,
+        ReturnSemi, Done,
     };
     enum class Block { Main, Function, IfThen, IfElse, While };
+    enum class ExprFollow { LetSemi, ReturnSemi, IfClose, WhileClose };
     struct Function {
         std::string name;
         Type result = Type::Int;
@@ -81,6 +83,10 @@ private:
     Type return_type_ = Type::Int;
     std::string new_name_;
     Type new_type_ = Type::Int;
+    Type expr_needed_ = Type::Int;
+    Type left_type_ = Type::Int;
+    Type infix_right_type_ = Type::Int;
+    ExprFollow expr_follow_ = ExprFollow::LetSemi;
     bool assignment_ = false;
     bool mutable_binding_ = false;
     bool quoting_ = false;
@@ -110,12 +116,19 @@ private:
     bool begin_operation(std::string_view name, Type result);
     bool close_block();
     bool in_loop() const;
+    bool begin_expression(Type needed, ExprFollow follow);
+    bool finish_expression();
+    bool value_start_possible(Type needed, std::string_view partial) const;
+    bool left_can_reach(Type left, Type needed) const;
+    bool infix_possible(Type left, Type needed, std::string_view partial) const;
+    bool index_possible(Type left, Type needed) const;
     std::string completion_token() const;
     std::string completion_atom(Type type) const;
     std::string diagnose_message(std::string_view lexeme) const;
     Type expected_atom_type() const;
     bool expects_atom() const;
     bool string_literal_context() const;
+    bool atom_start_phase() const;
 };
 
 } // namespace typed

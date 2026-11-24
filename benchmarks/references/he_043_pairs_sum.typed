@@ -2,31 +2,31 @@ func solve(numbers: ListInt64): Bool {
     let v1: Int64 = listLen(numbers);
     var u2: Int64 = 0;
     while (true) {
-        let v3: Bool = eq(u2, v1);
+        let v3: Bool = u2 == v1;
         if (v3) {
             return false;
         } else {
         }
-        let v4: Int64 = add(u2, 1);
+        let v4: Int64 = u2 + 1;
         var u5: Int64 = v4;
         while (true) {
-            let v6: Bool = eq(u5, v1);
+            let v6: Bool = u5 == v1;
             if (v6) {
                 break;
             } else {
             }
-            let v7: Int64 = listGet(numbers, u2);
-            let v8: Int64 = listGet(numbers, u5);
-            let v9: Int64 = add(v7, v8);
-            let v10: Bool = eq(v9, 0);
+            let v7: Int64 = numbers[u2];
+            let v8: Int64 = numbers[u5];
+            let v9: Int64 = v7 + v8;
+            let v10: Bool = v9 == 0;
             if (v10) {
                 return true;
             } else {
             }
-            let v11: Int64 = add(u5, 1);
+            let v11: Int64 = u5 + 1;
             u5 = v11;
         }
-        let v12: Int64 = add(u2, 1);
+        let v12: Int64 = u2 + 1;
         u2 = v12;
     }
 }

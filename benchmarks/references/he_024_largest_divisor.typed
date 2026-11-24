@@ -1,26 +1,26 @@
 func mod(left: Int64, right: Int64): Int64 {
     var u1: Int64 = left;
     while (true) {
-        let v2: Bool = lt(u1, right);
+        let v2: Bool = u1 < right;
         if (v2) {
             return u1;
         } else {
         }
-        let v3: Int64 = sub(u1, right);
+        let v3: Int64 = u1 - right;
         u1 = v3;
     }
 }
 func solve(n: Int64): Int64 {
-    let v4: Int64 = sub(n, 1);
+    let v4: Int64 = n - 1;
     var u5: Int64 = v4;
     while (true) {
         let v6: Int64 = mod(n, u5);
-        let v7: Bool = eq(v6, 0);
+        let v7: Bool = v6 == 0;
         if (v7) {
             return u5;
         } else {
         }
-        let v8: Int64 = sub(u5, 1);
+        let v8: Int64 = u5 - 1;
         u5 = v8;
     }
 }

@@ -2,11 +2,11 @@ func solve(n: Int64): Int64 {
     var total: Int64 = 0;
     var i: Int64 = 0;
     while (true) {
-        let done: Bool = eq(i, n);
+        let done: Bool = i == n;
         if (done) { return total; } else {}
-        let nextIndex: Int64 = add(i, 1);
+        let nextIndex: Int64 = i + 1;
         i = nextIndex;
-        let nextTotal: Int64 = add(total, nextIndex);
+        let nextTotal: Int64 = total + nextIndex;
         total = nextTotal;
     }
 }

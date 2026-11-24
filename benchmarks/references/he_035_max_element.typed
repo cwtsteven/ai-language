@@ -1,24 +1,24 @@
 func solve(numbers: ListInt64): Int64 {
-    let v1: Int64 = listGet(numbers, 0);
+    let v1: Int64 = numbers[0];
     var u2: Int64 = v1;
     var u3: Int64 = 1;
     let v4: Int64 = listLen(numbers);
     while (true) {
-        let v5: Bool = eq(u3, v4);
+        let v5: Bool = u3 == v4;
         if (v5) {
             return u2;
         } else {
         }
-        let v6: Int64 = listGet(numbers, u3);
-        let v7: Bool = lt(v6, u2);
-        let v8: Bool = eq(v6, u2);
-        let v9: Bool = or(v7, v8);
-        let v10: Bool = not(v9);
+        let v6: Int64 = numbers[u3];
+        let v7: Bool = v6 < u2;
+        let v8: Bool = v6 == u2;
+        let v9: Bool = v7 || v8;
+        let v10: Bool = !v9;
         if (v10) {
             u2 = v6;
         } else {
         }
-        let v11: Int64 = add(u3, 1);
+        let v11: Int64 = u3 + 1;
         u3 = v11;
     }
 }

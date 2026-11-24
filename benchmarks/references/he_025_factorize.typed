@@ -1,12 +1,12 @@
 func mod(left: Int64, right: Int64): Int64 {
     var u1: Int64 = left;
     while (true) {
-        let v2: Bool = lt(u1, right);
+        let v2: Bool = u1 < right;
         if (v2) {
             return u1;
         } else {
         }
-        let v3: Int64 = sub(u1, right);
+        let v3: Int64 = u1 - right;
         u1 = v3;
     }
 }
@@ -14,14 +14,14 @@ func div(left: Int64, right: Int64): Int64 {
     var u4: Int64 = 0;
     var u5: Int64 = left;
     while (true) {
-        let v6: Bool = lt(u5, right);
+        let v6: Bool = u5 < right;
         if (v6) {
             return u4;
         } else {
         }
-        let v7: Int64 = sub(u5, right);
+        let v7: Int64 = u5 - right;
         u5 = v7;
-        let v8: Int64 = add(u4, 1);
+        let v8: Int64 = u4 + 1;
         u4 = v8;
     }
 }
@@ -30,25 +30,25 @@ func solve(n: Int64): ListInt64 {
     var u10: Int64 = 2;
     var u11: ListInt64 = emptyList();
     while (true) {
-        let v12: Int64 = mul(u10, u10);
-        let v13: Bool = lt(u9, v12);
+        let v12: Int64 = u10 * u10;
+        let v13: Bool = u9 < v12;
         if (v13) {
             break;
         } else {
         }
         let v14: Int64 = mod(u9, u10);
-        let v15: Bool = eq(v14, 0);
+        let v15: Bool = v14 == 0;
         if (v15) {
             let v16: ListInt64 = listPush(u11, u10);
             u11 = v16;
             let v17: Int64 = div(u9, u10);
             u9 = v17;
         } else {
-            let v18: Int64 = add(u10, 1);
+            let v18: Int64 = u10 + 1;
             u10 = v18;
         }
     }
-    let v19: Bool = lt(1, u9);
+    let v19: Bool = 1 < u9;
     if (v19) {
         let v20: ListInt64 = listPush(u11, u9);
         u11 = v20;

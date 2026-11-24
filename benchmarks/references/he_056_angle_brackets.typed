@@ -3,27 +3,27 @@ func balanced(text: String, openCh: String): Bool {
     var u2: Int64 = 0;
     let v3: Int64 = strLen(text);
     while (true) {
-        let v4: Bool = eq(u2, v3);
+        let v4: Bool = u2 == v3;
         if (v4) {
-            let v5: Bool = eq(u1, 0);
+            let v5: Bool = u1 == 0;
             return v5;
         } else {
         }
-        let v6: String = strAt(text, u2);
-        let v7: Bool = strEq(v6, openCh);
+        let v6: String = text[u2];
+        let v7: Bool = v6 == openCh;
         if (v7) {
-            let v8: Int64 = add(u1, 1);
+            let v8: Int64 = u1 + 1;
             u1 = v8;
         } else {
-            let v9: Int64 = sub(u1, 1);
+            let v9: Int64 = u1 - 1;
             u1 = v9;
         }
-        let v10: Bool = lt(u1, 0);
+        let v10: Bool = u1 < 0;
         if (v10) {
             return false;
         } else {
         }
-        let v11: Int64 = add(u2, 1);
+        let v11: Int64 = u2 + 1;
         u2 = v11;
     }
 }

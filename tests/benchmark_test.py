@@ -390,7 +390,7 @@ class BenchmarkTests(unittest.TestCase):
                           Path(cangjie[cangjie.index("--system-file") + 1]).read_text())
 
     def test_code_budget_is_twice_the_model_tokens_or_2048(self):
-        addition = "func solve(x: Int64, y: Int64): Int64 {\n    let result: Int64 = add(x, y);\n    return result;\n}\nmain(): Int64 { return 0; }\n"
+        addition = "func solve(x: Int64, y: Int64): Int64 {\n    let result: Int64 = x + y;\n    return result;\n}\nmain(): Int64 { return 0; }\n"
         self.assertEqual(bench.reference_token_count(addition), bench.reference_token_count(
             (bench.ROOT / "benchmarks/references/he_053_add.typed").read_text()))
         self.assertEqual(bench.reference_token_count('let text: String = "a b";'), 7)

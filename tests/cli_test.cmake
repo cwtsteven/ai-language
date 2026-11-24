@@ -39,8 +39,8 @@ if(NOT status EQUAL 1 OR NOT error MATCHES "requires --model")
     message(FATAL_ERROR "Empty model selection was not rejected: ${error}")
 endif()
 
-set(program "main():Int64{var x:Int64=0;let next:Int64=add(2,3);x=next;return x;}")
-set(formatted "main(): Int64 {\n    var x: Int64 = 0;\n    let next: Int64 = add(2, 3);\n    x = next;\n    return x;\n}\n")
+set(program "main():Int64{var x:Int64=0;let next:Int64=2 + 3;x=next;return x;}")
+set(formatted "main(): Int64 {\n    var x: Int64 = 0;\n    let next: Int64 = 2 + 3;\n    x = next;\n    return x;\n}\n")
 execute_process(COMMAND "${CLI}" check "${program}"
     RESULT_VARIABLE status OUTPUT_VARIABLE output ERROR_VARIABLE error)
 if(NOT status EQUAL 0 OR NOT output MATCHES "viable; complete=yes")

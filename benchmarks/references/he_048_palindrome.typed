@@ -2,23 +2,23 @@ func solve(text: String): Bool {
     let v1: Int64 = strLen(text);
     var u2: Int64 = 0;
     while (true) {
-        let v3: Int64 = add(u2, u2);
-        let v4: Bool = lt(v3, v1);
-        let v5: Bool = not(v4);
+        let v3: Int64 = u2 + u2;
+        let v4: Bool = v3 < v1;
+        let v5: Bool = !v4;
         if (v5) {
             return true;
         } else {
         }
-        let v6: Int64 = sub(v1, 1);
-        let v7: Int64 = sub(v6, u2);
-        let v8: String = strAt(text, u2);
-        let v9: String = strAt(text, v7);
-        let v10: Bool = strEq(v8, v9);
+        let v6: Int64 = v1 - 1;
+        let v7: Int64 = v6 - u2;
+        let v8: String = text[u2];
+        let v9: String = text[v7];
+        let v10: Bool = v8 == v9;
         if (v10) {
         } else {
             return false;
         }
-        let v11: Int64 = add(u2, 1);
+        let v11: Int64 = u2 + 1;
         u2 = v11;
     }
 }

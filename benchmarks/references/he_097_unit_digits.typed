@@ -1,21 +1,21 @@
 func digit(n: Int64): Int64 {
     var r: Int64 = n;
-    let negative: Bool = lt(n, 0);
+    let negative: Bool = n < 0;
     if (negative) {
-        let positive: Int64 = sub(0, n);
+        let positive: Int64 = 0 - n;
         r = positive;
     } else {}
     while (true) {
-        let done: Bool = lt(r, 10);
+        let done: Bool = r < 10;
         if (done) { return r; } else {}
-        let next: Int64 = sub(r, 10);
+        let next: Int64 = r - 10;
         r = next;
     }
 }
 func solve(a: Int64, b: Int64): Int64 {
     let x: Int64 = digit(a);
     let y: Int64 = digit(b);
-    let result: Int64 = mul(x, y);
+    let result: Int64 = x * y;
     return result;
 }
 main(): Int64 { return 0; }

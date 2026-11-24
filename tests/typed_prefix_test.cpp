@@ -44,37 +44,36 @@ static void rejected(std::string_view valid_prefix, std::string_view invalid_pie
 int main() {
     complete("main ( ) : Int64 { return 0 ; }");
     complete("main(): Int64 { return 0; }");
-    complete("main(): Int64 { let x: Int64 = add(2, 3); return x; }");
-    complete("main(): Int64 { var x: Int64 = 2; let next: Int64 = add(x, 3); x = next; return x; }");
+    complete("main(): Int64 { let x: Int64 = 2 + 3; return x; }");
+    complete("main(): Int64 { var x: Int64 = 2; let next: Int64 = x + 3; x = next; return x; }");
     complete("main(): Int64 { var x: Int64 = 2; x = -3; return x; }");
     complete("main(): Int64 { var r: Int64 = 0; var ready: Bool = true; "
              "ready = false; r = r; return r; }");
     complete("main(): Int64 { let x: Int64 = -9223372036854775808; return x; }");
     complete("main(): Int64 { let x: Int64 = 9223372036854775807; return x; }");
-    complete("main(): Int64 { let x: Int64 = 5; let done: Bool = eq(x,5); "
-             "if (done) { let y: Int64 = mul(x,2); } else { } return x; }");
-    complete("main(): Int64 { let x: Int64 = 3; let small: Bool = lt(x,5); "
-             "let yes: Bool = and(small,true); return x; }");
-    complete("main(): Int64 { let x: Int64 = sub(2,1); let y: Int64 = sub(x,-1); "
-             "let same: Bool = and(true,false); let either: Bool = or(same,true); "
-             "let opposite: Bool = not(either); return y; }");
+    complete("main(): Int64 { let x: Int64 = 5; if (x == 5) { let y: Int64 = x * 2; } else { } return x; }");
+    complete("main(): Int64 { let x: Int64 = 3; let small: Bool = x < 5; "
+             "let yes: Bool = small && true; return x; }");
+    complete("main(): Int64 { let x: Int64 = 2 - 1; let y: Int64 = x - -1; "
+             "let same: Bool = true && false; let either: Bool = same || true; "
+             "let opposite: Bool = !either; return y; }");
     complete("main(): Int64 { let name: Bool = true; let number: Int64 = 2; "
-             "let compared: Bool = eq(number, 1); return number; }");
+             "let compared: Bool = number == 1; return number; }");
     complete("main(): Int64 { let limit: Int64 = 5; var i: Int64 = 0; "
              "var a: Int64 = 0; var b: Int64 = 1; "
              "var running: Bool = true; while (running) { "
-             "let done: Bool = eq(i, limit); if (done) { running = false; } else { "
-             "let next: Int64 = add(a, b); a = b; b = next; "
-             "let nextIndex: Int64 = add(i, 1); i = nextIndex; } } return a; }");
+             "if (i == limit) { running = false; } else { "
+             "let next: Int64 = a + b; a = b; b = next; "
+             "let nextIndex: Int64 = i + 1; i = nextIndex; } } return a; }");
     complete("main(): Int64 { var flag: Bool = true; "
              "while (flag) { flag = false; } return 0; }");
     complete("main(): Int64 { var cell: Int64 = 7; "
-             "let old: Int64 = cell; let next: Int64 = add(old, 4); "
+             "let old: Int64 = cell; let next: Int64 = old + 4; "
              "cell = next; let result: Int64 = cell; return result; }");
     complete("main(): Int64 { var original: Int64 = 0; "
              "let copy: Int64 = original; original = 9; return copy; }");
     complete("main(): Int64 { var flag: Bool = true; "
-             "let b: Bool = and(flag, false); if (flag) { flag = b; } else {} return 0; }");
+             "let b: Bool = flag && false; if (flag) { flag = b; } else {} return 0; }");
     complete("main(): Int64 { let flag: Bool = true; if (flag) { "
              "let local: Int64 = 2; } else { let other: Bool = false; } return 0; }");
     complete("main(): Int64 { while(true){break;} return 0; }");
@@ -86,9 +85,9 @@ int main() {
     complete("main(): Int64 { var breakfast: Int64 = 0; "
              "let continued: Int64 = 1; while(true){breakfast = continued; break;} return breakfast; }");
     complete("main(): Int64 { var i: Int64 = 0; var a: Int64 = 0; "
-             "var b: Int64 = 1; while(true){let done: Bool = eq(i, 5); "
-             "if(done){break;}else{let next: Int64 = add(a, b); a = b; b = next; "
-             "let nextIndex: Int64 = add(i,1); i = nextIndex;}} return a; }");
+             "var b: Int64 = 1; while(true){if(i == 5){break;}else{let next: Int64 = a + b; a = b; b = next; "
+             "let nextIndex: Int64 = i + 1; i = nextIndex;}} return a; }");
+    complete("main(): Int64 { var x: Int64 = 1; x = x + 1; return x; }");
 
     rejected("main(): Int64 { ", "break;", "return 0; }");
     rejected("main(): Int64 { ", "continue;", "return 0; }");
@@ -107,10 +106,8 @@ int main() {
              "ame ", "umber; }");
     rejected("main(): Int64 { let name: Bool = true; let number: Int64 = 2; let x: Bool = n",
              "z", "ame; return 0; }");
-    rejected("main(): Int64 { let x: Int64 = add(1, ",
-             "false ", "2); return x; }");
-    rejected("main(): Int64 { let x: Int64 = add(1 ",
-             ") ", ", 2); return x; }");
+    rejected("main(): Int64 { let x: Int64 = 1 + ",
+             "false ", "2; return x; }");
     rejected("main(): Int64 { var r: Int64 = 0; r = ",
              "true ", "1; return r; }");
     rejected("main(): Int64 { let x: Int64 = 1; ",
@@ -119,20 +116,14 @@ int main() {
              "true ", "2; return x; }");
     rejected("main(): Int64 { let x: Int64 = ",
              "9223372036854775808", "9223372036854775807; return x; }");
-    // Infix syntax is rejected even if a model token contains the whole RHS,
-    // or ends after just the first character of a former two-character operator.
-    for (auto op : { "+", "-", "*", "<", "=", "==", "&", "&&", "|", "||" }) {
-        rejected("main(): Int64 { let x: Int64 = 2", op, "; return x; }");
-        rejected("main(): Int64 { let x: Int64 = 2 ", op, "; return x; }");
-        rejected("main(): Int64 { let b: Bool = true", op, "; return 0; }");
-        rejected("main(): Int64 { var r: Int64 = 0; r = r", op, "; return r; }");
-    }
-    rejected("main(): Int64 { let x: Int64 = ", "2+3;", "add(2,3); return x; }");
-    rejected("main(): Int64 { let b: Bool = ", "2", "eq(2,1); return 0; }");
-    rejected("main(): Int64 { let b: Bool = lt(2,", "true", "3); return 0; }");
-    rejected("main(): Int64 { let x: Int64 = add(2,", "true", "1); return x; }");
-    rejected("main(): Int64 { let x: Int64 = ", "add(1, mul(2,3))", "add(1,2); return x; }");
-    rejected("main(): Int64 { var r: Int64 = 0; let b: Bool = ", "r", "eq(r,0); return 0; }");
+    // Nesting and wrong operand types stay rejected.
+    rejected("main(): Int64 { let x: Int64 = 1 + 2 ", "*", "; return x; }");
+    rejected("main(): Int64 { let x: Int64 = 1 + 2 ", "+", "; return x; }");
+    rejected("main(): Int64 { let b: Bool = true && false ", "&&", "; return 0; }");
+    rejected("main(): Int64 { let x: Int64 = ", "1 + 2 * 3;", "1 + 2; return x; }");
+    rejected("main(): Int64 { let b: Bool = 2 == ", "true", "1; return 0; }");
+    rejected("main(): Int64 { let b: Bool = 2 < ", "true", "3; return 0; }");
+    rejected("main(): Int64 { let x: Int64 = 2 + ", "true", "1; return x; }");
     rejected("main(): Int64 { let x: Int64 = -", "9223372036854775809",
              "9223372036854775808; return x; }");
     rejected("main(): Int64 { while (true) { var local: Int64 = 0; } ",
@@ -141,14 +132,15 @@ int main() {
              "x ", "xx: Int64 = 2; return x; }");
     rejected("main(): Int64 { if (true) { let x: Int64 = 1; } else { } return ",
              "x ", "0; }");
-    rejected("main(): Int64 { if (", "1 ", "true) { } else { } return 0; }");
+    rejected("main(): Int64 { let items: ListInt64 = emptyList(); if (",
+             "items ", "true) { } else { } return 0; }");
     rejected("main(): Int64 { ", "fn ", "return 0; }");
 
     rejected("main(): Int64 { let x: Int64 = 1; ", "x = ", "return x; }");
     rejected("main(): Int64 { var x: Int64 = 0; ", "write(", "return x; }");
     rejected("main(): Int64 { var x: Int64 = 0; let v: Int64 = ",
              "readInt(", "x; return v; }");
-    rejected("main(): Int64 { let x: Int64 = 1; return ", "!", "x; }");
+    rejected("main(): Int64 { let x: Int64 = 0; return ", "!", "x; }");
     rejected("main(): Int64 { var r: Bool = true; return ", "!", "0; }");
     rejected("main(): Int64 { var r: Int64 = 0; ", "r:=5;", "r = 5; return r; }");
     rejected("main(): Int64 { var r: Int64 = 0; ", "r: =5;", "r = 5; return r; }");
@@ -156,8 +148,7 @@ int main() {
     rejected("main(): Int64 { let x: Int64 = 0; ", "assign(", "return x; }");
     rejected("main(): Int64 { var r: Int64 = 0; let x: Int64 = 1; ",
              "x = ", "r = x; return r; }");
-    rejected("main(): Int64 { var flag: Bool = true; flag = ", "0", "false; return 0; }");
-    rejected("main(): Int64 { var r: Int64 = 0; r = ", "add(", "-1; return r; }");
+    rejected("main(): Int64 { var flag: Bool = true; flag = ", "0;", "false; return 0; }");
     rejected("main(): Int64 { var r: Int64 = 0; r", ")", " = 1; return r; }");
     rejected("main(): Int64 { var r: Int64 = 0; r = 1", ",", "; return r; }");
     rejected("main(): Int64 { var r: Int64 = 0; r = 1", "}", "; return r; }");
@@ -166,6 +157,10 @@ int main() {
     rejected("main(): Int64 { while(true){var r: Int64 = 0;} ", "r = ", "return 0; }");
     rejected("main(): Int64 { var n: Int64 = 0; let name: Bool = true; "
              "let x: Int64 = n", "a", "; return x; }");
+    rejected("main(): Int64 { let empty: ListInt64 = emptyList(); let n: Int64 = empty[0 ",
+             "+", "]; return n; }");
+    rejected("main(): Int64 { let empty: ListInt64 = emptyList(); let n: Int64 = empty[0]",
+             "[", "; return n; }");
 
     Prefix p;
     CHECK(p.append("main(): Int64 { return 0; }"));
@@ -178,10 +173,9 @@ int main() {
     CHECK(multi.append("123 ; }"));
     CHECK(multi.can_end());
 
-    // Rejection in a split call must keep the prefix so another candidate can
-    // finish its atomic argument and the call.
+    // Rejection mid-expression must keep the prefix so another candidate can finish.
     Prefix split;
-    CHECK(split.append("main(): Int64 { let b: Bool = eq(2"));
+    CHECK(split.append("main(): Int64 { let b: Bool = 2 =="));
     CHECK(!split.can_append("+"));
     CHECK(!split.append("+"));
     const auto suffix = split.completion();
@@ -189,10 +183,9 @@ int main() {
     Prefix finished = split;
     CHECK(finished.append(*suffix));
     CHECK(finished.can_end());
-    CHECK(split.append(",1); return 0; }"));
+    CHECK(split.append(" 1; return 0; }"));
     CHECK(split.can_end());
-    // All accepted one-byte candidates from boundary states must retain a
-    // completion, including partial assignments and signed literals.
+
     for (auto seed : {
         "main(): Int64 { var r: Int64 = 0; r",
         "main(): Int64 { var r: Int64 = 0; r ",
@@ -202,8 +195,8 @@ int main() {
         "main(): Int64 { var r: Int64 = 0; r = 0",
         "main(): Int64 { var f: Bool = true; f =",
         "main(): Int64 { var r: Bool = false; let b: Bool = ",
-        "main(): Int64 { var r: Int64 = 0; let b: Bool = eq(r,",
-        "main(): Int64 { let b: Bool = e",
+        "main(): Int64 { var r: Int64 = 0; let b: Bool = r ==",
+        "main(): Int64 { let b: Bool = ",
         "main(): Int64 { let x: Int64 = -",
         "main(): Int64 { return -",
         "main(): Int64 { var r: Bool = true; while (",
@@ -260,13 +253,13 @@ int main() {
                  "main(): Int64 { let x: Int64 = 1; return x; }");
     complete("main(): Int64 { let empty: ListInt64 = emptyList(); "
              "let grown: ListInt64 = listPush(empty, 4); "
-             "let n: Int64 = listLen(grown); let item: Int64 = listGet(grown, 0); "
-             "let sum: Int64 = add(n, item); return sum; }");
-    complete("main(): Int64 { let text: String = \"a b\"; let letter: String = strAt(text, 0); "
-             "let joined: String = concat(text, letter); let same: Bool = strEq(letter, \"a\"); "
+             "let n: Int64 = listLen(grown); let item: Int64 = grown[0]; "
+             "let sum: Int64 = n + item; return sum; }");
+    complete("main(): Int64 { let text: String = \"a b\"; let letter: String = text[0]; "
+             "let joined: String = text + letter; let same: Bool = letter == \"a\"; "
              "let length: Int64 = strLen(joined); if (same) { return length; } else { return 0; } }");
     rejected("main(): Int64 { let text: String = ", "1", "\"ok\"; return 0; }");
-    rejected("main(): Int64 { let items: ListInt64 = emptyList(); let n: Int64 = ", "items",
+    rejected("main(): Int64 { let items: ListInt64 = emptyList(); let n: Int64 = ", "true",
              "listLen(items); return n; }");
 
     Prefix unfinished;

@@ -12,8 +12,15 @@ bool word_char(unsigned char ch) {
 }
 
 bool expects_atom(std::string_view previous) {
-    return previous == "=" || previous == "(" || previous == "," ||
-        previous == "return";
+    return previous == "=" || previous == "(" || previous == "," || previous == "return" ||
+        previous == "!" || previous == "[" || previous == "+" || previous == "-" ||
+        previous == "*" || previous == "==" || previous == "<" || previous == "&&" ||
+        previous == "||";
+}
+
+bool is_infix(std::string_view token) {
+    return token == "+" || token == "-" || token == "*" || token == "==" ||
+        token == "<" || token == "&&" || token == "||";
 }
 
 } // namespace
@@ -22,17 +29,20 @@ std::optional<std::string> format_program(std::string_view source) {
     Prefix checker;
     if (!checker.append(source) || !checker.can_end()) return std::nullopt;
 
-    // Input is already validated ASCII. Keep signed integer literals intact.
     std::vector<std::string_view> tokens;
     for (size_t i = 0; i < source.size();) {
         if (std::isspace(static_cast<unsigned char>(source[i]))) { ++i; continue; }
         const size_t start = i++;
+        const std::string_view previous = tokens.empty() ? std::string_view{} : tokens.back();
         if (source[start] == '"') {
             while (i < source.size() && source[i] != '"') ++i;
             if (i < source.size()) ++i;
-        } else if (word_char(source[start]) ||
-            (source[start] == '-' && !tokens.empty() && expects_atom(tokens.back()) &&
-             i < source.size() && std::isdigit(static_cast<unsigned char>(source[i])))) {
+        } else if (source[start] == '-' && expects_atom(previous) &&
+                   i < source.size() && std::isdigit(static_cast<unsigned char>(source[i]))) {
+            while (i < source.size() && std::isdigit(static_cast<unsigned char>(source[i]))) ++i;
+        } else if (source[start] == '=' || source[start] == '&' || source[start] == '|') {
+            if (i < source.size() && source[i] == source[start]) ++i;
+        } else if (word_char(source[start])) {
             while (i < source.size() && word_char(source[i])) ++i;
         }
         tokens.push_back(source.substr(start, i - start));
@@ -73,6 +83,8 @@ std::optional<std::string> format_program(std::string_view source) {
             line += '(';
         } else if (token == ")") {
             line += ')';
+        } else if (token == "[" || token == "]") {
+            line += token;
         } else if (token == ":" || token == ",") {
             line += token;
             line += ' ';
@@ -80,8 +92,15 @@ std::optional<std::string> format_program(std::string_view source) {
             space();
             line += token;
             line += ' ';
+        } else if (is_infix(token)) {
+            space();
+            line += token;
+            line += ' ';
+        } else if (token == "!") {
+            space();
+            line += token;
         } else {
-            if (previous != "(" && previous != "!") space();
+            if (previous != "(" && previous != "!" && previous != "[") space();
             line += token;
         }
     }

@@ -15,7 +15,7 @@ int main() {
     CHECK(typed::generate_cangjie("main(): Int64 { return 5; }") ==
           "main(): Int64 {\n    return 5\n}\n");
     const std::string source =
-        "func increment(value: Int64): Int64 { let next: Int64 = add(value,1); return next; } "
+        "func increment(value: Int64): Int64 { let next: Int64 = value + 1; return next; } "
         "main(): Int64 { let result: Int64 = increment(-0004); return result; }";
     const std::string expected =
         "func typed_fn_increment(typed_var_value: Int64): Int64 {\n"
@@ -49,8 +49,8 @@ int main() {
           ->find("exited without returning") == std::string::npos);
     for (const auto invalid : {
         "", "main(): Int64 {", "main(): Int64 { return true; }",
-        "main(): Int64 { let x: Int64 = 1+2; return x; }",
-        "main(): Int64 { let x: Int64 = add(1,mul(2,3)); return x; }",
+        "main(): Int64 { let x: Int64 = 1 + 2 * 3; return x; }",
+        "main(): Int64 { let x: Int64 = 1 + (2); return x; }",
         "main(): Int64 { var r: Int64 = 0; r:=1; return r; }",
         "main(): Int64 { var r: Int64 = 0; r = true; return r; }",
         "main(): Int64 { break; }",
@@ -62,7 +62,7 @@ int main() {
         "let first: ListInt64 = listPush(empty, 4); var items: ListInt64 = first; "
         "let copy: ListInt64 = items; let second: ListInt64 = listPush(items, 5); items = second; "
         "let n: Int64 = listLen(copy); let text: String = \"a b\"; "
-        "let letter: String = strAt(text, 0); let same: Bool = strEq(letter, \"a\"); "
+        "let letter: String = text[0]; let same: Bool = letter == \"a\"; "
         "if (same) { return n; } else { return 0; } }");
     CHECK(collections);
     CHECK(collections->find("import std.collection.ArrayList") != std::string::npos);
@@ -71,6 +71,12 @@ int main() {
     CHECK(collections->find("typed_var_items = typed_var_second.clone()") != std::string::npos);
     CHECK(collections->find("typed_rt_str_at(typed_var_text, 0)") != std::string::npos);
     CHECK(collections->find("\"a b\"") != std::string::npos);
+
+    const auto infix_condition = typed::generate_cangjie(
+        "main(): Int64 { var x: Int64 = 1; if (x == 0) { return 1; } else { return x + 1; } }");
+    CHECK(infix_condition);
+    CHECK(infix_condition->find("if ((typed_var_x == 0))") != std::string::npos);
+    CHECK(infix_condition->find("(typed_var_x + 1)") != std::string::npos);
 
     std::puts("Cangjie generator tests passed");
 }

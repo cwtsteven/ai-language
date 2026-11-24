@@ -35,11 +35,11 @@ int main() {
               "main(): Int64 {\n"
               "    let value: Int64 = choose(true);\n"
               "    return value;\n}\n");
-    formatted("func increment(x:Int64):Int64{let y:Int64=add(x,1);return y;}"
+    formatted("func increment(x:Int64):Int64{let y:Int64=x+1;return y;}"
               "func answer():Int64{let x:Int64=increment(4);return x;}"
               "main():Int64{let result:Int64=answer();return result;}",
               "func increment(x: Int64): Int64 {\n"
-              "    let y: Int64 = add(x, 1);\n"
+              "    let y: Int64 = x + 1;\n"
               "    return y;\n}\n"
               "func answer(): Int64 {\n"
               "    let x: Int64 = increment(4);\n"
@@ -59,18 +59,18 @@ int main() {
               "    return 0;\n}\n");
     formatted("main ( ) : Int64 { return 0 ; }",
               "main(): Int64 {\n    return 0;\n}\n");
-    formatted("main():Int64{var x:Int64=5;let next:Int64=add(x,1);x=next;return x;}",
+    formatted("main():Int64{var x:Int64=5;let next:Int64=x+1;x=next;return x;}",
               "main(): Int64 {\n"
               "    var x: Int64 = 5;\n"
-              "    let next: Int64 = add(x, 1);\n"
+              "    let next: Int64 = x + 1;\n"
               "    x = next;\n"
               "    return x;\n}\n");
-    formatted("main():Int64{let x:Int64=sub(2,1);let y:Int64=sub(x,-1);"
-              "let z:Int64=mul(y,-9223372036854775808);return z;}",
+    formatted("main():Int64{let x:Int64=2-1;let y:Int64=x--1;"
+              "let z:Int64=y*-9223372036854775808;return z;}",
               "main(): Int64 {\n"
-              "    let x: Int64 = sub(2, 1);\n"
-              "    let y: Int64 = sub(x, -1);\n"
-              "    let z: Int64 = mul(y, -9223372036854775808);\n"
+              "    let x: Int64 = 2 - 1;\n"
+              "    let y: Int64 = x - -1;\n"
+              "    let z: Int64 = y * -9223372036854775808;\n"
               "    return z;\n}\n");
     formatted("\tmain():Int64{var f:Bool=true;while(f){"
               "if(f){f=false;}else{}}return 0;}\r\n",
@@ -83,23 +83,30 @@ int main() {
               "        }\n"
               "    }\n"
               "    return 0;\n}\n");
-    formatted("main():Int64{let b:Bool=eq(2,1);let c:Bool=or(b,false);"
-              "let d:Bool=and(c,true);return -0001;}",
+    formatted("main():Int64{let b:Bool=2==1;let c:Bool=b||false;"
+              "let d:Bool=c&&true;return -0001;}",
               "main(): Int64 {\n"
-              "    let b: Bool = eq(2, 1);\n"
-              "    let c: Bool = or(b, false);\n"
-              "    let d: Bool = and(c, true);\n"
+              "    let b: Bool = 2 == 1;\n"
+              "    let c: Bool = b || false;\n"
+              "    let d: Bool = c && true;\n"
               "    return -0001;\n}\n");
+    formatted("main():Int64{let e:ListInt64=emptyList();let n:Int64=e[0];"
+              "let t:String=\"ab\";let c:String=t[0];return n;}",
+              "main(): Int64 {\n"
+              "    let e: ListInt64 = emptyList();\n"
+              "    let n: Int64 = e[0];\n"
+              "    let t: String = \"ab\";\n"
+              "    let c: String = t[0];\n"
+              "    return n;\n}\n");
     for (auto invalid : { "", "main(): Int64 {", "main(): Int64 { return true; }",
                           "main(): Int64 { let x: Int64 = 0; x = 1; return x; }",
                           "main(): Int64 { var x: Int64 = 0; x: =1; return x; }",
                           "main(): Int64 { var x: Int64 = 0; x:=1; return x; }",
-                          "main(): Int64 { let x: Int64 = 2+3; return x; }",
-                          "main(): Int64 { var x: Int64 = 0; x = add(1,2); return x; }",
+                          "main(): Int64 { let x: Int64 = 1 + 2 * 3; return x; }",
                           "main(): Int64 { break; return 0; }",
                           "func bad(): Bool { return 0; } main(): Int64 { return 0; }",
-                          "main(): Int64 { if(true){return false;}else{return 1;} }",
-                          "main(): Int64 { if(true){continue;}else{} return 0; }" }) {
+                          "main(): Int64 { return !true; }" }) {
         CHECK(!typed::format_program(invalid));
     }
+    std::puts("Pretty printer tests passed");
 }

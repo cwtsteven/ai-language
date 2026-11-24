@@ -3,12 +3,12 @@ func solve(n: Int64): Int64 {
     var b: Int64 = 1;
     var i: Int64 = 0;
     while (true) {
-        let done: Bool = eq(i, n);
+        let done: Bool = i == n;
         if (done) { return a; } else {}
-        let next: Int64 = add(a, b);
+        let next: Int64 = a + b;
         a = b;
         b = next;
-        let nextIndex: Int64 = add(i, 1);
+        let nextIndex: Int64 = i + 1;
         i = nextIndex;
     }
 }

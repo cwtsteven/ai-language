@@ -1,29 +1,29 @@
 func solve(numbers: ListInt64, delimiter: Int64): ListInt64 {
     let v1: Int64 = listLen(numbers);
-    let v2: Bool = eq(v1, 0);
+    let v2: Bool = v1 == 0;
     if (v2) {
         let v3: ListInt64 = emptyList();
         return v3;
     } else {
     }
-    let v4: Int64 = sub(v1, 1);
+    let v4: Int64 = v1 - 1;
     var u5: ListInt64 = emptyList();
     var u6: Int64 = 0;
     while (true) {
-        let v7: Bool = eq(u6, v4);
+        let v7: Bool = u6 == v4;
         if (v7) {
             break;
         } else {
         }
-        let v8: Int64 = listGet(numbers, u6);
+        let v8: Int64 = numbers[u6];
         let v9: ListInt64 = listPush(u5, v8);
         u5 = v9;
         let v10: ListInt64 = listPush(u5, delimiter);
         u5 = v10;
-        let v11: Int64 = add(u6, 1);
+        let v11: Int64 = u6 + 1;
         u6 = v11;
     }
-    let v12: Int64 = listGet(numbers, v4);
+    let v12: Int64 = numbers[v4];
     let v13: ListInt64 = listPush(u5, v12);
     u5 = v13;
     return u5;

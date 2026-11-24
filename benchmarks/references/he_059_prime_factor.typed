@@ -1,9 +1,9 @@
 func remainder(n: Int64, d: Int64): Int64 {
     var r: Int64 = n;
     while (true) {
-        let done: Bool = lt(r, d);
+        let done: Bool = r < d;
         if (done) { return r; } else {}
-        let next: Int64 = sub(r, d);
+        let next: Int64 = r - d;
         r = next;
     }
 }
@@ -11,11 +11,11 @@ func quotient(n: Int64, d: Int64): Int64 {
     var r: Int64 = n;
     var count: Int64 = 0;
     while (true) {
-        let done: Bool = lt(r, d);
+        let done: Bool = r < d;
         if (done) { return count; } else {}
-        let next: Int64 = sub(r, d);
+        let next: Int64 = r - d;
         r = next;
-        let incremented: Int64 = add(count, 1);
+        let incremented: Int64 = count + 1;
         count = incremented;
     }
 }
@@ -24,16 +24,16 @@ func solve(n: Int64): Int64 {
     var factor: Int64 = 2;
     var largest: Int64 = 1;
     while (true) {
-        let done: Bool = eq(remaining, 1);
+        let done: Bool = remaining == 1;
         if (done) { return largest; } else {}
         let r: Int64 = remainder(remaining, factor);
-        let divides: Bool = eq(r, 0);
+        let divides: Bool = r == 0;
         if (divides) {
             largest = factor;
             let next: Int64 = quotient(remaining, factor);
             remaining = next;
         } else {
-            let next: Int64 = add(factor, 1);
+            let next: Int64 = factor + 1;
             factor = next;
         }
     }

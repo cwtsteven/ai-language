@@ -2,16 +2,16 @@ func solve(a: Int64, b: Int64): Int64 {
     var x: Int64 = a;
     var y: Int64 = b;
     while (true) {
-        let xZero: Bool = eq(x, 0);
+        let xZero: Bool = x == 0;
         if (xZero) { return y; } else {}
-        let yZero: Bool = eq(y, 0);
+        let yZero: Bool = y == 0;
         if (yZero) { return x; } else {}
-        let smaller: Bool = lt(x, y);
+        let smaller: Bool = x < y;
         if (smaller) {
-            let next: Int64 = sub(y, x);
+            let next: Int64 = y - x;
             y = next;
         } else {
-            let next: Int64 = sub(x, y);
+            let next: Int64 = x - y;
             x = next;
         }
     }

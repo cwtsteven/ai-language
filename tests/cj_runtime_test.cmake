@@ -51,32 +51,32 @@ run_case(collections "main(): Int64 {
     items = second;
     let n: Int64 = listLen(copy);
     let text: String = \"a b\";
-    let letter: String = strAt(text, 0);
-    let joined: String = concat(text, letter);
-    let same: Bool = strEq(letter, \"a\");
+    let letter: String = text[0];
+    let joined: String = text + letter;
+    let same: Bool = letter == \"a\";
     let length: Int64 = strLen(joined);
-    let total: Int64 = add(n, length);
+    let total: Int64 = n + length;
     if(same){return total;}else{return 0;}
 }" 5)
 
 run_case(builtins "main(): Int64 {
-    let sum: Int64 = add(2,3); let difference: Int64 = sub(sum,1);
-    let product: Int64 = mul(difference,3); let small: Bool = lt(product,13);
-    let same: Bool = eq(product,12); let both: Bool = and(small,same);
-    let inverse: Bool = not(false); let either: Bool = or(both,inverse);
+    let sum: Int64 = 2 + 3; let difference: Int64 = sum - 1;
+    let product: Int64 = difference * 3; let small: Bool = product < 13;
+    let same: Bool = product == 12; let both: Bool = small && same;
+    let inverse: Bool = !false; let either: Bool = both || inverse;
     if(either){return product;}else{return 0;}
 }" 12)
 
 run_case(copies "main(): Int64 {
     var original: Int64 = 7; let copy: Int64 = original;
-    let next: Int64 = add(original,1); original = next; return copy;
+    let next: Int64 = original + 1; original = next; return copy;
 }" 7)
 
 run_case(bool_vars "main(): Int64 {
     var flag: Bool = true; var count: Int64 = 0;
     while(flag){
-        let next: Int64 = add(count,1); count = next;
-        let done: Bool = eq(next,3); if(done){flag = false;}else{}
+        let next: Int64 = count + 1; count = next;
+        let done: Bool = next == 3; if(done){flag = false;}else{}
     }
     return count;
 }" 3)
@@ -84,11 +84,11 @@ run_case(bool_vars "main(): Int64 {
 run_case(loop_control "main(): Int64 {
     var i: Int64 = 0; var total: Int64 = 0;
     while(true){
-        let done: Bool = eq(i,3); if(done){break;}else{}
-        let next: Int64 = add(i,1); i = next;
-        while(true){let incremented: Int64 = add(total,2); total = incremented; break;}
-        let skip: Bool = eq(next,2); if(skip){continue;}else{}
-        let incremented: Int64 = add(total,1); total = incremented;
+        let done: Bool = i == 3; if(done){break;}else{}
+        let next: Int64 = i + 1; i = next;
+        while(true){let incremented: Int64 = total + 2; total = incremented; break;}
+        let skip: Bool = next == 2; if(skip){continue;}else{}
+        let incremented: Int64 = total + 1; total = incremented;
     }
     return total;
 }" 8)
@@ -98,14 +98,14 @@ run_case(loop_return "main(): Int64 {
 }" 7)
 
 run_case(target_keywords "func class(this: Int64): Int64 {
-    let private: Int64 = add(this,1); return private;
+    let private: Int64 = this + 1; return private;
 }
 main(): Int64 { let match: Int64 = class(4); return match; }" 5)
 
 run_case(later_names "func first(): Int64 { let second: Int64 = 3; return second; }
 func second(): Int64 { return 4; }
 main(): Int64 { let a: Int64 = first(); let b: Int64 = second();
-    let sum: Int64 = add(a,b); return sum; }" 7)
+    let sum: Int64 = a + b; return sum; }" 7)
 
 run_case(sibling_scopes "main(): Int64 {
     if(true){let same: Int64 = -001; return same;}else{let same: Int64 = 2; return same;}

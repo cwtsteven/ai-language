@@ -2,47 +2,47 @@ func sliceEq(text: String, start: Int64, needle: String): Bool {
     var u1: Int64 = 0;
     let v2: Int64 = strLen(needle);
     while (true) {
-        let v3: Bool = eq(u1, v2);
+        let v3: Bool = u1 == v2;
         if (v3) {
             return true;
         } else {
         }
-        let v4: Int64 = add(start, u1);
-        let v5: String = strAt(text, v4);
-        let v6: String = strAt(needle, u1);
-        let v7: Bool = strEq(v5, v6);
+        let v4: Int64 = start + u1;
+        let v5: String = text[v4];
+        let v6: String = needle[u1];
+        let v7: Bool = v5 == v6;
         if (v7) {
         } else {
             return false;
         }
-        let v8: Int64 = add(u1, 1);
+        let v8: Int64 = u1 + 1;
         u1 = v8;
     }
 }
 func solve(text: String, pattern: String): Int64 {
     let v9: Int64 = strLen(text);
     let v10: Int64 = strLen(pattern);
-    let v11: Bool = eq(v10, 0);
+    let v11: Bool = v10 == 0;
     if (v11) {
         return 0;
     } else {
     }
-    let v12: Int64 = sub(v9, v10);
+    let v12: Int64 = v9 - v10;
     var u13: Int64 = 0;
     var u14: Int64 = 0;
     while (true) {
-        let v15: Bool = lt(v12, u13);
+        let v15: Bool = v12 < u13;
         if (v15) {
             return u14;
         } else {
         }
         let v16: Bool = sliceEq(text, u13, pattern);
         if (v16) {
-            let v17: Int64 = add(u14, 1);
+            let v17: Int64 = u14 + 1;
             u14 = v17;
         } else {
         }
-        let v18: Int64 = add(u13, 1);
+        let v18: Int64 = u13 + 1;
         u13 = v18;
     }
 }

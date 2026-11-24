@@ -95,7 +95,7 @@ recorded in [tasks.json](tasks.json). HumanEval's MIT notice is retained in
 
 Floats, tuples, nested lists, lists of strings, and optional results cannot be expressed. Expected results fit `Int64`, within the bounds stated in each prompt. Zero, negative values, repeated factors, sequence boundaries, and large results are included where they apply.
 
-Both arms are asked for `solve`. The typed language reserves names such as `add(Int64, Int64): Int64`, so the checked-in tests call `typed_fn_solve` and the Cangjie harness rewrites that call to `solve`. Helpers may precede `solve`, and a dummy `main` completes the program. Both arms get the same signature and problem text, then their own specification. Test inputs, answers, and reference solutions are not shown to the model. References are positive controls for the typed evaluator.
+Both arms are asked for `solve`. The typed language reserves built-in call names such as `emptyList` and `listLen`, so the checked-in tests call `typed_fn_solve` and the Cangjie harness rewrites that call to `solve`. Helpers may precede `solve`, and a dummy `main` completes the program. Both arms get the same signature and problem text, then their own specification. Test inputs, answers, and reference solutions are not shown to the model. References are positive controls for the typed evaluator.
 
 ## Experimental controls
 

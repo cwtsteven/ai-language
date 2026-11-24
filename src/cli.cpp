@@ -134,7 +134,7 @@ void print_help(FILE * output, const char * executable, Command command) {
             "  --plan-file FILE  Generate code using this saved plan; do not run the planner.\n"
             "  --force-postfix   If the token budget ends an open program, append a typed postfix before translation.\n"
             "  --unconstrained   Disable token constraints and translate the result when it is a complete typed program.\n"
-            "  --debug           Show the implementation plan and token traces on stderr.\n"
+            "  --debug           Show the plan, token traces, and typed program on stderr.\n"
             "  --debug-limit N   Rejected candidates shown per code token (default 20); enables debug mode.\n"
             "  --threads N       CPU threads for prompt processing and generation (default 4).\n"
             "  --ngl N           GPU layers to offload (default 99 on macOS, 0 elsewhere).\n"

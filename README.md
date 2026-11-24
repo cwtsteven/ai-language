@@ -1,6 +1,6 @@
 # typed-cangjie
 
-Typed constrained code generation for Cangjie. A local llama.cpp model samples
+Typed constrained code generation for a subset of Cangjie. A local llama.cpp model samples
 a small typed language, and a complete program is translated to Cangjie before
 anything is written. You compile that output with `cjc`.
 Typechecking does not guarantee algorithm correctness.
@@ -79,7 +79,7 @@ Code goes to stdout; diagnostics go to stderr. Each command has `--help`.
 | `--plan-file FILE` | Generate code from a saved plan; skip new planning. |
 | `--force-postfix` | If the token budget ends an open program, append a typed postfix and then translate. Off by default. |
 | `--unconstrained` | Disable code token filtering. Translate only when the text is a complete typed program. |
-| `--debug` | Show the implementation plan and token traces on stderr; default off. |
+| `--debug` | Show the implementation plan, token traces, and typed program on stderr; default off. |
 | `--debug-limit N` | Rejected candidates shown per code token; default **20**. Enables debug mode. |
 | `--threads N` | CPU threads for prompt processing and generation. Default **4**. |
 | `--ngl N` | GPU layers to offload. Default **99** on macOS and **0** elsewhere. **0** runs on the CPU. |
@@ -104,7 +104,7 @@ The [prompt](examples/fibonacci-5-prompt.txt) supplies the algorithm explicitly.
 
 ## Language
 
-`let` is immutable. `var` is updated with `name = atom;`. Types are `Int64`, `Bool`, `ListInt64`, and `String`. Conditions are `Bool` atoms. `break;` and `continue;` occur only inside loops. Helpers are `func` declarations before `main`; see the [function example](examples/functions.typed). Calls take atoms and show their result, as in `add(Int64, Int64): Int64` and `eq(Int64, Int64): Bool`. Infix expressions are rejected. The [specification](docs/language.md) lists every operation.
+`let` is immutable. `var` is updated with `name = value;`. Types are `Int64`, `Bool`, `ListInt64`, and `String`. Conditions are `Bool` values. `break;` and `continue;` occur only inside loops. Helpers are `func` declarations before `main`; see the [function example](examples/functions.typed). Values may use non-nested operators (`x + 1`, `a == b`, `!flag`, `xs[i]`) or the remaining list/string calls. The [specification](docs/language.md) lists every form.
 
 - [Typed language specification](docs/language.md) (embedded in `typed-cangjie` prompts at build time)
 - [Cangjie prompt excerpt](docs/cangjie-subset.md) (appended by the benchmark's Cangjie arm)

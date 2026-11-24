@@ -2,18 +2,18 @@ func hasChar(text: String, ch: String): Bool {
     var u1: Int64 = 0;
     let v2: Int64 = strLen(text);
     while (true) {
-        let v3: Bool = eq(u1, v2);
+        let v3: Bool = u1 == v2;
         if (v3) {
             return false;
         } else {
         }
-        let v4: String = strAt(text, u1);
-        let v5: Bool = strEq(v4, ch);
+        let v4: String = text[u1];
+        let v5: Bool = v4 == ch;
         if (v5) {
             return true;
         } else {
         }
-        let v6: Int64 = add(u1, 1);
+        let v6: Int64 = u1 + 1;
         u1 = v6;
     }
 }
@@ -21,25 +21,25 @@ func covered(source: String, target: String): Bool {
     var u7: Int64 = 0;
     let v8: Int64 = strLen(source);
     while (true) {
-        let v9: Bool = eq(u7, v8);
+        let v9: Bool = u7 == v8;
         if (v9) {
             return true;
         } else {
         }
-        let v10: String = strAt(source, u7);
+        let v10: String = source[u7];
         let v11: Bool = hasChar(target, v10);
         if (v11) {
         } else {
             return false;
         }
-        let v12: Int64 = add(u7, 1);
+        let v12: Int64 = u7 + 1;
         u7 = v12;
     }
 }
 func solve(left: String, right: String): Bool {
     let v13: Bool = covered(left, right);
     let v14: Bool = covered(right, left);
-    let v15: Bool = and(v13, v14);
+    let v15: Bool = v13 && v14;
     return v15;
 }
 main(): Int64 { return 0; }
