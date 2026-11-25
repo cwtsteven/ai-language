@@ -17,12 +17,14 @@ Checked-in `.typed` fixtures stay in the constraint language. The benchmark and 
 | --- | --- |
 | `Int64`, `Bool` | The same native types |
 | `let`, `var`, `name = value;` | The same forms |
-| `+`, `-`, `*` on `Int64`; `+` on `String` | The same operators |
-| `==`, `<` on `Int64`; `==` on `String` | The same operators |
+| `+`, `-`, `*`, `/`, `%` on `Int64`; `+` on `String` | The same operators |
+| `==`, `!=`, `<`, `<=`, `>`, `>=` on `Int64`; `==`, `!=` on `String` | The same operators |
 | `!`, `&&`, `\|\|` on `Bool` | The same operators |
-| `emptyList()`, `listPush`, `listLen`, `xs[i]` | `ArrayList<Int64>` construction, a copying push, `.size`, and indexing |
+| `if` without `else` | Cangjie `if` without `else` |
+| `List<T>()`, `xs.add`, `xs.size`, `xs[i]` | `ArrayList<T>()` construction, a copying add helper, `.size`, and indexing |
 | `strLen`, `text[i]` | `.size` and a one-character read helper |
 | `func`, calls, `if`, `while`, `return`, `break`, `continue` | The corresponding Cangjie forms |
+| `for (item: T in xs)`, `for (i: Int64 in start .. end)` | Cangjie `for-in` over an `ArrayList` or a half-open `start..end` range; the typed binding annotation is dropped |
 | `func id<T>(value: T): T` | `func typed_fn_id<T>(typed_var_value: T): T` |
 | `(Int64) -> Int64`, a function name used as a value | The same function type, and `typed_fn_` for that name |
 | `fun(x: Int64): Int64 => x + 1` | `{typed_var_x: Int64 => (typed_var_x + 1)}` |

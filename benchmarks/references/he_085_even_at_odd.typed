@@ -22,8 +22,8 @@ func isEven(value: Int64): Bool {
     let v8: Bool = v7 == 0;
     return v8;
 }
-func solve(numbers: ListInt64): Int64 {
-    let v9: Int64 = listLen(numbers);
+func solve(numbers: List<Int64>): Int64 {
+    let v9: Int64 = numbers.size;
     var u10: Int64 = 1;
     var u11: Int64 = 0;
     while (true) {

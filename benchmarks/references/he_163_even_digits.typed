@@ -22,7 +22,7 @@ func isEven(value: Int64): Bool {
     let v8: Bool = v7 == 0;
     return v8;
 }
-func solve(a: Int64, b: Int64): ListInt64 {
+func solve(a: Int64, b: Int64): List<Int64> {
     let v9: Bool = a < b;
     var u10: Int64 = a;
     var u11: Int64 = b;
@@ -43,7 +43,7 @@ func solve(a: Int64, b: Int64): ListInt64 {
     }
     let v14: Bool = u11 < u10;
     if (v14) {
-        let v15: ListInt64 = emptyList();
+        let v15: List<Int64> = List<Int64>();
         return v15;
     } else {
     }
@@ -55,11 +55,11 @@ func solve(a: Int64, b: Int64): ListInt64 {
     }
     let v18: Bool = u11 < u10;
     if (v18) {
-        let v19: ListInt64 = emptyList();
+        let v19: List<Int64> = List<Int64>();
         return v19;
     } else {
     }
-    var u20: ListInt64 = emptyList();
+    var u20: List<Int64> = List<Int64>();
     var u21: Int64 = u10;
     while (true) {
         let v22: Bool = u11 < u21;
@@ -67,7 +67,7 @@ func solve(a: Int64, b: Int64): ListInt64 {
             return u20;
         } else {
         }
-        let v23: ListInt64 = listPush(u20, u21);
+        let v23: List<Int64> = u20.add(u21);
         u20 = v23;
         let v24: Int64 = u21 + 2;
         u21 = v24;

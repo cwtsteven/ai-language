@@ -320,17 +320,22 @@ class BenchmarkTests(unittest.TestCase):
             self.assertEqual(text.count("@Expect"), task["tests_total"])
 
     def test_prompts_share_the_request_and_append_each_specification(self):
-        from prompts import (CANGJIE_SPEC, TYPED_CODE_PREFIX, TYPED_PLAN_PREFIX, TYPED_SPEC,
-                             code_user, planning_user, problem_statement, system_text)
+        from prompts import (CANGJIE_SPEC, CODE_PREFIX, PLAN_PREFIX, TYPED_SPEC,
+                             code_user, planning_user, problem_statement, system_text,
+                             task_text)
         shared = problem_statement(ADD)
+        self.assertEqual(task_text(ADD, "constrained"), task_text(ADD, "cangjie"))
+        self.assertEqual(code_user(ADD, "constrained"), code_user(ADD, "cangjie"))
+        self.assertEqual(planning_user(ADD, "constrained"), planning_user(ADD, "cangjie"))
         self.assertIn(shared, bench.task_prompt(ADD))
         self.assertIn(shared, code_user(ADD, "cangjie"))
-        self.assertNotIn("atomic arguments", code_user(ADD, "cangjie"))
-        self.assertIn("atomic arguments", code_user(ADD, "constrained"))
-        self.assertTrue(system_text("constrained", False).startswith(TYPED_CODE_PREFIX))
+        self.assertIn("supplied language", code_user(ADD, "constrained"))
+        self.assertTrue(system_text("constrained", False).startswith(CODE_PREFIX))
         self.assertIn(TYPED_SPEC, system_text("constrained", False))
         self.assertIn(TYPED_SPEC, system_text("constrained", True))
-        self.assertTrue(system_text("constrained", True).startswith(TYPED_PLAN_PREFIX))
+        self.assertTrue(system_text("constrained", True).startswith(PLAN_PREFIX))
+        self.assertTrue(system_text("cangjie", False).startswith(CODE_PREFIX))
+        self.assertTrue(system_text("cangjie", True).startswith(PLAN_PREFIX))
         self.assertIn(CANGJIE_SPEC, system_text("cangjie", False))
         self.assertIn(CANGJIE_SPEC, system_text("cangjie", True))
         self.assertNotIn(TYPED_SPEC, system_text("cangjie", False))
@@ -341,12 +346,20 @@ class BenchmarkTests(unittest.TestCase):
         self.assertTrue(cangjie_plan.startswith("Plan the implementation for this request: "))
         self.assertIn(shared, typed_plan)
         self.assertIn(shared, cangjie_plan)
+        rolling = next(task for task in SUITE["tasks"] if task["id"] == "he_009_rolling_max")
+        typed_rolling = code_user(rolling, "constrained")
+        cangjie_rolling = code_user(rolling, "cangjie")
+        self.assertIn("func solve(numbers: List<Int64>): List<Int64>.", typed_rolling)
+        self.assertIn("func solve(numbers: ArrayList<Int64>): ArrayList<Int64>.", cangjie_rolling)
+        self.assertNotIn("numbers: List<", cangjie_rolling)
+        self.assertEqual(typed_rolling.replace("List<Int64>", "ArrayList<Int64>"), cangjie_rolling)
         planned = code_user(ADD, "cangjie", plan="keep the same seed")
         self.assertIn("Implementation plan:\nkeep the same seed", planned)
         header = (bench.ROOT / "src/language_prompt.h").read_text()
         planning = (bench.ROOT / "src/planning.h").read_text()
         self.assertIn("Write exactly one program satisfying this language specification.", header)
-        self.assertIn("Use spaces between tokens for clarity.", header)
+        self.assertIn("Output code only: no Markdown or explanation.", header)
+        self.assertNotIn("Use spaces between tokens for clarity.", header)
         self.assertIn("The following specification constrains the program written later.", header)
         self.assertIn("Write signatures only", header)
         self.assertIn("Plan the implementation for this request: ", planning)
@@ -441,6 +454,28 @@ class BenchmarkTests(unittest.TestCase):
             (temporary / "cjtests" / f"{broken['tasks'][0]['id']}_test.cj").unlink()
             with self.assertRaisesRegex(ValueError, "missing unittest"):
                 bench.load_suite(path)
+
+    def test_report_rows_use_booleans_and_case_counts(self):
+        records = [
+            dict(mode="constrained", task_id="one", sample_index=0,
+                 translation_success=True, compilation_success=True,
+                 functional_success=False, tests_passed=9, tests_total=11,
+                 status="wrong_answer", code_generation_attempted=True,
+                 generation_success=True),
+            dict(mode="cangjie", task_id="one", sample_index=0,
+                 translation_success=None, compilation_success=False,
+                 functional_success=False, tests_passed=0, tests_total=11,
+                 status="compile_failed", code_generation_attempted=True,
+                 generation_success=True),
+        ]
+        config = {"suite_name": "suite", "plan_source": "none", "task_ids": ["one"], "samples": 1,
+                  "code_tokens_by_task": {"one": 2048}}
+        with tempfile.TemporaryDirectory() as temporary:
+            bench.write_report(Path(temporary), config, records)
+            text = (Path(temporary) / "report.md").read_text()
+        self.assertIn("| one | 2048 | true | true | 9/11 | true | false | 0/11 |", text)
+        self.assertIn("| constrained | 1 | 1/1 | 1/1 | 9/11 |", text)
+        self.assertIn("| cangjie | 1 | 1/1 | 0/1 | 0/11 |", text)
 
     def test_failure_denominators_and_pairing(self):
         rows = []

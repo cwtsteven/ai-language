@@ -86,7 +86,7 @@ Code goes to stdout; diagnostics go to stderr. Each command has `--help`.
 | `--ubatch N` | Physical prompt batch size. Default **512**, limited to the prompt length. |
 | `-h`, `--help` | Command help. |
 
-Higher temperature makes lower-scoring tokens more likely; temperature 0 is greedy. Code tokens must keep the program syntactically and type-correct unless `--unconstrained` is set. A complete program is translated to Cangjie. If `--n` runs out first, stdout stays empty. `--force-postfix` closes that prefix, translates it, and says so on stderr; the constructed ending may not fulfill the task.
+Higher temperature makes lower-scoring tokens more likely; temperature 0 is greedy. Code tokens must keep the program syntactically and type-correct unless `--unconstrained` is set. A complete program is translated to Cangjie on stdout. If `--n` runs out first, stdout still holds the unfinished typed prefix (exit 2), and stderr prints it under `Typed program:`. `--force-postfix` closes that prefix, translates it, and says so on stderr; the constructed ending may not fulfill the task.
 
 Save a plan with `generate TEXT --model FILE --plan-only > plan.txt`, then pass `--plan-file plan.txt`. The [benchmark](benchmarks/README.md) does not share that plan. It runs `typed-cangjie` and `plain-llama` on the same task, seed, temperature, and token budget. The Cangjie arm uses [its own excerpt](docs/cangjie-subset.md).
 
@@ -104,9 +104,10 @@ The [prompt](examples/fibonacci-5-prompt.txt) supplies the algorithm explicitly.
 
 ## Language
 
-`let` is immutable. `var` is updated with `name = value;`. Types are `Int64`, `Bool`, `ListInt64`, and `String`. Conditions are `Bool` expressions. `break;` and `continue;` occur only inside loops. Helpers are `func` declarations before `main`; see the [function example](examples/functions.typed). Values may nest (`1 + 2 * 3`, `n + 1 == 0`, `xs[i + 1]`). Generic functions take explicit type arguments (`id<Int64>(n)`). A written function type may hold a named function or an annotated lambda (`fun(x: Int64): Int64 => x + 1`). The [specification](docs/language.md) lists every form.
+`let` is immutable. `var` is updated with `name = value;`. Types are `Int64`, `Bool`, `String`, `List<T>`, and declared structs. Conditions are `Bool` expressions. `break;` and `continue;` occur only inside loops. Helpers are `func` and `struct` declarations before `main`; see the [function example](examples/functions.typed). Values may nest (`1 + 2 * 3`, `n + 1 == 0`, `xs[i + 1]`, `xs.size`, `xs.add(1)`). Generic functions take explicit type arguments (`id<Int64>(n)`). A written function type may hold a named function or an annotated lambda (`fun(x: Int64): Int64 => x + 1`). The [specification](docs/language.md) lists every form.
 
 - [Typed language specification](docs/language.md) (embedded in `typed-cangjie` prompts at build time)
+- [Typing rules](docs/typing.md) (not embedded in prompts)
 - [Cangjie prompt excerpt](docs/cangjie-subset.md) (appended by the benchmark's Cangjie arm)
 - [Model plugin settings](docs/model-plugins.md)
 - [Cangjie translation](docs/cangjie.md) (`generate` writes the translated program)

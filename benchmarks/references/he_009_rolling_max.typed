@@ -1,16 +1,16 @@
-func solve(numbers: ListInt64): ListInt64 {
-    let v1: Int64 = listLen(numbers);
+func solve(numbers: List<Int64>): List<Int64> {
+    let v1: Int64 = numbers.size;
     let v2: Bool = v1 == 0;
     if (v2) {
-        let v3: ListInt64 = emptyList();
+        let v3: List<Int64> = List<Int64>();
         return v3;
     } else {
     }
     let v4: Int64 = numbers[0];
     var u5: Int64 = v4;
-    let v6: ListInt64 = emptyList();
-    let v7: ListInt64 = listPush(v6, u5);
-    var u8: ListInt64 = v7;
+    let v6: List<Int64> = List<Int64>();
+    let v7: List<Int64> = v6.add(u5);
+    var u8: List<Int64> = v7;
     var u9: Int64 = 1;
     while (true) {
         let v10: Bool = u9 == v1;
@@ -27,7 +27,7 @@ func solve(numbers: ListInt64): ListInt64 {
             u5 = v11;
         } else {
         }
-        let v16: ListInt64 = listPush(u8, u5);
+        let v16: List<Int64> = u8.add(u5);
         u8 = v16;
         let v17: Int64 = u9 + 1;
         u9 = v17;

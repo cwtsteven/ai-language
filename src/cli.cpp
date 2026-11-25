@@ -143,7 +143,7 @@ void print_help(FILE * output, const char * executable, Command command) {
             "The description first produces a plan (shown only in debug mode), without an output token cap,\n"
             "then include it with the language specification for code generation. Sampling is type-constrained.\n"
             "A complete typed program is translated to Cangjie and written to stdout. An unfinished program\n"
-            "writes a diagnostic to stderr and no Cangjie source.\n"
+            "writes the typed prefix on stdout (exit 2), prints it under 'Typed program:' on stderr, and writes no Cangjie.\n"
             "A token budget is not a word count. If it runs out before the program is complete, nothing is translated.\n"
             "--force-postfix appends a typed postfix that closes the program, then translates it, and reports that on stderr.\n"
             "That postfix is constructed, so it may not fulfill the request. Store memory settings in a model plugin for routine use.\n",

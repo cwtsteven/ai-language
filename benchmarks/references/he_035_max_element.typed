@@ -1,8 +1,8 @@
-func solve(numbers: ListInt64): Int64 {
+func solve(numbers: List<Int64>): Int64 {
     let v1: Int64 = numbers[0];
     var u2: Int64 = v1;
     var u3: Int64 = 1;
-    let v4: Int64 = listLen(numbers);
+    let v4: Int64 = numbers.size;
     while (true) {
         let v5: Bool = u3 == v4;
         if (v5) {

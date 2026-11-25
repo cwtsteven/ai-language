@@ -57,6 +57,32 @@ int main() {
               "        }\n"
               "    }\n"
               "    return 0;\n}\n");
+    formatted("main():Int64{var t:Int64=0;for(i:Int64 in 0..3){t=t+i;}return t;}",
+              "main(): Int64 {\n"
+              "    var t: Int64 = 0;\n"
+              "    for (i: Int64 in 0 .. 3) {\n"
+              "        t = t + i;\n"
+              "    }\n"
+              "    return t;\n}\n");
+    formatted("main():Int64{let q:Int64=7/2;if(q>=3){return q;}return 0;}",
+              "main(): Int64 {\n"
+              "    let q: Int64 = 7 / 2;\n"
+              "    if (q >= 3) {\n"
+              "        return q;\n"
+              "    }\n"
+              "    return 0;\n}\n");
+    formatted("main():Int64{let a:Bool=1!=2;let b:Bool=3<=4;return 0;}",
+              "main(): Int64 {\n"
+              "    let a: Bool = 1 != 2;\n"
+              "    let b: Bool = 3 <= 4;\n"
+              "    return 0;\n}\n");
+    formatted("main():Int64{let xs:List<Int64>=List<Int64>();for(item:Int64 in xs){return item;}return 0;}",
+              "main(): Int64 {\n"
+              "    let xs: List<Int64> = List<Int64>();\n"
+              "    for (item: Int64 in xs) {\n"
+              "        return item;\n"
+              "    }\n"
+              "    return 0;\n}\n");
     formatted("main ( ) : Int64 { return 0 ; }",
               "main(): Int64 {\n    return 0;\n}\n");
     formatted("main():Int64{var x:Int64=5;let next:Int64=x+1;x=next;return x;}",
@@ -90,10 +116,10 @@ int main() {
               "    let c: Bool = b || false;\n"
               "    let d: Bool = c && true;\n"
               "    return -0001;\n}\n");
-    formatted("main():Int64{let e:ListInt64=emptyList();let n:Int64=e[0];"
+    formatted("main():Int64{let e:List<Int64>=List<Int64>();let n:Int64=e[0];"
               "let t:String=\"ab\";let c:String=t[0];return n;}",
               "main(): Int64 {\n"
-              "    let e: ListInt64 = emptyList();\n"
+              "    let e: List<Int64> = List<Int64>();\n"
               "    let n: Int64 = e[0];\n"
               "    let t: String = \"ab\";\n"
               "    let c: String = t[0];\n"

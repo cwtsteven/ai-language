@@ -9,11 +9,12 @@
 
 namespace typed {
 
-// Base data types are the four named ones. A function type exists only once an
-// annotation or a lambda signature has written it. A type parameter exists only
-// inside the generic function that declared it.
+// Base data types are the named ones. List carries its element type. A struct is
+// nominal by name. A function type exists only once an annotation or a lambda
+// signature has written it. A type parameter exists only inside the generic
+// function that declared it.
 struct Type {
-    enum class Kind { Int, Bool, List, String, Fun, Param };
+    enum class Kind { Int, Bool, List, String, Fun, Param, Struct };
     Kind kind = Kind::Int;
     std::string param;
     std::vector<Type> parameters;
@@ -21,13 +22,15 @@ struct Type {
 
     static Type Int();
     static Type Bool();
-    static Type List();
+    static Type List(Type element);
     static Type String();
     static Type Param(std::string name);
+    static Type Struct(std::string name);
     static Type Fun(std::vector<Type> parameters, Type result);
 
     bool operator==(const Type & other) const;
     bool operator!=(const Type & other) const { return !(*this == other); }
+    const Type * list_element() const;
 };
 
 std::string type_name(const Type & type);
@@ -77,26 +80,38 @@ private:
         FunctionName, FunctionGenericOrParen, TypeParamName, TypeParamNext,
         FunctionParen, ParamStart, ParamName, ParamColon, ParamType,
         AfterParam, FunctionColon, FunctionType, FunctionOpen,
+        StructName, StructOpen, StructMember, FieldColon, FieldSemi,
+        MethodName, MethodParen, MethodParamStart, MethodParamName, MethodParamColon,
+        MethodAfterParam, MethodColon, MethodOpen,
         Stmt, LetName, LetColon, LetType, LetEqual, ExprStart,
         ExprAfterLeft, InfixRight, IndexArg, IndexClose, UnaryArg,
-        IfAtom, WhileAtom,
+        IfAtom, WhileAtom, DotName, MemberCallOpen,
         CallTypeOpen, CallTypeArg, CallTypeNext,
         CallOpen, CallArg, CallAfterArg, CallClose, LetSemi,
         LambdaParen, LambdaParamStart, LambdaParamName, LambdaParamColon, LambdaParamType,
         LambdaAfterParam, LambdaColon, LambdaResult, LambdaEq, LambdaGt,
-        TypeAtom, TypeAfter, TypeArrow, TypeArrowGt,
+        TypeAtom, TypeAfter, TypeArrow, TypeArrowGt, TypeListOpen, TypeListClose,
+        ListCtorOpen, ListCtorClose,
         AssignEqual, LoopControlSemi,
-        IfOpenParen, IfCloseParen, IfOpen, Else, ElseOpen,
+        IfOpenParen, IfCloseParen, IfOpen, AfterIfThen, ElseOpen,
         WhileOpenParen, WhileCloseParen, WhileOpen,
+        ForOpenParen, ForName, ForColon, ForIn, ForCloseParen, ForOpen,
         ReturnSemi, Done,
     };
-    enum class Block { Main, Function, IfThen, IfElse, While };
-    enum class ExprFollow { LetSemi, ReturnSemi, IfClose, WhileClose, LambdaEnd, Nested, Index, Group, Arg };
+    enum class Block { Main, Function, Method, IfThen, IfElse, While, For };
+    enum class ExprFollow {
+        LetSemi, ReturnSemi, IfClose, WhileClose, ForIterable, ForRangeEnd,
+        LambdaEnd, Nested, Index, Group, Arg
+    };
     enum class ResumeKind { Infix, Index, Group, Arg, Unary };
-    enum class TypeDest { Let, Param, Return, LambdaParam, LambdaResult, CallArg };
+    enum class TypeDest {
+        Let, Param, Return, LambdaParam, LambdaResult, CallArg, Field, MethodReturn,
+        ListCtor, ListElement, For
+    };
     struct TypeBuild {
         std::vector<Type> parameters;
         bool result = false;
+        bool list = false;
     };
     struct LambdaFrame {
         ExprFollow follow = ExprFollow::LetSemi;
@@ -127,9 +142,22 @@ private:
         Type result = Type::Int();
         std::vector<Type> arguments;
     };
+    struct Method {
+        std::string name;
+        Type result = Type::Int();
+        std::vector<Type> arguments;
+        std::vector<std::string> argument_names;
+    };
+    struct StructDecl {
+        std::string name;
+        std::vector<Symbol> fields;
+        std::vector<Method> methods;
+    };
     struct Frame {
         Block kind;
         size_t symbol_count;
+        size_t struct_index = 0;
+        size_t method_index = 0;
     };
 
     Phase phase_ = Phase::TopLevel;
@@ -137,7 +165,10 @@ private:
     std::vector<Symbol> symbols_;
     std::vector<Frame> blocks_;
     std::vector<Function> functions_;
+    std::vector<StructDecl> structs_;
     Function declaring_;
+    StructDecl declaring_struct_;
+    Method declaring_method_;
     Type return_type_ = Type::Int();
     std::string new_name_;
     Type new_type_ = Type::Int();
@@ -182,15 +213,33 @@ private:
     bool symbol_prefix(Type type, std::string_view partial) const;
     bool mutable_prefix(std::string_view partial) const;
     bool has_atom(Type type) const;
+    bool has_atom(Type type, std::vector<std::string> & visiting) const;
+    // True when finishing `type` in the current type_dest_/type_stack_ can succeed.
+    bool type_atom_acceptable(const Type & type) const;
+    // Value-struct field cycles (Cangjie rejects these); List fields do not count.
+    bool struct_field_embeds(const Type & type, const std::string & origin,
+                             std::vector<std::string> & visiting) const;
     bool name_available(std::string_view name) const;
+    bool struct_name_available(std::string_view name) const;
     const Symbol * find(std::string_view name) const;
     const Function * find_function(std::string_view name) const;
+    const StructDecl * find_struct(std::string_view name) const;
+    const Method * find_method(const Type & receiver, std::string_view name) const;
+    const Symbol * find_field(const Type & receiver, std::string_view name) const;
     bool operation_possible(Type result, std::string_view partial) const;
     bool begin_operation(std::string_view name, Type result);
+    bool list_ctor_possible(Type needed, std::string_view partial) const;
+    bool struct_ctor_possible(Type needed, std::string_view partial) const;
+    bool begin_list_ctor();
+    bool begin_struct_ctor(std::string_view name);
+    bool member_possible(Type left, Type needed, std::string_view partial) const;
     bool close_block();
     bool in_loop() const;
     bool begin_expression(Type needed, ExprFollow follow);
     bool finish_expression();
+    bool for_list_complete() const;
+    bool for_range_start_complete() const;
+    bool for_iterable_start_possible(std::string_view partial) const;
     bool value_start_possible(Type needed, std::string_view partial) const;
     bool symbol_callable(const Symbol & symbol, Type needed) const;
     bool left_can_reach(Type left, Type needed) const;
@@ -213,10 +262,13 @@ private:
     std::optional<Type> base_or_param(std::string_view token) const;
     Type substitute(const Type & type, const std::vector<Type> & args) const;
     bool instantiate_possible(const Function & function, const Type & needed) const;
+    std::vector<Type> type_choices(const Type & needed) const;
+    void collect_subtypes(const Type & type, std::vector<Type> & out) const;
     bool begin_type(TypeDest dest);
     bool deliver_type(Type type);
     bool finish_type(const Type & type);
     Type function_type(const Function & function) const;
+    bool member_name_taken(const StructDecl & decl, std::string_view name) const;
 };
 
 } // namespace typed

@@ -9,7 +9,7 @@ namespace language {
 inline const std::string & system_prompt() {
     static const std::string prompt =
         "Write exactly one program satisfying this language specification. "
-        "Output code only: no Markdown or explanation. Use spaces between tokens for clarity.\n\n" +
+        "Output code only: no Markdown or explanation.\n\n" +
         std::string(specification);
     return prompt;
 }

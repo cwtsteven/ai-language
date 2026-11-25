@@ -14,13 +14,26 @@ bool word_char(unsigned char ch) {
 bool expects_atom(std::string_view previous) {
     return previous == "=" || previous == "(" || previous == "," || previous == "return" ||
         previous == "!" || previous == "[" || previous == "+" || previous == "-" ||
-        previous == "*" || previous == "==" || previous == "<" || previous == "&&" ||
-        previous == "||";
+        previous == "*" || previous == "/" || previous == "%" ||
+        previous == "==" || previous == "!=" || previous == "<" || previous == "<=" ||
+        previous == ">" || previous == ">=" || previous == "&&" || previous == "||" ||
+        previous == ".." || previous == "in";
 }
 
 bool is_infix(std::string_view token) {
-    return token == "+" || token == "-" || token == "*" || token == "==" ||
-        token == "<" || token == "&&" || token == "||";
+    return token == "+" || token == "-" || token == "*" || token == "/" || token == "%" ||
+        token == "==" || token == "!=" || token == "<" || token == "<=" ||
+        token == ">" || token == ">=" || token == "&&" || token == "||";
+}
+
+// `List<Int64>=` must stay `>` then `=`; `q>=3` is one token.
+bool relational_digraph_after(std::string_view previous) {
+    if (previous.empty()) return false;
+    if (previous == "Int64" || previous == "Bool" || previous == "String" || previous == "List")
+        return false;
+    if (previous == ">" || previous == ")") return false;
+    if (previous.front() >= 'A' && previous.front() <= 'Z') return false;
+    return true;
 }
 
 } // namespace
@@ -42,6 +55,12 @@ std::optional<std::string> format_program(std::string_view source) {
             while (i < source.size() && std::isdigit(static_cast<unsigned char>(source[i]))) ++i;
         } else if (source[start] == '=' || source[start] == '&' || source[start] == '|') {
             if (i < source.size() && source[i] == source[start]) ++i;
+        } else if ((source[start] == '!' || source[start] == '<' || source[start] == '>') &&
+                   i < source.size() && source[i] == '=' &&
+                   (source[start] == '!' || relational_digraph_after(previous))) {
+            ++i;
+        } else if (source[start] == '.' && i < source.size() && source[i] == '.') {
+            ++i;
         } else if (word_char(source[start])) {
             while (i < source.size() && word_char(source[i])) ++i;
         }
@@ -79,11 +98,11 @@ std::optional<std::string> format_program(std::string_view source) {
             line += ';';
             flush();
         } else if (token == "(") {
-            if (previous == "if" || previous == "while") space();
+            if (previous == "if" || previous == "while" || previous == "for") space();
             line += '(';
         } else if (token == ")") {
             line += ')';
-        } else if (token == "[" || token == "]") {
+        } else if (token == "[" || token == "]" || token == "<" || token == ">") {
             line += token;
         } else if (token == ":" || token == ",") {
             line += token;
@@ -92,6 +111,10 @@ std::optional<std::string> format_program(std::string_view source) {
             space();
             line += token;
             line += ' ';
+        } else if (token == "..") {
+            space();
+            line += token;
+            space();
         } else if (is_infix(token)) {
             space();
             line += token;
@@ -100,7 +123,7 @@ std::optional<std::string> format_program(std::string_view source) {
             space();
             line += token;
         } else {
-            if (previous != "(" && previous != "!" && previous != "[") space();
+            if (previous != "(" && previous != "!" && previous != "[" && previous != "<") space();
             line += token;
         }
     }

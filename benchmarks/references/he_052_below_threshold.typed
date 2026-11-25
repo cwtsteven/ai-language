@@ -1,5 +1,5 @@
-func solve(numbers: ListInt64, limit: Int64): Bool {
-    let v1: Int64 = listLen(numbers);
+func solve(numbers: List<Int64>, limit: Int64): Bool {
+    let v1: Int64 = numbers.size;
     var u2: Int64 = 0;
     while (true) {
         let v3: Bool = u2 == v1;

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "name": "humaneval-scalar-anf-v1",
-  "description": "Adapted HumanEval subset using Int64, Bool, ListInt64, and String. Not an official HumanEval score.",
+  "description": "Adapted HumanEval subset using Int64, Bool, List<Int64>, and String. Not an official HumanEval score.",
   "upstream": {
     "repository": "https://github.com/openai/human-eval",
     "revision": "b9453e8f1865df0a0057a1383767caa400acfbcf",
@@ -9,7 +9,7 @@
     "license": "MIT"
   },
   "adaptations": [
-    "Select problems expressible with Int64, Bool, ListInt64, and String. Floats, tuples, nested lists, lists of strings, and optional results are still absent.",
+    "Select problems expressible with Int64, Bool, List<Int64>, and String. Floats, tuples, nested lists, lists of strings, and optional results are still absent.",
     "Rename each entry point to solve, avoiding reserved built-ins such as add.",
     "Require a complete typed-language program with helpers before solve and a dummy main.",
     "Retain all literal upstream assertions for selected tasks and add deterministic boundary and seeded-random cases as checked-in std.unittest files under cjtests/.",
@@ -25,7 +25,7 @@
       "parameters": [
         {
           "name": "operations",
-          "type": "ListInt64"
+          "type": "List<Int64>"
         }
       ],
       "return_type": "Bool",
@@ -41,14 +41,14 @@
       "parameters": [
         {
           "name": "numbers",
-          "type": "ListInt64"
+          "type": "List<Int64>"
         },
         {
           "name": "delimiter",
           "type": "Int64"
         }
       ],
-      "return_type": "ListInt64",
+      "return_type": "List<Int64>",
       "description": "Return numbers with delimiter inserted between neighbors, not after the last value. An empty list stays empty. The list has at most 8 values, each between -10 and 30, and the delimiter is in that range.",
       "reference": "references/he_005_intersperse.typed",
       "upstream_literal_tests": 3
@@ -61,10 +61,10 @@
       "parameters": [
         {
           "name": "numbers",
-          "type": "ListInt64"
+          "type": "List<Int64>"
         }
       ],
-      "return_type": "ListInt64",
+      "return_type": "List<Int64>",
       "description": "Return the running maximum of numbers, one value per input element. An empty list stays empty. The list has at most 8 values, each between -20 and 100.",
       "reference": "references/he_009_rolling_max.typed",
       "upstream_literal_tests": 4
@@ -188,7 +188,7 @@
           "type": "Int64"
         }
       ],
-      "return_type": "ListInt64",
+      "return_type": "List<Int64>",
       "description": "Return the prime factors of n from smallest to largest, repeating a prime as many times as it divides n. n is an integer from 2 to 200000.",
       "reference": "references/he_025_factorize.typed",
       "upstream_literal_tests": 8
@@ -201,10 +201,10 @@
       "parameters": [
         {
           "name": "numbers",
-          "type": "ListInt64"
+          "type": "List<Int64>"
         }
       ],
-      "return_type": "ListInt64",
+      "return_type": "List<Int64>",
       "description": "Return the positive values from numbers, in their original order. Zero and negative values are omitted. The list has at most 12 values, each between -20 and 150.",
       "reference": "references/he_030_get_positive.typed",
       "upstream_literal_tests": 4
@@ -233,10 +233,10 @@
       "parameters": [
         {
           "name": "numbers",
-          "type": "ListInt64"
+          "type": "List<Int64>"
         }
       ],
-      "return_type": "ListInt64",
+      "return_type": "List<Int64>",
       "description": "Return the distinct values of numbers sorted from smallest to largest. The list has at most 12 values, each between -10 and 150.",
       "reference": "references/he_034_unique.typed",
       "upstream_literal_tests": 1
@@ -249,7 +249,7 @@
       "parameters": [
         {
           "name": "numbers",
-          "type": "ListInt64"
+          "type": "List<Int64>"
         }
       ],
       "return_type": "Int64",
@@ -281,10 +281,10 @@
       "parameters": [
         {
           "name": "numbers",
-          "type": "ListInt64"
+          "type": "List<Int64>"
         }
       ],
-      "return_type": "ListInt64",
+      "return_type": "List<Int64>",
       "description": "Return numbers with one added to every value. An empty list stays empty. The list has at most 12 values, each between -20 and 150.",
       "reference": "references/he_042_incr_list.typed",
       "upstream_literal_tests": 3
@@ -297,7 +297,7 @@
       "parameters": [
         {
           "name": "numbers",
-          "type": "ListInt64"
+          "type": "List<Int64>"
         }
       ],
       "return_type": "Bool",
@@ -349,7 +349,7 @@
       "parameters": [
         {
           "name": "numbers",
-          "type": "ListInt64"
+          "type": "List<Int64>"
         },
         {
           "name": "limit",
@@ -441,7 +441,7 @@
       "parameters": [
         {
           "name": "numbers",
-          "type": "ListInt64"
+          "type": "List<Int64>"
         }
       ],
       "return_type": "Bool",
@@ -521,7 +521,7 @@
       "parameters": [
         {
           "name": "numbers",
-          "type": "ListInt64"
+          "type": "List<Int64>"
         }
       ],
       "return_type": "Int64",
@@ -557,7 +557,7 @@
       "parameters": [
         {
           "name": "numbers",
-          "type": "ListInt64"
+          "type": "List<Int64>"
         }
       ],
       "return_type": "Bool",
@@ -620,7 +620,7 @@
           "type": "Int64"
         }
       ],
-      "return_type": "ListInt64",
+      "return_type": "List<Int64>",
       "description": "Return the even integers from 2 through 8 that lie between a and b, inclusive, in ascending order. The order of a and b does not matter. a and b are integers from 0 to 200.",
       "reference": "references/he_163_even_digits.typed",
       "upstream_literal_tests": 4

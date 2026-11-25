@@ -57,15 +57,15 @@ int main() {
         "func a(): Int64 { let r: Int64 = b(); return r; } func b(): Int64 {return 1;} main(): Int64 {}"
     }) CHECK(!typed::generate_cangjie(invalid));
     const auto collections = typed::generate_cangjie(
-        "main(): Int64 { let empty: ListInt64 = emptyList(); "
-        "let first: ListInt64 = listPush(empty, 4); var items: ListInt64 = first; "
-        "let copy: ListInt64 = items; let second: ListInt64 = listPush(items, 5); items = second; "
-        "let n: Int64 = listLen(copy); let text: String = \"a b\"; "
+        "main(): Int64 { let empty: List<Int64> = List<Int64>(); "
+        "let first: List<Int64> = empty.add(4); var items: List<Int64> = first; "
+        "let copy: List<Int64> = items; let second: List<Int64> = items.add(5); items = second; "
+        "let n: Int64 = copy.size; let text: String = \"a b\"; "
         "let letter: String = text[0]; let same: Bool = letter == \"a\"; "
         "if (same) { return n; } else { return 0; } }");
     CHECK(collections);
     CHECK(collections->find("import std.collection.ArrayList") != std::string::npos);
-    CHECK(collections->find("typed_rt_list_push") != std::string::npos);
+    CHECK(collections->find("typed_rt_list_add_Int64") != std::string::npos);
     CHECK(collections->find("let typed_var_copy: ArrayList<Int64> = typed_var_items.clone()") != std::string::npos);
     CHECK(collections->find("typed_var_items = typed_var_second.clone()") != std::string::npos);
     CHECK(collections->find("typed_rt_str_at(typed_var_text, 0)") != std::string::npos);
@@ -99,6 +99,48 @@ int main() {
           std::string::npos);
     CHECK(higher->find("{typed_var_x: Int64 => (typed_var_x + 1)}") != std::string::npos);
     CHECK(higher->find("typed_fn_apply(typed_var_inc, 4)") != std::string::npos);
+
+    const auto point = typed::generate_cangjie(
+        "struct Point { x: Int64; y: Int64; "
+        "func dx(d: Int64): Int64 { let n: Int64 = x + d; return n; } } "
+        "main(): Int64 { let p: Point = Point(1, 2); return p.dx(3); }");
+    CHECK(point);
+    CHECK(point->find("struct Point {") != std::string::npos);
+    CHECK(point->find("init(typed_var_x: Int64, typed_var_y: Int64)") != std::string::npos);
+    CHECK(point->find("func dx(typed_var_d: Int64): Int64") != std::string::npos);
+    CHECK(point->find("this.typed_var_x") != std::string::npos);
+    CHECK(point->find("typed_var_p.dx(3)") != std::string::npos);
+    CHECK(point->find("typed_rt_copy_Point") != std::string::npos);
+
+    const auto for_list = typed::generate_cangjie(
+        "main(): Int64 { let empty: List<Int64> = List<Int64>(); "
+        "let items: List<Int64> = empty.add(4); var total: Int64 = 0; "
+        "for (item: Int64 in items) { total = total + item; } return total; }");
+    CHECK(for_list);
+    CHECK(for_list->find("for (typed_var_item in typed_var_items) {") != std::string::npos);
+    CHECK(for_list->find("typed_var_total = (typed_var_total + typed_var_item)") != std::string::npos);
+
+    const auto for_range = typed::generate_cangjie(
+        "main(): Int64 { var total: Int64 = 0; "
+        "for (i: Int64 in 0 .. 3) { total = total + i; } return total; }");
+    CHECK(for_range);
+    CHECK(for_range->find("for (typed_var_i in 0..3) {") != std::string::npos);
+    CHECK(for_range->find("typed_var_total = (typed_var_total + typed_var_i)") != std::string::npos);
+
+    const auto arithmetic = typed::generate_cangjie(
+        "main(): Int64 { let q: Int64 = 7 / 2; let r: Int64 = 7 % 2; "
+        "let ok: Bool = q >= r && r != 0; if (ok) { return q; } return r; }");
+    CHECK(arithmetic);
+    CHECK(arithmetic->find("(7 / 2)") != std::string::npos);
+    CHECK(arithmetic->find("(7 % 2)") != std::string::npos);
+    CHECK(arithmetic->find("(typed_var_q >= typed_var_r)") != std::string::npos);
+    CHECK(arithmetic->find("(typed_var_r != 0)") != std::string::npos);
+    CHECK(arithmetic->find("} else {") == std::string::npos);
+
+    const auto with_else = typed::generate_cangjie(
+        "main(): Int64 { if (true) { return 1; } else { return 2; } }");
+    CHECK(with_else);
+    CHECK(with_else->find("} else {") != std::string::npos);
 
     std::puts("Cangjie generator tests passed");
 }

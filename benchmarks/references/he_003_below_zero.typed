@@ -1,6 +1,6 @@
-func solve(operations: ListInt64): Bool {
+func solve(operations: List<Int64>): Bool {
     var u1: Int64 = 0;
-    let v2: Int64 = listLen(operations);
+    let v2: Int64 = operations.size;
     var u3: Int64 = 0;
     while (true) {
         let v4: Bool = u3 == v2;

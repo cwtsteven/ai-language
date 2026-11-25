@@ -46,7 +46,7 @@ Cangjie-arm programs are compiled as generated. Both arms are scored with the `s
 
 ## Suite and provenance
 
-The bundled `humaneval-scalar-anf-v1` suite adapts **35 of HumanEval's 164 tasks** to `Int64`, `Bool`, `ListInt64`, and `String`: **592 cases**, of which **212** are distinct literal upstream inputs, plus fixed boundary cases. [cjtests/](cjtests/) has one `@Test` / `@Expect` per input against `typed_fn_solve`. [tasks.json](tasks.json) holds signatures, prompts, and provenance. The suite does not use the upstream randomized loops. These are not official HumanEval or HumanEval+ scores.
+The bundled `humaneval-scalar-anf-v1` suite adapts **35 of HumanEval's 164 tasks** to `Int64`, `Bool`, `List<Int64>`, and `String`: **592 cases**, of which **212** are distinct literal upstream inputs, plus fixed boundary cases. [cjtests/](cjtests/) has one `@Test` / `@Expect` per input against `typed_fn_solve`. [tasks.json](tasks.json) holds signatures, prompts, and provenance. The suite does not use the upstream randomized loops. These are not official HumanEval or HumanEval+ scores.
 
 [HumanEval](https://github.com/openai/human-eval) motivates function-level tests
 and pass@k estimation. [EvalPlus](https://github.com/evalplus/evalplus) motivates
@@ -58,21 +58,21 @@ recorded in [tasks.json](tasks.json). HumanEval's MIT notice is retained in
 | Task ID | HumanEval task | Result |
 | --- | --- | --- |
 | `he_003_below_zero` | 3: below_zero | Bool |
-| `he_005_intersperse` | 5: intersperse | ListInt64 |
-| `he_009_rolling_max` | 9: rolling_max | ListInt64 |
+| `he_005_intersperse` | 5: intersperse | List<Int64> |
+| `he_009_rolling_max` | 9: rolling_max | List<Int64> |
 | `he_011_string_xor` | 11: string_xor | String |
 | `he_013_gcd` | 13: greatest_common_divisor | Int64 |
 | `he_015_string_sequence` | 15: string_sequence | String |
 | `he_018_how_many_times` | 18: how_many_times | Int64 |
 | `he_023_strlen` | 23: strlen | Int64 |
 | `he_024_largest_divisor` | 24: largest_divisor | Int64 |
-| `he_025_factorize` | 25: factorize | ListInt64 |
-| `he_030_get_positive` | 30: get_positive | ListInt64 |
+| `he_025_factorize` | 25: factorize | List<Int64> |
+| `he_030_get_positive` | 30: get_positive | List<Int64> |
 | `he_031_is_prime` | 31: is_prime | Bool |
-| `he_034_unique` | 34: unique | ListInt64 |
+| `he_034_unique` | 34: unique | List<Int64> |
 | `he_035_max_element` | 35: max_element | Int64 |
 | `he_041_collisions` | 41: car_race_collision | Int64 |
-| `he_042_incr_list` | 42: incr_list | ListInt64 |
+| `he_042_incr_list` | 42: incr_list | List<Int64> |
 | `he_043_pairs_sum` | 43: pairs_sum_to_zero | Bool |
 | `he_048_palindrome` | 48: is_palindrome | Bool |
 | `he_049_modp` | 49: modp | Int64 |
@@ -91,11 +91,11 @@ recorded in [tasks.json](tasks.json). HumanEval's MIT notice is retained in
 | `he_126_sorted_limited` | 126: is_sorted | Bool |
 | `he_138_four_even` | 138: is_equal_to_sum_even | Bool |
 | `he_150_prime_choice` | 150: x_or_y | Int64 |
-| `he_163_even_digits` | 163: generate_integers | ListInt64 |
+| `he_163_even_digits` | 163: generate_integers | List<Int64> |
 
 Floats, tuples, nested lists, lists of strings, and optional results cannot be expressed. Expected results fit `Int64`, within the bounds stated in each prompt. Zero, negative values, repeated factors, sequence boundaries, and large results are included where they apply.
 
-Both arms are asked for `solve`. The typed language reserves built-in call names such as `emptyList` and `listLen`, so the checked-in tests call `typed_fn_solve` and the Cangjie harness rewrites that call to `solve`. Helpers may precede `solve`, and a dummy `main` completes the program. Both arms get the same signature and problem text, then their own specification. Test inputs, answers, and reference solutions are not shown to the model. References are positive controls for the typed evaluator.
+Both arms are asked for `solve`. The typed language reserves built-in call names such as `List` and `.size`, so the checked-in tests call `typed_fn_solve` and the Cangjie harness rewrites that call to `solve`. Helpers may precede `solve`, and a dummy `main` completes the program. Both arms get the same request wrappers, problem text, and output instructions; the only task-text difference is signature spelling (`List<Int64>` vs `ArrayList<Int64>`). Each arm then gets its own specification. Test inputs, answers, and reference solutions are not shown to the model. References are positive controls for the typed evaluator.
 
 ## Experimental controls
 
@@ -103,7 +103,7 @@ Both arms are asked for `solve`. The typed language reserves built-in call names
   `--seed + i`, wrapping within the unsigned 32-bit range.
 - Both arms leave the forced postfix off. The evaluator does not remove Markdown,
   extract code, reformat output, repair errors, or append a deterministic suffix.
-- The request text is the same problem statement, followed by that arm's output instructions. The typed system message appends `docs/language.md`. The Cangjie system message appends `docs/cangjie-subset.md`.
+- The request text is shared, including output instructions. Signatures differ only where the languages spell list types differently (`List<Int64>` vs `ArrayList<Int64>`). The typed system message appends `docs/language.md`. The Cangjie system message appends `docs/cangjie-subset.md`.
 - Planning is separate for each arm. Both planners see the same task, seed, and temperature, and only their own specification. The default run plans, then generates. `--plans DIR` generates from saved plans and does not call the planner. `--no-plan` skips planning for both. `--plan-only` writes plans and does not generate. A failed or missing plan fails that arm only.
 - Mode order alternates between pairs. Generations run sequentially to avoid
   loading multiple model instances simultaneously.
@@ -128,7 +128,7 @@ Use `--samples 5` or more for pass@5, or `--samples 10` or more for pass@10. Pla
 | **Functional correctness rate** | Every test passes / all attempts | Every test passes / all attempts |
 | Correct given compiled | Every test passes / compiled candidates | Every test passes / compiled candidates |
 
-An unfinished typed program is a translation failure, and `cjc` is not invoked. The Cangjie arm has no translation step, so that cell is `n/a`. Failures stay in the primary denominators.
+An unfinished typed program is a translation failure, and `cjc` is not invoked. The typed prefix is still saved as `candidate.typed` (and under `Typed program:` in `generation.stderr`). The Cangjie arm has no translation step, so that cell is `n/a`; its `candidate.cj` is kept even when compilation fails. Failures stay in the primary denominators.
 
 Functional evaluation compiles the candidate with its `*_test.cj` under `cjc --test`. Each input is its own `@Test`. The typed arm calls `typed_fn_solve`; the Cangjie arm calls `solve`. A throw or a wrong answer does not stop later cases. The generated `main` is renamed to `benchmarkOriginalMain` and not executed; `test_entry` is the process entry. A missing entry point or wrong signature fails harness compilation, while the candidate's standalone compilation result is kept. `FAILED`, `ERROR`, per-case timeouts, and harness compilation failures are counted separately. A candidate passes only when every case is `PASSED`.
 
@@ -147,10 +147,11 @@ Per-task pass@k uses the HumanEval estimator `1 - C(n-c, k) / C(n, k)`, averaged
 - `summary.json` and `report.md`: aggregate rates, failure categories, per-task
   results, pass@k, and paired comparisons. Partial runs are marked incomplete.
 - `references.json` and `references/`: positive-control results and artifacts.
-- Each attempt directory contains its system and user messages, raw output, Cangjie
-  source, renamed candidate for testing, copied `*_test.cj`, unittest binary,
-  stage commands, return codes, timings, stdout, and stderr. A typed attempt that
-  exits 2 did not produce Cangjie, so `cjc` is not run.
+- Each attempt directory contains its system and user messages, raw generation
+  stdout/stderr, stage commands, return codes, and timings. Successful typed
+  attempts add `candidate.cj` and the unittest harness files. A typed attempt that
+  exits 2 did not produce Cangjie, so `cjc` is not run; the unfinished typed
+  prefix is saved as `candidate.typed` instead.
 
 A planning failure sets `code_generation_attempted` to false and stays in the end-to-end denominators. `code_generation_attempts` counts code jobs that actually ran.
 

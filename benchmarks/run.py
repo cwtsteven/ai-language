@@ -194,10 +194,10 @@ def load_suite(path):
             if not NAME.fullmatch(parameter["name"]) or parameter["name"] in names:
                 raise ValueError("invalid or duplicate parameter name")
             names.add(parameter["name"])
-            if parameter["type"] not in ("Int64", "Bool", "ListInt64", "String"):
-                raise ValueError("benchmark arguments support Int64, Bool, ListInt64, and String")
-        if task["return_type"] not in ("Int64", "Bool", "ListInt64", "String"):
-            raise ValueError("tasks require an Int64, Bool, ListInt64, or String result")
+            if parameter["type"] not in ("Int64", "Bool", "List<Int64>", "String"):
+                raise ValueError("benchmark arguments support Int64, Bool, List<Int64>, and String")
+        if task["return_type"] not in ("Int64", "Bool", "List<Int64>", "String"):
+            raise ValueError("tasks require an Int64, Bool, List<Int64>, or String result")
         if "tests" in task:
             raise ValueError("inline tests arrays are obsolete; use benchmarks/cjtests/<id>_test.cj")
         tests = unittest_path(task, path.parent)
@@ -326,6 +326,36 @@ def failed_result(task, directory, status):
             "harness_compile_success": False, "functional_success": False,
             "tests_passed": 0, "tests_total": task["tests_total"], "artifact_dir": str(directory),
             "status": status}
+
+
+def output_token_count(stderr):
+    match = re.search(r"output=(\d+)", stderr or "")
+    return int(match.group(1)) if match else None
+
+
+def finished_within_budget(mode, generation, budget):
+    """True when the model emitted its end token before the code budget ran out."""
+    if generation is None or generation.timed_out or generation.returncode not in (0, 2):
+        return False
+    if mode == "constrained":
+        return generation.returncode == 0
+    count = output_token_count(generation.stderr)
+    return count is not None and budget is not None and count < budget
+
+
+def generation_succeeded(row):
+    if "generation_success" in row:
+        return bool(row["generation_success"])
+    if not row.get("code_generation_attempted"):
+        return False
+    if row.get("generation_returncode") not in (0, 2):
+        return False
+    if row.get("mode") == "constrained":
+        return row.get("generation_returncode") == 0
+    stderr_path = Path(row["artifact_dir"]) / "generation.stderr" if row.get("artifact_dir") else None
+    count = output_token_count(stderr_path.read_text()) if stderr_path and stderr_path.is_file() else None
+    budget = row.get("code_tokens")
+    return count is not None and budget is not None and count < budget
 
 
 def generation_error(result):
@@ -545,6 +575,8 @@ def summarize(records, expected_attempts):
             translation_rate = translated / count
         compiled = sum(r["compilation_success"] for r in rows)
         scored = [r["functional_success"] for r in rows]
+        tests_passed = None if any(value is None for value in scored) else sum(r.get("tests_passed", 0) for r in rows)
+        tests_total = None if tests_passed is None else sum(r.get("tests_total", 0) for r in rows)
         correct = None if any(value is None for value in scored) else sum(scored)
         by_task = {}
         for row in rows:
@@ -559,7 +591,9 @@ def summarize(records, expected_attempts):
             failures[row["status"]] = failures.get(row["status"], 0) + 1
         modes[mode] = {"attempts": count, "expected_attempts": expected_attempts,
                        "code_generation_attempts": sum(r.get("code_generation_attempted", True) for r in rows),
-                       "translated": translated, "compiled": compiled, "correct": correct,
+                       "translated": translated, "generated": sum(generation_succeeded(r) for r in rows),
+                       "compiled": compiled, "correct": correct,
+                       "tests_passed": tests_passed, "tests_total": tests_total,
                        "translation_rate": translation_rate,
                        "compilation_rate": compiled / count,
                        "functional_rate": None if correct is None else correct / count,
@@ -606,33 +640,42 @@ def write_report(output, config, records):
             "Functional success requires every std.unittest @Test case to pass with no FAILED, ERROR, or SKIPPED results.",
             "Both primary rates include failed generation, translation, compilation, and execution attempts.",
             "No code extraction, repair, formatting, or deterministic completion is applied.", "",
-            "| Mode | Attempts | Translated | Compiled / attempts | Correct / attempts | Correct / compiled |",
-            "| --- | ---: | ---: | ---: | ---: | ---: |"]
+            "Generated counts attempts that finished within the code token budget. "
+            "Each task row reports generation and compilation as true or false. "
+            "Correctness is the number of passed test cases over that task's total.",
+            "| Mode | Attempts | Generated | Compiled | Tests |",
+            "| --- | ---: | ---: | ---: | ---: |"]
     for mode, stats in summary["modes"].items():
-        if stats["functional_rate"] is None:
-            correct_cell, conditional = "not run", "not run"
+        if stats["tests_total"] is None:
+            tests_cell = "not run"
         else:
-            conditional = "n/a" if stats["correct_given_compiled"] is None else f"{stats['correct_given_compiled']:.1%}"
-            correct_cell = f"{stats['correct']} ({stats['functional_rate']:.1%})"
-        translated_cell = "n/a" if stats["translation_rate"] is None else str(stats["translated"])
-        text.append(f"| {mode} | {stats['attempts']} | {translated_cell} | "
-                    f"{stats['compiled']} ({stats['compilation_rate']:.1%}) | "
-                    f"{correct_cell} | {conditional} |")
-    compiled_headers = " | ".join(f"{mode} compiled" for mode in MODES)
-    correct_headers = " | ".join(f"{mode} correct" for mode in MODES)
-    text += ["", f"| Task | Code tokens | {compiled_headers} | {correct_headers} |",
-             "| --- | ---: | " + " | ".join("---:" for _ in MODES) + " | " + " | ".join("---:" for _ in MODES) + " |"]
+            tests_cell = f"{stats['tests_passed']}/{stats['tests_total']}"
+        text.append(f"| {mode} | {stats['attempts']} | {stats['generated']}/{stats['attempts']} | "
+                    f"{stats['compiled']}/{stats['attempts']} | {tests_cell} |")
+    headers = []
+    for mode in MODES:
+        headers.extend((f"{mode} generated", f"{mode} compiled", f"{mode} tests"))
+    text += ["", "| Task | Code tokens | " + " | ".join(headers) + " |",
+             "| --- | ---: | " + " | ".join("---:" for _ in headers) + " |"]
+    by_mode = {}
+    for row in records:
+        by_mode.setdefault(row["mode"], {}).setdefault(row["task_id"], []).append(row)
     for task in config["task_ids"]:
         cells = []
-        for metric in ("compiled", "correct"):
-            for mode in MODES:
-                group = summary["modes"].get(mode, {}).get("per_task", {}).get(task)
-                if group is None:
-                    cells.append("pending")
-                elif group[metric] is None:
-                    cells.append("not run")
+        for mode in MODES:
+            group = sorted(by_mode.get(mode, {}).get(task, []), key=lambda row: row["sample_index"])
+            if not group:
+                cells.extend(("pending", "pending", "pending"))
+                continue
+            cells.append(", ".join("true" if generation_succeeded(row) else "false" for row in group))
+            cells.append(", ".join("true" if row["compilation_success"] else "false" for row in group))
+            case_cells = []
+            for row in group:
+                if row.get("functional_success") is None:
+                    case_cells.append("not run")
                 else:
-                    cells.append(f"{group[metric]}/{group['attempts']}")
+                    case_cells.append(f"{row['tests_passed']}/{row['tests_total']}")
+            cells.append(", ".join(case_cells))
         text.append(f"| {task} | {config['code_tokens_by_task'][task]} | " + " | ".join(cells) + " |")
     text += ["", "`summary.json` also includes pass@k estimates, per-task counts, native compile rates",
              "conditional on translation, failure categories, and paired wins/losses.",
@@ -929,15 +972,22 @@ def main(argv=None):
                             save_process(directory, "generation", generation)
                             if generation.timed_out or generation_error(generation):
                                 row = failed_result(task, directory, "generation_timeout" if generation.timed_out else "generation_error")
+                                # Keep whatever the process emitted before the failure.
+                                if mode == "cangjie" and generation.stdout:
+                                    (directory / "candidate.cj").write_text(generation.stdout)
+                                elif generation.stdout:
+                                    (directory / "candidate.typed").write_text(generation.stdout)
                             elif mode == "cangjie":
                                 row = evaluate_cangjie(task, generation.stdout, directory, args)
                             elif generation.returncode != 0 or not generation.stdout.strip():
                                 row = failed_result(task, directory, "translation_failed")
-                                (directory / "candidate.cj").write_text(generation.stdout)
+                                # Incomplete typed runs write the typed prefix on stdout.
+                                (directory / "candidate.typed").write_text(generation.stdout)
                             else:
                                 row = score_translated(task, generation.stdout, directory, args)
                         row.update(mode=mode, sample_index=sample, seed=seed,
                                    code_tokens=code_budget(task),
+                                   generation_success=finished_within_budget(mode, generation, code_budget(task)),
                                    plan_file=str(plan_file) if plan_file is not None else None,
                                    plan_sha256=plan_sha, planning_seconds=plan_result.seconds if plan_result else 0,
                                    code_generation_attempted=generation is not None,

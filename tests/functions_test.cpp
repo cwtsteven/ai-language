@@ -95,7 +95,7 @@ int main() {
     rejected(identity + "main(): Int64 { return ", "x;", "0; }");
     rejected(identity + "main(): Int64 { let ", "identity ", "value: Int64 = 0; return value; }");
     rejected(identity + "func ", "identity ", "other(): Int64 { return 0; } main(): Int64 { return 0; }");
-    rejected("func ", "emptyList ", "addition(): Int64 { return 0; } main(): Int64 { return 0; }");
+    rejected("func ", "List ", "addition(): Int64 { return 0; } main(): Int64 { return 0; }");
     rejected("func ", "assign ", "store(): Int64 { return 0; } main(): Int64 { return 0; }");
     rejected("func store(", "assign ", "cell: Int64): Int64 { return cell; } main(): Int64 {}");
     rejected("func ", "main ", "helper(): Int64 { return 0; } main(): Int64 { return 0; }");

@@ -88,6 +88,27 @@ int main() {
              "var b: Int64 = 1; let done: Bool = false; while(true){if(done){break;}else{let next: Int64 = a + b; a = b; b = next; "
              "let nextIndex: Int64 = i + 1; i = nextIndex;}} return a; }");
     complete("main(): Int64 { var x: Int64 = 1; x = x + 1; return x; }");
+    complete("main(): Int64 { let empty: List<Int64> = List<Int64>(); "
+             "let items: List<Int64> = empty.add(4); var total: Int64 = 0; "
+             "for (item: Int64 in items) { total = total + item; } return total; }");
+    complete("main(): Int64 { var total: Int64 = 0; "
+             "for (i: Int64 in 0 .. 3) { total = total + i; } return total; }");
+    complete("main(): Int64 { var total: Int64 = 0; "
+             "for (i: Int64 in 0 .. 3) { if (i == 1) { continue; } else { total = total + i; } } "
+             "return total; }");
+    complete("main(): Int64 { for (i: Int64 in 0 .. 1) { break; } return 0; }");
+    complete("main(): Int64 { let empty: List<Int64> = List<Int64>(); "
+             "for (item: Int64 in empty) { return item; } return 0; }");
+    complete("main(): Int64 { var total: Int64 = 0; "
+             "for (i: Int64 in 0 + 1 .. 2 + 1) { total = total + i; } return total; }");
+    complete("main(): Int64 { let q: Int64 = 7 / 2; let r: Int64 = 7 % 2; "
+             "let ok: Bool = q >= r && r != 0; if (ok) { return q; } return r; }");
+    complete("main(): Int64 { let a: Int64 = 3; let b: Int64 = 1; "
+             "if (a > b) { return a; } else { return b; } }");
+    complete("main(): Int64 { let a: Int64 = 3; if (a <= 3) { return 1; } return 0; }");
+    complete("main(): Int64 { let s: String = \"a\"; let d: Bool = s != \"b\"; "
+             "if (d) { return 1; } return 0; }");
+    complete("main(): Int64 { let x: Int64 = 1 + 8 / 2; return x; }");
 
     rejected("main(): Int64 { ", "break;", "return 0; }");
     rejected("main(): Int64 { ", "continue;", "return 0; }");
@@ -129,7 +150,7 @@ int main() {
              "x ", "xx: Int64 = 2; return x; }");
     rejected("main(): Int64 { if (true) { let x: Int64 = 1; } else { } return ",
              "x ", "0; }");
-    rejected("main(): Int64 { let items: ListInt64 = emptyList(); if (",
+    rejected("main(): Int64 { let items: List<Int64> = List<Int64>(); if (",
              "}", "true) { } else { } return 0; }");
     rejected("main(): Int64 { ", "fn ", "return 0; }");
 
@@ -152,11 +173,19 @@ int main() {
     rejected("main(): Int64 { let ", "assign ", "assignment: Int64 = 0; return assignment; }");
     rejected("main(): Int64 { var r: Int64 = 0; let x: Int64 = ", "assign(", "0; return x; }");
     rejected("main(): Int64 { while(true){var r: Int64 = 0;} ", "r = ", "return 0; }");
+    rejected("main(): Int64 { for (i: Int64 in 0 .. 1) { } return ", "i;", "0; }");
+    rejected("main(): Int64 { let items: List<Int64> = List<Int64>(); "
+             "for (item: Bool in ", "items", "List<Bool>()) { } return 0; }");
+    rejected("main(): Int64 { let text: String = \"a\"; for (c: String in ",
+             "text", "List<String>()) { } return 0; }");
+    rejected("main(): Int64 { for (i: Int64 in ", "true", "0 .. 1) { } return 0; }");
+    rejected("main(): Int64 { for (i: Bool in ", "0", "List<Bool>()) { } return 0; }");
+    rejected("main(): Int64 { for (i: Int64 in 0 .. 1) { } ", "break;", "return 0; }");
     rejected("main(): Int64 { var n: Int64 = 0; let name: Bool = true; "
              "let x: Int64 = n", "a", "; return x; }");
-    rejected("main(): Int64 { let empty: ListInt64 = emptyList(); let n: Int64 = empty[",
+    rejected("main(): Int64 { let empty: List<Int64> = List<Int64>(); let n: Int64 = empty[",
              "true", "0]; return n; }");
-    rejected("main(): Int64 { let empty: ListInt64 = emptyList(); let n: Int64 = empty[0]",
+    rejected("main(): Int64 { let empty: List<Int64> = List<Int64>(); let n: Int64 = empty[0]",
              "[", "; return n; }");
 
     Prefix p;
@@ -201,7 +230,11 @@ int main() {
         "main(): Int64 { while(true){continu",
         "main(): Int64 { while(true){break ",
         "main(): Int64 { while(true){if(true){continue ",
-        "main(): Int64 { while(true){while(true){break;}"
+        "main(): Int64 { while(true){while(true){break;}",
+        "main(): Int64 { for (i: Int64 in ",
+        "main(): Int64 { for (i: Int64 in 0 ",
+        "main(): Int64 { for (i: Int64 in 0 ..",
+        "main(): Int64 { for (i: Int64 in 0 .. 1) { br"
     }) {
         Prefix base;
         CHECK(base.append(seed));
@@ -248,16 +281,16 @@ int main() {
     expect_error("main(): Int64 { let x: Int64 = 1; x = 2; return x; }", 1, 35,
                  "cannot assign to immutable 'x'",
                  "main(): Int64 { let x: Int64 = 1; return x; }");
-    complete("main(): Int64 { let empty: ListInt64 = emptyList(); "
-             "let grown: ListInt64 = listPush(empty, 4); "
-             "let n: Int64 = listLen(grown); let item: Int64 = grown[0]; "
+    complete("main(): Int64 { let empty: List<Int64> = List<Int64>(); "
+             "let grown: List<Int64> = empty.add(4); "
+             "let n: Int64 = grown.size; let item: Int64 = grown[0]; "
              "let sum: Int64 = n + item; return sum; }");
     complete("main(): Int64 { let text: String = \"a b\"; let letter: String = text[0]; "
              "let joined: String = text + letter; let same: Bool = letter == \"a\"; "
              "let length: Int64 = strLen(joined); if (same) { return length; } else { return 0; } }");
     rejected("main(): Int64 { let text: String = ", "1", "\"ok\"; return 0; }");
-    rejected("main(): Int64 { let items: ListInt64 = emptyList(); let n: Int64 = ", "true",
-             "listLen(items); return n; }");
+    rejected("main(): Int64 { let items: List<Int64> = List<Int64>(); let n: Int64 = ", "true",
+             "items.size; return n; }");
 
     complete("func id<T>(value: T): T { return value; } "
              "main(): Int64 { let n: Int64 = id<Int64>(4); return n; }");
@@ -267,8 +300,32 @@ int main() {
     rejected("func id<T>(value: T): T { let bad: Int64 = ", "value",
              "0; return value; } main(): Int64 { return id<Int64>(1); }");
     complete("main(): Int64 { let n: Int64 = 1 + 2 * 3; if (n + 1 == 8) { return n; } else { return 0; } }");
-    complete("main(): Int64 { let xs: ListInt64 = emptyList(); "
-             "let n: Int64 = listLen(xs); if (n == 0) { return n; } else { return xs[0]; } }");
+    complete("main(): Int64 { let xs: List<Int64> = List<Int64>(); "
+             "let n: Int64 = xs.size; if (n == 0) { return n; } else { return xs[0]; } }");
+    complete("main(): Int64 { let nested: List<List<Int64>> = List<List<Int64>>(); "
+             "let inner: List<Int64> = List<Int64>(); "
+             "let grown: List<Int64> = inner.add(1); "
+             "let outer: List<List<Int64>> = nested.add(grown); "
+             "return outer.size; }");
+    complete("main(): Int64 { let xs: List<Bool> = List<Bool>(); "
+             "let n: Int64 = xs.size; let ys: List<Bool> = xs.add(true); return n + ys.size; }");
+    complete("struct Point { x: Int64; y: Int64; "
+             "func dx(d: Int64): Int64 { let n: Int64 = x + d; return n; } } "
+             "main(): Int64 { let p: Point = Point(1, 2); "
+             "let a: Int64 = p.x; let b: Int64 = p.dx(3); return a + b; }");
+    complete("struct Counter { n: Int64; "
+             "func down(): Int64 { let z: Bool = n == 0; "
+             "if (z) { return 0; } else { let next: Int64 = n - 1; "
+             "let c: Counter = Counter(next); return c.down(); } } } "
+             "main(): Int64 { let c: Counter = Counter(3); return c.down(); }");
+    rejected("struct Node { ", "next: Node;",
+             "val: Int64; } main(): Int64 { return 0; }");
+    complete("struct Node { val: Int64; } main(): Int64 { "
+             "let xs: List<Node> = List<Node>(); return xs.size; }");
+    complete("struct Node { val: Int64; kids: List<Node>; } "
+             "main(): Int64 { let n: Node = Node(1, List<Node>()); return n.val; }");
+    rejected("struct Point { x: Int64; func f(): Int64 { return 0; } "
+             "func ", "f(", "g(): Int64 { return 1; } } main(): Int64 { return 0; }");
 
     Prefix unfinished;
     CHECK(unfinished.append("main(): Int64 {"));

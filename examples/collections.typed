@@ -1,11 +1,11 @@
 main(): Int64 {
-    let empty: ListInt64 = emptyList();
-    let first: ListInt64 = listPush(empty, 4);
-    var items: ListInt64 = first;
-    let copy: ListInt64 = items;
-    let second: ListInt64 = listPush(items, 5);
+    let empty: List<Int64> = List<Int64>();
+    let first: List<Int64> = empty.add(4);
+    var items: List<Int64> = first;
+    let copy: List<Int64> = items;
+    let second: List<Int64> = items.add(5);
     items = second;
-    let n: Int64 = listLen(copy);
+    let n: Int64 = copy.size;
     let text: String = "a b";
     let letter: String = text[0];
     let joined: String = text + letter;

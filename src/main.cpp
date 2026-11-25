@@ -310,15 +310,6 @@ int main(int argc, char ** argv) {
             std::fputs("model token budget exhausted; appended a typed postfix\n", stderr);
         }
     }
-    if (debug && !generated.empty()) {
-        std::fputs("Typed program:\n", stderr);
-        if (const auto formatted = typed::format_program(generated)) {
-            std::fwrite(formatted->data(), 1, formatted->size(), stderr);
-        } else {
-            std::fwrite(generated.data(), 1, generated.size(), stderr);
-            if (generated.back() != '\n') std::fputc('\n', stderr);
-        }
-    }
     bool translated = false;
     bool finished = false;
     if (!failed) {
@@ -344,6 +335,21 @@ int main(int argc, char ** argv) {
                 translated = !std::ferror(stdout);
                 failed = !translated;
             }
+        }
+    }
+    // Always leave the sampled typed text for inspection. Complete runs already wrote
+    // Cangjie on stdout; unfinished or failed translation runs write the typed prefix there.
+    if (!generated.empty()) {
+        std::fputs("Typed program:\n", stderr);
+        if (const auto formatted = typed::format_program(generated)) {
+            std::fwrite(formatted->data(), 1, formatted->size(), stderr);
+        } else {
+            std::fwrite(generated.data(), 1, generated.size(), stderr);
+            if (generated.back() != '\n') std::fputc('\n', stderr);
+        }
+        if (!translated) {
+            std::fwrite(generated.data(), 1, generated.size(), stdout);
+            if (generated.back() != '\n') std::fputc('\n', stdout);
         }
     }
     if (!translated && !inference_failed && !finished) {
