@@ -49,8 +49,7 @@ int main() {
           ->find("exited without returning") == std::string::npos);
     for (const auto invalid : {
         "", "main(): Int64 {", "main(): Int64 { return true; }",
-        "main(): Int64 { let x: Int64 = 1 + 2 * 3; return x; }",
-        "main(): Int64 { let x: Int64 = 1 + (2); return x; }",
+        "main(): Int64 { let x: Int64 = 1 + true; return x; }",
         "main(): Int64 { var r: Int64 = 0; r:=1; return r; }",
         "main(): Int64 { var r: Int64 = 0; r = true; return r; }",
         "main(): Int64 { break; }",
@@ -77,6 +76,12 @@ int main() {
     CHECK(infix_condition);
     CHECK(infix_condition->find("if (typed_var_done)") != std::string::npos);
     CHECK(infix_condition->find("(typed_var_x + 1)") != std::string::npos);
+
+    const auto nested = typed::generate_cangjie(
+        "main(): Int64 { let x: Int64 = 1 + 2 * 3; if (x + 1 == 8) { return x; } else { return 0; } }");
+    CHECK(nested);
+    CHECK(nested->find("(1 + (2 * 3))") != std::string::npos);
+    CHECK(nested->find("((typed_var_x + 1) == 8)") != std::string::npos);
 
     const auto generic = typed::generate_cangjie(
         "func id<T>(value: T): T { return value; } "

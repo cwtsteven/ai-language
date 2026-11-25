@@ -91,7 +91,8 @@ private:
         ReturnSemi, Done,
     };
     enum class Block { Main, Function, IfThen, IfElse, While };
-    enum class ExprFollow { LetSemi, ReturnSemi, IfClose, WhileClose, LambdaEnd };
+    enum class ExprFollow { LetSemi, ReturnSemi, IfClose, WhileClose, LambdaEnd, Nested, Index, Group, Arg };
+    enum class ResumeKind { Infix, Index, Group, Arg, Unary };
     enum class TypeDest { Let, Param, Return, LambdaParam, LambdaResult, CallArg };
     struct TypeBuild {
         std::vector<Type> parameters;
@@ -103,7 +104,22 @@ private:
         Type signature = Type::Int();
         size_t base = 0;
         size_t param = 0;
+        int min_prec = 0;
         std::string name;
+    };
+    struct ExprFrame {
+        ResumeKind kind = ResumeKind::Infix;
+        Type resume_type = Type::Int();
+        Type needed = Type::Int();
+        ExprFollow follow = ExprFollow::LetSemi;
+        Type left = Type::Int();
+        int min_prec = 0;
+        std::vector<Type> call_arguments;
+        size_t argument = 0;
+        std::string call_name;
+        std::vector<Type> call_type_args;
+        Type call_result = Type::Int();
+        Type infix_right = Type::Int();
     };
     struct Function {
         std::string name;
@@ -128,6 +144,9 @@ private:
     Type expr_needed_ = Type::Int();
     Type left_type_ = Type::Int();
     Type infix_right_type_ = Type::Int();
+    int min_prec_ = 0;
+    Type call_result_ = Type::Int();
+    std::vector<ExprFrame> exprs_;
     ExprFollow saved_follow_ = ExprFollow::LetSemi;
     Type saved_needed_ = Type::Int();
     Type lambda_result_ = Type::Int();
@@ -175,6 +194,12 @@ private:
     bool value_start_possible(Type needed, std::string_view partial) const;
     bool symbol_callable(const Symbol & symbol, Type needed) const;
     bool left_can_reach(Type left, Type needed) const;
+    bool can_reach(Type from, Type needed) const;
+    bool become_primary(Type type);
+    bool push_subexpr(ResumeKind kind, Type resume_type, Type needed, ExprFollow follow, int min_prec);
+    bool end_subexpr(std::string_view token, bool consume);
+    bool take_infix(std::string_view token);
+    bool start_arg();
     bool infix_possible(Type left, Type needed, std::string_view partial) const;
     bool index_possible(Type left, Type needed) const;
     std::string completion_token() const;

@@ -116,11 +116,8 @@ int main() {
              "true ", "2; return x; }");
     rejected("main(): Int64 { let x: Int64 = ",
              "9223372036854775808", "9223372036854775807; return x; }");
-    // Nesting and wrong operand types stay rejected.
-    rejected("main(): Int64 { let x: Int64 = 1 + 2 ", "*", "; return x; }");
-    rejected("main(): Int64 { let x: Int64 = 1 + 2 ", "+", "; return x; }");
-    rejected("main(): Int64 { let b: Bool = true && false ", "&&", "; return 0; }");
-    rejected("main(): Int64 { let x: Int64 = ", "1 + 2 * 3;", "1 + 2; return x; }");
+    // Operand types stay fixed by the operator. Nesting follows precedence.
+    rejected("main(): Int64 { let x: Int64 = 1 + 2 * ", "true", "3; return x; }");
     rejected("main(): Int64 { let b: Bool = 2 == ", "true", "1; return 0; }");
     rejected("main(): Int64 { let b: Bool = 2 < ", "true", "3; return 0; }");
     rejected("main(): Int64 { let x: Int64 = 2 + ", "true", "1; return x; }");
@@ -133,7 +130,7 @@ int main() {
     rejected("main(): Int64 { if (true) { let x: Int64 = 1; } else { } return ",
              "x ", "0; }");
     rejected("main(): Int64 { let items: ListInt64 = emptyList(); if (",
-             "items ", "true) { } else { } return 0; }");
+             "}", "true) { } else { } return 0; }");
     rejected("main(): Int64 { ", "fn ", "return 0; }");
 
     rejected("main(): Int64 { let x: Int64 = 1; ", "x = ", "return x; }");
@@ -157,8 +154,8 @@ int main() {
     rejected("main(): Int64 { while(true){var r: Int64 = 0;} ", "r = ", "return 0; }");
     rejected("main(): Int64 { var n: Int64 = 0; let name: Bool = true; "
              "let x: Int64 = n", "a", "; return x; }");
-    rejected("main(): Int64 { let empty: ListInt64 = emptyList(); let n: Int64 = empty[0 ",
-             "+", "]; return n; }");
+    rejected("main(): Int64 { let empty: ListInt64 = emptyList(); let n: Int64 = empty[",
+             "true", "0]; return n; }");
     rejected("main(): Int64 { let empty: ListInt64 = emptyList(); let n: Int64 = empty[0]",
              "[", "; return n; }");
 
@@ -269,8 +266,9 @@ int main() {
              "let n: Int64 = apply(inc, 4); return n; }");
     rejected("func id<T>(value: T): T { let bad: Int64 = ", "value",
              "0; return value; } main(): Int64 { return id<Int64>(1); }");
-    rejected("main(): Int64 { let n: Int64 = 1; if (", "n == 0",
-             "true) { return n; } else { return 0; } }");
+    complete("main(): Int64 { let n: Int64 = 1 + 2 * 3; if (n + 1 == 8) { return n; } else { return 0; } }");
+    complete("main(): Int64 { let xs: ListInt64 = emptyList(); "
+             "let n: Int64 = listLen(xs); if (n == 0) { return n; } else { return xs[0]; } }");
 
     Prefix unfinished;
     CHECK(unfinished.append("main(): Int64 {"));

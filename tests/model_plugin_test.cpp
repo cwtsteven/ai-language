@@ -73,7 +73,7 @@ int main() {
     const auto assert_grammar = [&](const std::string & prompt) {
         CHECK(prompt.find(language::specification) != std::string::npos);
         CHECK(prompt.find("\"func\" identifier") != std::string::npos);
-        CHECK(prompt.find("\"while\" \"(\" bool_atom") != std::string::npos);
+        CHECK(prompt.find("\"while\" \"(\" value") != std::string::npos);
         CHECK(prompt.find("\"let\" identifier") != std::string::npos);
         CHECK(prompt.find("\"break\" \";\"") != std::string::npos);
         CHECK(prompt.find("\"continue\" \";\"") != std::string::npos);

@@ -302,10 +302,106 @@ bool Prefix::atom_complete(Type type, std::string_view token) const {
     return symbol && symbol->type == type;
 }
 
+int infix_precedence(std::string_view text) {
+    if (text == "||") return 1;
+    if (text == "&&") return 2;
+    if (text == "==" || text == "<") return 3;
+    if (text == "+" || text == "-") return 4;
+    if (text == "*") return 5;
+    return 0;
+}
+
+bool Prefix::can_reach(Type from, Type needed) const {
+    std::vector<Type> queue;
+    std::vector<Type> seen;
+    const auto add = [&](Type type) {
+        for (const auto & item : seen) if (item == type) return;
+        seen.push_back(type);
+        queue.push_back(std::move(type));
+    };
+    add(from);
+    for (size_t i = 0; i < queue.size(); ++i) {
+        if (queue[i] == needed) return true;
+        const Type type = queue[i];
+        for (const auto & op : infix_ops) {
+            if (op.left == type && infix_precedence(op.text) >= min_prec_) add(op.result);
+        }
+        if (7 >= min_prec_) {
+            if (type == Type::List()) add(Type::Int());
+            if (type == Type::String()) add(Type::String());
+        }
+        if (type.kind == Type::Kind::Fun && type.result && 7 >= min_prec_ &&
+            std::all_of(type.parameters.begin(), type.parameters.end(),
+                        [this](const Type & parameter) { return has_atom(parameter); })) {
+            add(*type.result);
+        }
+    }
+    return false;
+}
+
 bool Prefix::left_can_reach(Type left, Type needed) const {
-    if (left == needed) return true;
-    if (index_possible(left, needed)) return true;
-    return infix_possible(left, needed, "");
+    return can_reach(left, needed);
+}
+
+bool Prefix::become_primary(Type type) {
+    if (!can_reach(type, expr_needed_)) return false;
+    left_type_ = std::move(type);
+    phase_ = Phase::ExprAfterLeft;
+    return true;
+}
+
+bool Prefix::push_subexpr(ResumeKind kind, Type resume_type, Type needed, ExprFollow follow, int min_prec) {
+    exprs_.push_back({ kind, std::move(resume_type), expr_needed_, expr_follow_, left_type_, min_prec_,
+                       call_arguments_, argument_, call_name_, call_type_args_, call_result_,
+                       infix_right_type_ });
+    expr_needed_ = std::move(needed);
+    expr_follow_ = follow;
+    min_prec_ = min_prec;
+    phase_ = Phase::ExprStart;
+    return true;
+}
+
+bool Prefix::end_subexpr(std::string_view token, bool consume) {
+    if (exprs_.empty() || left_type_ != expr_needed_) return false;
+    const ExprFrame frame = std::move(exprs_.back());
+    exprs_.pop_back();
+    expr_needed_ = frame.needed;
+    expr_follow_ = frame.follow;
+    infix_right_type_ = frame.infix_right;
+    min_prec_ = frame.min_prec;
+    call_arguments_ = frame.call_arguments;
+    argument_ = frame.argument;
+    call_name_ = frame.call_name;
+    call_type_args_ = frame.call_type_args;
+    call_result_ = frame.call_result;
+    if (frame.kind == ResumeKind::Arg) {
+        left_type_ = frame.left;
+        phase_ = Phase::CallAfterArg;
+        return commit(token);
+    }
+    left_type_ = frame.resume_type;
+    phase_ = Phase::ExprAfterLeft;
+    if (consume) return true;
+    return commit(token);
+}
+
+bool Prefix::take_infix(std::string_view token) {
+    const InfixOp * found = nullptr;
+    for (const auto & op : infix_ops) {
+        if (op.text == token && op.left == left_type_ && infix_precedence(op.text) >= min_prec_ &&
+            can_reach(op.result, expr_needed_)) {
+            found = &op;
+            break;
+        }
+    }
+    if (!found) return false;
+    const int child = infix_precedence(found->text) + 1;
+    return push_subexpr(ResumeKind::Infix, found->result, found->right, ExprFollow::Nested, child);
+}
+
+bool Prefix::start_arg() {
+    if (argument_ >= call_arguments_.size()) return false;
+    return push_subexpr(ResumeKind::Arg, call_result_, call_arguments_[argument_], ExprFollow::Arg, 0);
 }
 
 bool Prefix::index_possible(Type left, Type needed) const {
@@ -315,12 +411,16 @@ bool Prefix::index_possible(Type left, Type needed) const {
 }
 
 bool Prefix::infix_possible(Type left, Type needed, std::string_view partial) const {
-    return infix_prefix(left, needed, partial);
+    for (const auto & op : infix_ops) {
+        if (op.left == left && infix_precedence(op.text) >= min_prec_ &&
+            can_reach(op.result, needed) && starts_with(op.text, partial)) return true;
+    }
+    return false;
 }
 
 bool Prefix::operation_possible(Type result, std::string_view partial) const {
     for (const auto & op : operations) {
-        if (op.result != result || !starts_with(op.name, partial)) continue;
+        if (!can_reach(op.result, result) || !starts_with(op.name, partial)) continue;
         bool productive = true;
         for (size_t i = 0; i < op.arity; ++i) productive &= has_atom(op.arguments[i]);
         if (productive) return true;
@@ -328,7 +428,7 @@ bool Prefix::operation_possible(Type result, std::string_view partial) const {
     for (const auto & function : functions_) {
         if (!starts_with(function.name, partial)) continue;
         if (function.type_params.empty()) {
-            if (function.result == result &&
+            if (can_reach(function.result, result) &&
                 std::all_of(function.arguments.begin(), function.arguments.end(),
                             [this](const Type & type) { return has_atom(type); })) return true;
             continue;
@@ -340,8 +440,9 @@ bool Prefix::operation_possible(Type result, std::string_view partial) const {
 
 bool Prefix::begin_operation(std::string_view name, Type result) {
     if (!operation_possible(result, name)) return false;
-    if (const auto * op = operation(name); op && op->result == result) {
+    if (const auto * op = operation(name); op && can_reach(op->result, result)) {
         call_arguments_.assign(op->arguments.begin(), op->arguments.begin() + op->arity);
+        call_result_ = op->result;
     } else if (const auto * function = find_function(name)) {
         call_name_ = function->name;
         if (!function->type_params.empty()) {
@@ -350,8 +451,9 @@ bool Prefix::begin_operation(std::string_view name, Type result) {
             phase_ = Phase::CallTypeOpen;
             return true;
         }
-        if (function->result != result) return false;
+        if (!can_reach(function->result, result)) return false;
         call_arguments_ = function->arguments;
+        call_result_ = function->result;
     } else return false;
     argument_ = 0;
     phase_ = Phase::CallOpen;
@@ -361,6 +463,7 @@ bool Prefix::begin_operation(std::string_view name, Type result) {
 bool Prefix::begin_expression(Type needed, ExprFollow follow) {
     expr_needed_ = needed;
     expr_follow_ = follow;
+    min_prec_ = 0;
     phase_ = Phase::ExprStart;
     return true;
 }
@@ -371,6 +474,10 @@ bool Prefix::finish_expression() {
         case ExprFollow::ReturnSemi: phase_ = Phase::ReturnSemi; return true;
         case ExprFollow::IfClose: phase_ = Phase::IfCloseParen; return true;
         case ExprFollow::WhileClose: phase_ = Phase::WhileCloseParen; return true;
+        case ExprFollow::Nested:
+        case ExprFollow::Index:
+        case ExprFollow::Group:
+        case ExprFollow::Arg: return false;
         case ExprFollow::LambdaEnd: {
             symbols_.resize(lambda_base_);
             if (lambdas_.empty()) return false;
@@ -382,7 +489,8 @@ bool Prefix::finish_expression() {
             saved_needed_ = frame.signature;
             lambda_base_ = frame.base;
             lambda_param_ = frame.param;
-            return finish_expression();
+            min_prec_ = frame.min_prec;
+            return become_primary(frame.expr_needed);
         }
     }
     return false;
@@ -437,7 +545,7 @@ bool Prefix::instantiate_possible(const Function & function, const Type & needed
     while (true) {
         std::vector<Type> args;
         for (size_t slot : index) args.push_back(choices[slot]);
-        bool productive = apply(apply, function.result, args) == needed;
+        bool productive = can_reach(apply(apply, function.result, args), needed);
         for (const auto & argument : function.arguments)
             productive = productive && has_atom(apply(apply, argument, args));
         if (productive) return true;
@@ -509,14 +617,21 @@ bool Prefix::deliver_type(Type type) {
 }
 
 bool Prefix::symbol_callable(const Symbol & symbol, Type needed) const {
-    if (symbol.type.kind != Type::Kind::Fun || !symbol.type.result || *symbol.type.result != needed)
-        return false;
+    if (symbol.type.kind != Type::Kind::Fun || !symbol.type.result ||
+        !can_reach(*symbol.type.result, needed)) return false;
     return std::all_of(symbol.type.parameters.begin(), symbol.type.parameters.end(),
                         [this](const Type & type) { return has_atom(type); });
 }
 
 bool Prefix::value_start_possible(Type needed, std::string_view partial) const {
-    if (needed == Type::Bool() && one_of(partial, { "!" })) return true;
+    if (partial == "(") {
+        if (value_start_possible(needed, "0") || value_start_possible(needed, "\"") ||
+            value_start_possible(needed, "true") || value_start_possible(needed, "fun") ||
+            operation_possible(needed, "")) return true;
+        for (const auto & symbol : symbols_) if (can_reach(symbol.type, needed)) return true;
+        return false;
+    }
+    if (can_reach(Type::Bool(), needed) && one_of(partial, { "!" })) return true;
     if (needed.kind == Type::Kind::Fun && has_atom(needed) && one_of(partial, { "fun" })) return true;
     if (atom_possible(needed, partial)) return true;
     if (operation_possible(needed, partial)) return true;
@@ -595,12 +710,45 @@ bool Prefix::possible(std::string_view p) const {
         case Phase::AssignEqual: return one_of(p, { "=" });
         case Phase::ExprStart:   return value_start_possible(expr_needed_, p);
         case Phase::ExprAfterLeft: {
-            if (left_type_ == expr_needed_ &&
-                one_of(p, expr_follow_ == ExprFollow::LetSemi || expr_follow_ == ExprFollow::ReturnSemi
-                        ? std::initializer_list<std::string_view>{ ";" }
-                        : std::initializer_list<std::string_view>{ ")" })) return true;
-            if (index_possible(left_type_, expr_needed_) && one_of(p, { "[" })) return true;
-            return infix_possible(left_type_, expr_needed_, p);
+            if (infix_possible(left_type_, expr_needed_, p)) return true;
+            if (7 >= min_prec_ && one_of(p, { "[" })) {
+                const Type indexed = left_type_ == Type::List() ? Type::Int() :
+                    left_type_ == Type::String() ? Type::String() : Type::Param("");
+                if (indexed.kind != Type::Kind::Param && can_reach(indexed, expr_needed_)) return true;
+            }
+            if (left_type_ != expr_needed_) return false;
+            if ((expr_follow_ == ExprFollow::LetSemi || expr_follow_ == ExprFollow::ReturnSemi) &&
+                one_of(p, { ";" })) return true;
+            if (expr_follow_ == ExprFollow::LambdaEnd) {
+                Prefix parent = *this;
+                if (!parent.finish_expression()) return false;
+                return parent.possible(p);
+            }
+            if ((expr_follow_ == ExprFollow::IfClose || expr_follow_ == ExprFollow::WhileClose ||
+                 expr_follow_ == ExprFollow::Group) && one_of(p, { ")" })) return true;
+            if (expr_follow_ == ExprFollow::Index && one_of(p, { "]" })) return true;
+            if (expr_follow_ == ExprFollow::Arg &&
+                one_of(p, argument_ + 1 < call_arguments_.size()
+                              ? std::initializer_list<std::string_view>{ "," }
+                              : std::initializer_list<std::string_view>{ ")" })) return true;
+            if (expr_follow_ == ExprFollow::Nested && !exprs_.empty()) {
+                Prefix parent = *this;
+                const ExprFrame frame = parent.exprs_.back();
+                parent.exprs_.pop_back();
+                parent.expr_needed_ = frame.needed;
+                parent.expr_follow_ = frame.follow;
+                parent.min_prec_ = frame.min_prec;
+                parent.call_arguments_ = frame.call_arguments;
+                parent.argument_ = frame.argument;
+                parent.call_name_ = frame.call_name;
+                parent.call_type_args_ = frame.call_type_args;
+                parent.call_result_ = frame.call_result;
+                parent.infix_right_type_ = frame.infix_right;
+                parent.left_type_ = frame.kind == ResumeKind::Arg ? frame.left : frame.resume_type;
+                parent.phase_ = frame.kind == ResumeKind::Arg ? Phase::CallAfterArg : Phase::ExprAfterLeft;
+                return parent.possible(p);
+            }
+            return false;
         }
         case Phase::InfixRight:  return atom_possible(infix_right_type_, p);
         case Phase::IndexArg:    return atom_possible(Type::Int(), p);
@@ -771,13 +919,9 @@ bool Prefix::commit(std::string_view token) {
             if (token != "=") return false;
             return begin_expression(new_type_, ExprFollow::LetSemi);
         case Phase::ExprStart: {
-            if (expr_needed_ == Type::Bool() && token == "!") {
-                phase_ = Phase::UnaryArg;
-                return true;
-            }
             if (token == "fun" && expr_needed_.kind == Type::Kind::Fun && has_atom(expr_needed_)) {
-                lambdas_.push_back(
-                    { expr_follow_, expr_needed_, saved_needed_, lambda_base_, lambda_param_, new_name_ });
+                lambdas_.push_back({ expr_follow_, expr_needed_, saved_needed_, lambda_base_,
+                                     lambda_param_, min_prec_, new_name_ });
                 saved_needed_ = expr_needed_;
                 saved_follow_ = expr_follow_;
                 lambda_base_ = symbols_.size();
@@ -786,8 +930,13 @@ bool Prefix::commit(std::string_view token) {
                 return true;
             }
             if (begin_operation(token, expr_needed_)) return true;
+            if (token == "(")
+                return push_subexpr(ResumeKind::Group, expr_needed_, expr_needed_, ExprFollow::Group, 0);
+            if (token == "!" && can_reach(Type::Bool(), expr_needed_))
+                return push_subexpr(ResumeKind::Unary, Type::Bool(), Type::Bool(), ExprFollow::Nested, 6);
             if (const auto * symbol = find(token); symbol && symbol_callable(*symbol, expr_needed_)) {
                 call_arguments_ = symbol->type.parameters;
+                call_result_ = *symbol->type.result;
                 argument_ = 0;
                 phase_ = Phase::CallOpen;
                 return true;
@@ -804,77 +953,67 @@ bool Prefix::commit(std::string_view token) {
                 found = true;
             }
             else if (const auto * symbol = find(token)) { left = symbol->type; found = true; }
-            if (!found || !left_can_reach(left, expr_needed_)) return false;
-            left_type_ = left;
-            if (left == expr_needed_ && !infix_possible(left, expr_needed_, "") &&
-                !index_possible(left, expr_needed_)) {
-                return finish_expression();
-            }
-            phase_ = Phase::ExprAfterLeft;
-            return true;
+            if (!found || !can_reach(left, expr_needed_)) return false;
+            return become_primary(std::move(left));
         }
         case Phase::ExprAfterLeft: {
-            if (token == ";" || token == ")") {
-                if (left_type_ != expr_needed_) return false;
-                if (token == ";") {
-                    if (expr_follow_ != ExprFollow::LetSemi &&
-                        expr_follow_ != ExprFollow::ReturnSemi) return false;
-                    // Commit the follow punctuation through finish + LetSemi/ReturnSemi.
-                    if (!finish_expression()) return false;
-                    return commit(token);
-                }
-                if (expr_follow_ != ExprFollow::IfClose &&
-                    expr_follow_ != ExprFollow::WhileClose) return false;
+            if (take_infix(token)) return true;
+            if (token == "[" && 7 >= min_prec_) {
+                Type indexed = Type::Int();
+                if (left_type_ == Type::List()) indexed = Type::Int();
+                else if (left_type_ == Type::String()) indexed = Type::String();
+                else return false;
+                if (!can_reach(indexed, expr_needed_)) return false;
+                return push_subexpr(ResumeKind::Index, std::move(indexed), Type::Int(), ExprFollow::Index, 0);
+            }
+            if (left_type_ != expr_needed_) return false;
+            if (expr_follow_ == ExprFollow::LambdaEnd) {
                 if (!finish_expression()) return false;
                 return commit(token);
             }
-            if (token == "[") {
-                if (!index_possible(left_type_, expr_needed_)) return false;
-                phase_ = Phase::IndexArg;
-                return true;
+            if (token == ";" && (expr_follow_ == ExprFollow::LetSemi ||
+                                 expr_follow_ == ExprFollow::ReturnSemi)) {
+                if (!finish_expression()) return false;
+                return commit(token);
             }
-            const auto * op = find_infix(token, left_type_, expr_needed_);
-            if (!op) return false;
-            infix_right_type_ = op->right;
-            phase_ = Phase::InfixRight;
-            return true;
+            if (token == ")" && (expr_follow_ == ExprFollow::IfClose ||
+                                 expr_follow_ == ExprFollow::WhileClose)) {
+                if (!finish_expression()) return false;
+                return commit(token);
+            }
+            if (expr_follow_ == ExprFollow::Nested) return end_subexpr(token, false);
+            if (expr_follow_ == ExprFollow::Index && token == "]") return end_subexpr(token, true);
+            if (expr_follow_ == ExprFollow::Group && token == ")") return end_subexpr(token, true);
+            if (expr_follow_ == ExprFollow::Arg && (token == "," || token == ")"))
+                return end_subexpr(token, false);
+            return false;
         }
         case Phase::InfixRight:
-            if (!atom_complete(infix_right_type_, token)) return false;
-            return finish_expression();
         case Phase::IndexArg:
-            if (!atom_complete(Type::Int(), token)) return false;
-            phase_ = Phase::IndexClose;
-            return true;
         case Phase::IndexClose:
-            if (token != "]") return false;
-            return finish_expression();
         case Phase::UnaryArg:
-            if (!atom_complete(Type::Bool(), token)) return false;
-            return finish_expression();
+        case Phase::CallArg:
+            return false;
         case Phase::CallOpen:
             if (token != "(") return false;
-            phase_ = call_arguments_.empty() ? Phase::CallClose : Phase::CallArg;
-            return true;
-        case Phase::CallArg: {
-            if (argument_ >= call_arguments_.size() || !atom_complete(call_arguments_[argument_], token)) return false;
-            phase_ = Phase::CallAfterArg;
-            return true;
-        }
+            if (call_arguments_.empty()) {
+                phase_ = Phase::CallClose;
+                return true;
+            }
+            argument_ = 0;
+            return start_arg();
         case Phase::CallAfterArg: {
             if (argument_ + 1 < call_arguments_.size() && token == ",") {
                 ++argument_;
-                phase_ = Phase::CallArg;
-                return true;
+                return start_arg();
             }
-            if (argument_ + 1 == call_arguments_.size() && token == ")") {
-                return finish_expression();
-            }
+            if (argument_ + 1 == call_arguments_.size() && token == ")")
+                return become_primary(call_result_);
             return false;
         }
         case Phase::CallClose:
             if (token != ")") return false;
-            return finish_expression();
+            return become_primary(call_result_);
         case Phase::LetSemi:
             if (token != ";") return false;
             if (!assignment_) symbols_.push_back({ new_name_, new_type_, mutable_binding_ });
@@ -886,12 +1025,9 @@ bool Prefix::commit(std::string_view token) {
             return true;
         case Phase::IfOpenParen:
             if (token != "(") return false;
-            phase_ = Phase::IfAtom;
-            return true;
+            return begin_expression(Type::Bool(), ExprFollow::IfClose);
         case Phase::IfAtom:
-            if (!atom_complete(Type::Bool(), token)) return false;
-            phase_ = Phase::IfCloseParen;
-            return true;
+            return false;
         case Phase::IfCloseParen: if (token != ")") return false; phase_ = Phase::IfOpen; return true;
         case Phase::IfOpen:
             if (token != "{") return false;
@@ -906,12 +1042,9 @@ bool Prefix::commit(std::string_view token) {
             return true;
         case Phase::WhileOpenParen:
             if (token != "(") return false;
-            phase_ = Phase::WhileAtom;
-            return true;
+            return begin_expression(Type::Bool(), ExprFollow::WhileClose);
         case Phase::WhileAtom:
-            if (!atom_complete(Type::Bool(), token)) return false;
-            phase_ = Phase::WhileCloseParen;
-            return true;
+            return false;
         case Phase::WhileCloseParen: if (token != ")") return false; phase_ = Phase::WhileOpen; return true;
         case Phase::WhileOpen:
             if (token != "{") return false;
@@ -969,7 +1102,8 @@ bool Prefix::commit(std::string_view token) {
             call_arguments_.clear();
             for (const auto & argument : function->arguments)
                 call_arguments_.push_back(substitute(argument, call_type_args_));
-            if (substitute(function->result, call_type_args_) != expr_needed_) return false;
+            call_result_ = substitute(function->result, call_type_args_);
+            if (!can_reach(call_result_, expr_needed_)) return false;
             argument_ = 0;
             phase_ = Phase::CallOpen;
             return true;
@@ -1463,15 +1597,21 @@ std::string Prefix::completion_token() const {
             }
             if (const auto atom = completion_atom(expr_needed_); !atom.empty()) return atom;
             if (expr_needed_ == Type::Bool() && starts_with("!", pending_)) return "!";
+            std::string operation_fallback;
             for (const auto & op : operations) {
-                if (op.result == expr_needed_ && operation_possible(expr_needed_, op.name) &&
-                    starts_with(op.name, pending_)) return op.name;
+                if (!starts_with(op.name, pending_) || !operation_possible(expr_needed_, op.name)) continue;
+                if (op.result == expr_needed_) return op.name;
+                if (operation_fallback.empty()) operation_fallback = op.name;
             }
+            if (!operation_fallback.empty()) return operation_fallback;
+            std::string function_fallback;
             for (const auto & function : functions_) {
-                if (!starts_with(function.name, pending_)) continue;
-                if (function.type_params.empty() && function.result != expr_needed_) continue;
-                if (operation_possible(expr_needed_, function.name)) return function.name;
+                if (!starts_with(function.name, pending_) ||
+                    !operation_possible(expr_needed_, function.name)) continue;
+                if (function.type_params.empty() && function.result == expr_needed_) return function.name;
+                if (function_fallback.empty()) function_fallback = function.name;
             }
+            if (!function_fallback.empty()) return function_fallback;
             for (const auto & symbol : symbols_) {
                 if (!starts_with(symbol.name, pending_)) continue;
                 if (left_can_reach(symbol.type, expr_needed_) || symbol_callable(symbol, expr_needed_))
@@ -1483,21 +1623,59 @@ std::string Prefix::completion_token() const {
             return {};
         }
         case Phase::ExprAfterLeft: {
-            if (left_type_ == expr_needed_) {
-                if (expr_follow_ == ExprFollow::LetSemi || expr_follow_ == ExprFollow::ReturnSemi) {
-                    if (const auto token = fixed({ ";" }); !token.empty()) return token;
-                } else if (expr_follow_ != ExprFollow::LambdaEnd) {
-                    if (const auto token = fixed({ ")" }); !token.empty()) return token;
+            const auto terminator = [&]() -> std::string {
+                if (left_type_ != expr_needed_) return {};
+                if (expr_follow_ == ExprFollow::Nested && !exprs_.empty()) {
+                    Prefix parent = *this;
+                    const ExprFrame frame = parent.exprs_.back();
+                    parent.exprs_.pop_back();
+                    parent.expr_needed_ = frame.needed;
+                    parent.expr_follow_ = frame.follow;
+                    parent.min_prec_ = frame.min_prec;
+                    parent.call_arguments_ = frame.call_arguments;
+                    parent.argument_ = frame.argument;
+                    parent.call_name_ = frame.call_name;
+                    parent.call_type_args_ = frame.call_type_args;
+                    parent.call_result_ = frame.call_result;
+                    parent.infix_right_type_ = frame.infix_right;
+                    parent.left_type_ = frame.resume_type;
+                    parent.phase_ = Phase::ExprAfterLeft;
+                    return parent.completion_token();
+                }
+                if (expr_follow_ == ExprFollow::LambdaEnd) {
+                    Prefix parent = *this;
+                    if (!parent.finish_expression()) return {};
+                    return parent.completion_token();
+                }
+                if (expr_follow_ == ExprFollow::LetSemi || expr_follow_ == ExprFollow::ReturnSemi)
+                    return fixed({ ";" });
+                if (expr_follow_ == ExprFollow::IfClose || expr_follow_ == ExprFollow::WhileClose ||
+                    expr_follow_ == ExprFollow::Group)
+                    return fixed({ ")" });
+                if (expr_follow_ == ExprFollow::Index) return fixed({ "]" });
+                if (expr_follow_ == ExprFollow::Arg)
+                    return fixed({ argument_ + 1 < call_arguments_.size() ? "," : ")" });
+                return {};
+            };
+            if (pending_.empty()) {
+                if (const auto end = terminator(); !end.empty()) return end;
+            }
+            {
+                const InfixOp * fallback = nullptr;
+                for (const auto & op : infix_ops) {
+                    if (op.left != left_type_ || infix_precedence(op.text) < min_prec_ ||
+                        !can_reach(op.result, expr_needed_) || !starts_with(op.text, pending_)) continue;
+                    if (op.result == expr_needed_) return op.text;
+                    if (!fallback) fallback = &op;
+                }
+                if (fallback) return fallback->text;
+                if (7 >= min_prec_ && starts_with("[", pending_)) {
+                    const bool index = (left_type_ == Type::List() && can_reach(Type::Int(), expr_needed_)) ||
+                        (left_type_ == Type::String() && can_reach(Type::String(), expr_needed_));
+                    if (index) return "[";
                 }
             }
-            if (index_possible(left_type_, expr_needed_)) {
-                if (const auto token = fixed({ "[" }); !token.empty()) return token;
-            }
-            for (const auto & op : infix_ops) {
-                if (op.left == left_type_ && op.result == expr_needed_ &&
-                    starts_with(op.text, pending_)) return op.text;
-            }
-            return {};
+            return terminator();
         }
         case Phase::InfixRight:  return completion_atom(infix_right_type_);
         case Phase::IndexArg:    return completion_atom(Type::Int());

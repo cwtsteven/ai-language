@@ -102,7 +102,7 @@ int main() {
                           "main(): Int64 { let x: Int64 = 0; x = 1; return x; }",
                           "main(): Int64 { var x: Int64 = 0; x: =1; return x; }",
                           "main(): Int64 { var x: Int64 = 0; x:=1; return x; }",
-                          "main(): Int64 { let x: Int64 = 1 + 2 * 3; return x; }",
+                          "main(): Int64 { let x: Int64 = 1 + true; return x; }",
                           "main(): Int64 { break; return 0; }",
                           "func bad(): Bool { return 0; } main(): Int64 { return 0; }",
                           "main(): Int64 { return !true; }" }) {

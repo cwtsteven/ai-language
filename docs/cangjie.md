@@ -27,7 +27,7 @@ Checked-in `.typed` fixtures stay in the constraint language. The benchmark and 
 | `(Int64) -> Int64`, a function name used as a value | The same function type, and `typed_fn_` for that name |
 | `fun(x: Int64): Int64 => x + 1` | `{typed_var_x: Int64 => (typed_var_x + 1)}` |
 
-`let` copies the current value. `var` is read again by later uses and by `while`, and assignment updates that binding only. User functions and variables get separate name prefixes so they do not collide with Cangjie keywords or generated runtime names. Decimal literals are normalized without passing through a smaller host integer. Arithmetic uses Cangjie's overflow behavior.
+Nested operators are emitted fully parenthesized, so `1 + 2 * 3` becomes `(1 + (2 * 3))`. `let` copies the current value. `var` is read again by later uses and by `while`, and assignment updates that binding only. User functions and variables get separate name prefixes so they do not collide with Cangjie keywords or generated runtime names. Decimal literals are normalized without passing through a smaller host integer. Arithmetic uses Cangjie's overflow behavior.
 
 A function need not return on every path. If execution reaches the end, the generated function throws an exception that names it. The generator does not invent a return value. Statements after an unconditional return stay in the output and may draw an unreachable-code warning from `cjc`.
 

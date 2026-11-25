@@ -104,7 +104,7 @@ The [prompt](examples/fibonacci-5-prompt.txt) supplies the algorithm explicitly.
 
 ## Language
 
-`let` is immutable. `var` is updated with `name = value;`. Types are `Int64`, `Bool`, `ListInt64`, and `String`. Conditions are `Bool` atoms. `break;` and `continue;` occur only inside loops. Helpers are `func` declarations before `main`; see the [function example](examples/functions.typed). Values may use non-nested operators (`x + 1`, `a == b`, `!flag`, `xs[i]`) or the remaining list/string calls. Generic functions take explicit type arguments (`id<Int64>(n)`). A written function type may hold a named function or an annotated lambda (`fun(x: Int64): Int64 => x + 1`). The [specification](docs/language.md) lists every form.
+`let` is immutable. `var` is updated with `name = value;`. Types are `Int64`, `Bool`, `ListInt64`, and `String`. Conditions are `Bool` expressions. `break;` and `continue;` occur only inside loops. Helpers are `func` declarations before `main`; see the [function example](examples/functions.typed). Values may nest (`1 + 2 * 3`, `n + 1 == 0`, `xs[i + 1]`). Generic functions take explicit type arguments (`id<Int64>(n)`). A written function type may hold a named function or an annotated lambda (`fun(x: Int64): Int64 => x + 1`). The [specification](docs/language.md) lists every form.
 
 - [Typed language specification](docs/language.md) (embedded in `typed-cangjie` prompts at build time)
 - [Cangjie prompt excerpt](docs/cangjie-subset.md) (appended by the benchmark's Cangjie arm)

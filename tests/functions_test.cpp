@@ -86,11 +86,11 @@ int main() {
     rejected(identity + "main(): Int64 { let result: Int64 = identity(", "true", "5); return result; }");
     rejected(identity + "main(): Int64 { let result: Int64 = identity(", ")", "5); return result; }");
     rejected(identity + "main(): Int64 { let result: Int64 = identity(5", ",", "); return result; }");
-    rejected(pair + "main(): Int64 { let flag: Bool = combine(0,", "1", "true); return 0; }");
-    rejected(identity + "main(): Int64 { let flag: Bool = ", "identity(", "true; return 0; }");
-    rejected(extract + "main(): Int64 { let flag: Bool = ", "extract(", "true; return 0; }");
-    rejected(identity + "main(): Int64 { let result: Int64 = identity(", "identity(", "5); return result; }");
-    rejected(identity + "main(): Int64 { let result: Int64 = identity(5)", "+", "; return result; }");
+    rejected(pair + "main(): Int64 { let flag: Bool = combine(0,", ")", "true); return 0; }");
+    rejected(identity + "main(): Int64 { let flag: Bool = ", "identity(5);", "true; return 0; }");
+    rejected(extract + "main(): Int64 { let flag: Bool = ", "extract(1);", "true; return 0; }");
+    complete(identity + "main(): Int64 { let result: Int64 = identity(identity(5)); return result; }");
+    rejected(identity + "main(): Int64 { let result: Int64 = identity(5)", "==", "; return result; }");
     rejected(identity + "main(): Int64 { return ", "identity(true", "0; }");
     rejected(identity + "main(): Int64 { return ", "x;", "0; }");
     rejected(identity + "main(): Int64 { let ", "identity ", "value: Int64 = 0; return value; }");

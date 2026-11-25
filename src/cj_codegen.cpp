@@ -19,7 +19,7 @@ struct Atom {
 struct Expression {
     std::optional<Atom> atom;
     std::string callee;
-    std::vector<Atom> arguments;
+    std::vector<Expression> arguments;
     std::vector<Type> type_arguments;
     bool function_ref = false;
     bool callee_is_function = false;
@@ -161,7 +161,16 @@ private:
         for (const auto & function : function_names_) if (function == name) return true;
         return false;
     }
-    Expression expression() {
+    static int infix_precedence(std::string_view op) {
+        if (op == "||") return 1;
+        if (op == "&&") return 2;
+        if (op == "==" || op == "<") return 3;
+        if (op == "+" || op == "-") return 4;
+        if (op == "*") return 5;
+        return 0;
+    }
+    Expression expression() { return parse_expr(0); }
+    Expression parse_prefix() {
         Expression result;
         if (peek("fun")) {
             take();
@@ -183,14 +192,20 @@ private:
             const size_t scope = symbols_.size();
             for (const auto & parameter : result.lambda_params)
                 symbols_.push_back({ parameter.name, parameter.type });
-            result.lambda_body = std::make_shared<Expression>(expression());
+            result.lambda_body = std::make_shared<Expression>(parse_expr(0));
             symbols_.resize(scope);
             return result;
         }
         if (peek("!")) {
             take();
             result.callee = "!";
-            result.arguments.push_back(atom());
+            result.arguments.push_back(parse_expr(6));
+            return result;
+        }
+        if (peek("(")) {
+            take();
+            result = parse_expr(0);
+            expect(")");
             return result;
         }
         const bool generic_call = position_ + 1 < tokens_.size() && tokens_[position_ + 1] == "<" &&
@@ -210,7 +225,7 @@ private:
             }
             expect("(");
             while (!peek(")")) {
-                result.arguments.push_back(atom());
+                result.arguments.push_back(parse_expr(0));
                 if (peek(")")) break;
                 expect(",");
             }
@@ -219,24 +234,40 @@ private:
         }
         Atom left = atom();
         if (left.kind == Atom::Kind::Name && known_function(left.text)) result.function_ref = true;
-        if (peek("[")) {
-            expect("[");
-            Atom index = atom();
-            expect("]");
-            const Type left_type = left.kind == Atom::Kind::Name ? lookup(left.text) : Type::String();
-            result.callee = left_type == Type::List() ? "[]" : "str[]";
-            result.arguments = { std::move(left), std::move(index) };
-            return result;
-        }
-        for (auto op : { "+", "-", "*", "==", "<", "&&", "||" }) {
-            if (!peek(op)) continue;
-            take();
-            result.callee = op;
-            result.arguments = { std::move(left), atom() };
-            return result;
-        }
         result.atom = std::move(left);
         return result;
+    }
+    Expression parse_expr(int min_prec) {
+        Expression left = parse_prefix();
+        while (peek("[") && 7 >= min_prec) {
+            const bool list = left.atom && left.atom->kind == Atom::Kind::Name &&
+                lookup(left.atom->text) == Type::List();
+            expect("[");
+            Expression index = parse_expr(0);
+            expect("]");
+            Expression indexed;
+            indexed.callee = list ? "[]" : "str[]";
+            indexed.arguments = { std::move(left), std::move(index) };
+            left = std::move(indexed);
+        }
+        while (true) {
+            int precedence = 0;
+            std::string op;
+            for (auto candidate : { "||", "&&", "==", "<", "+", "-", "*" }) {
+                if (!peek(candidate)) continue;
+                precedence = infix_precedence(candidate);
+                op = candidate;
+                break;
+            }
+            if (op.empty() || precedence < min_prec) break;
+            take();
+            Expression right = parse_expr(precedence + 1);
+            Expression combined;
+            combined.callee = std::move(op);
+            combined.arguments = { std::move(left), std::move(right) };
+            left = std::move(combined);
+        }
+        return left;
     }
     std::vector<Statement> block() {
         expect("{");
@@ -406,23 +437,23 @@ private:
         const auto & args = value.arguments;
         if (name == "+" || name == "-" || name == "*" || name == "==" || name == "<" ||
             name == "&&" || name == "||") {
-            return "(" + atom(args.at(0)) + " " + name + " " + atom(args.at(1)) + ")";
+            return "(" + expression(args.at(0)) + " " + name + " " + expression(args.at(1)) + ")";
         }
-        if (name == "!") return "(!" + atom(args.at(0)) + ")";
+        if (name == "!") return "(!" + expression(args.at(0)) + ")";
         if (name == "emptyList") { needs_list_ = true; return "ArrayList<Int64>()"; }
-        if (name == "listLen") { needs_list_ = true; return "(" + atom(args.at(0)) + ".size)"; }
+        if (name == "listLen") { needs_list_ = true; return "(" + expression(args.at(0)) + ".size)"; }
         if (name == "[]") {
             needs_list_ = true;
-            return "(" + atom(args.at(0)) + "[" + atom(args.at(1)) + "])";
+            return "(" + expression(args.at(0)) + "[" + expression(args.at(1)) + "])";
         }
         if (name == "listPush") {
             needs_list_ = true;
-            return "typed_rt_list_push(" + atom(args.at(0)) + ", " + atom(args.at(1)) + ")";
+            return "typed_rt_list_push(" + expression(args.at(0)) + ", " + expression(args.at(1)) + ")";
         }
-        if (name == "strLen") return "(" + atom(args.at(0)) + ".size)";
+        if (name == "strLen") return "(" + expression(args.at(0)) + ".size)";
         if (name == "str[]") {
             needs_character_ = true;
-            return "typed_rt_str_at(" + atom(args.at(0)) + ", " + atom(args.at(1)) + ")";
+            return "typed_rt_str_at(" + expression(args.at(0)) + ", " + expression(args.at(1)) + ")";
         }
         std::string result = value.callee_is_function ? callable(name) : variable(name);
         if (!value.type_arguments.empty()) {
@@ -432,7 +463,7 @@ private:
             result += ">";
         }
         result += "(";
-        for (size_t i = 0; i < args.size(); ++i) result += (i ? ", " : "") + atom(args[i]);
+        for (size_t i = 0; i < args.size(); ++i) result += (i ? ", " : "") + expression(args[i]);
         return result + ")";
     }
     // Used only to decide whether a fallthrough trap is needed in generated CJ.
