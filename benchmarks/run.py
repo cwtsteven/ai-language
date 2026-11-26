@@ -676,7 +676,10 @@ def write_report(output, config, records):
             "| Mode | Attempts | Generated | Compiled | Tests |",
             "| --- | ---: | ---: | ---: | ---: |"]
     baseline = summary["modes"].get("cangjie")
-    for mode, stats in summary["modes"].items():
+    for mode in ("cangjie", "constrained"):
+        stats = summary["modes"].get(mode)
+        if stats is None:
+            continue
         if mode == "constrained" and baseline is not None:
             text.append(
                 f"| {mode} | {stats['attempts']} | "

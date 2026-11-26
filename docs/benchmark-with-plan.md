@@ -19,8 +19,8 @@ Generated = the model finished within the code budget. Compiled = `cjc` accepted
 
 | Mode | Generated | Compiled | Tests |
 | --- | ---: | ---: | ---: |
-| constrained | 20/35 (-43%) | 19/35 (+280%) | 260/592 (+150%) |
 | cangjie | 35/35 | 5/35 | 104/592 |
+| constrained | 20/35 (-43%) | 19/35 (+280%) | 260/592 (+150%) |
 
 ## Per task
 

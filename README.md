@@ -136,10 +136,10 @@ Published paired runs on suite `humaneval-scalar-anf-v1` (**35** tasks, **592** 
 
 | Run | Mode | Generated | Compiled | Tests |
 | --- | --- | ---: | ---: | ---: |
-| [no-plan](docs/benchmark-no-plan.md) | constrained | 20/35 (-43%) | 14/35 (+367%) | 155/592 (+85%) |
 | [no-plan](docs/benchmark-no-plan.md) | cangjie | 35/35 | 3/35 | 84/592 |
-| [with-plan](docs/benchmark-with-plan.md) | constrained | 20/35 (-43%) | 19/35 (+280%) | 260/592 (+150%) |
+| [no-plan](docs/benchmark-no-plan.md) | constrained | 20/35 (-43%) | 14/35 (+367%) | 155/592 (+85%) |
 | [with-plan](docs/benchmark-with-plan.md) | cangjie | 35/35 | 5/35 | 104/592 |
+| [with-plan](docs/benchmark-with-plan.md) | constrained | 20/35 (-43%) | 19/35 (+280%) | 260/592 (+150%) |
 
 Percentages on the constrained row are relative change versus the paired cangjie arm: (constrained - cangjie) / cangjie. These are not official HumanEval scores.
 
