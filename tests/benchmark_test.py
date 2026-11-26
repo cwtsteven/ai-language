@@ -521,6 +521,10 @@ class BenchmarkTests(unittest.TestCase):
 
     def test_decode_failures_are_not_misreported_as_bad_generated_code(self):
         self.assertFalse(bench.generation_error(process(2, stdout="unfinished code")))
+        stuck = process(-6)
+        stuck.stderr = "typed sampler: no viable candidate in vocabulary\n"
+        # Soft-fail exit from the typed sampler should not abort the suite.
+        self.assertFalse(bench.generation_error(stuck))
         broken = process(2)
         broken.stderr = "Insufficient Memory; model decode failed"
         self.assertTrue(bench.generation_error(broken))

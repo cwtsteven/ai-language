@@ -35,6 +35,12 @@ NAME = re.compile(r"[a-z][a-zA-Z0-9_]*\Z")
 MINIMUM_CODE_TOKENS = 2048
 
 
+def resolve_repo_path(path):
+    """Absolute paths stay as given; relative paths are resolved from the repo root."""
+    path = Path(path)
+    return path.resolve() if path.is_absolute() else (ROOT / path).resolve()
+
+
 @contextlib.contextmanager
 def model_lock(path=None):
     """Prevent superseded benchmark runners from competing for model memory."""
@@ -359,7 +365,12 @@ def generation_succeeded(row):
 
 
 def generation_error(result):
-    return result.returncode not in (0, 2) or any(marker in result.stderr.lower() for marker in (
+    stderr = (result.stderr or "").lower()
+    # Typed sampler soft-fails (or formerly aborted) when no vocab piece extends the
+    # prefix. That is a failed attempt, not an engine outage that voids the suite.
+    if "no viable candidate in vocabulary" in stderr:
+        return False
+    return result.returncode not in (0, 2) or any(marker in stderr for marker in (
         "model decode failed", "insufficient memory", "out of memory", "failed to load model",
         "failed to create context", "sampler emitted an invalid token"))
 
@@ -813,14 +824,17 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--model", type=Path, help="GGUF file or JSON model plugin; required for generation")
     parser.add_argument("--validate", action="store_true", help="compile and execute reference solutions only; no model")
-    parser.add_argument("--suite", type=Path, default=ROOT / "benchmarks/tasks.json", help="task manifest JSON")
-    parser.add_argument("--cli", type=Path, default=ROOT / "build/typed-cangjie", help="typed constrained Cangjie generator")
-    parser.add_argument("--translator", type=Path, default=ROOT / "build/emit-cangjie",
+    parser.add_argument("--suite", type=Path, default=Path("benchmarks/tasks.json"),
+                        help="task manifest JSON (relative paths are from the repo root)")
+    parser.add_argument("--cli", type=Path, default=Path("build/typed-cangjie"),
+                        help="typed constrained Cangjie generator (relative paths are from the repo root)")
+    parser.add_argument("--translator", type=Path, default=Path("build/emit-cangjie"),
                         help="translator for checked-in typed references; generate output is already Cangjie")
-    parser.add_argument("--plain", type=Path, default=ROOT / "build/plain-llama",
+    parser.add_argument("--plain", type=Path, default=Path("build/plain-llama"),
                         help="unconstrained sampler used only for the Cangjie arm")
-    parser.add_argument("--cjc", default="cjc", help="Cangjie compiler path or command")
-    parser.add_argument("--output", type=Path, help="new results directory; defaults to benchmark-results/<UTC timestamp>")
+    parser.add_argument("--cjc", default="cjc", help="Cangjie compiler on PATH, or an absolute/relative path")
+    parser.add_argument("--output", type=Path,
+                        help="new results directory; defaults to benchmark-results/<UTC timestamp> under the repo")
     parser.add_argument("--tasks", nargs="+", help="task IDs to run; defaults to the whole suite")
     parser.add_argument("--samples", type=positive, default=1, help="samples per task and mode")
     parser.add_argument("--seed", type=int, default=42, help="first seed; sample i uses seed+i in each mode")
@@ -862,38 +876,47 @@ def main(argv=None):
         parser.error("timeouts must be finite and positive")
     resources = contextlib.ExitStack()
     try:
+        args.suite = resolve_repo_path(args.suite)
+        args.cli = resolve_repo_path(args.cli)
+        args.translator = resolve_repo_path(args.translator)
+        if not args.cli.is_file() or not args.translator.is_file():
+            raise ValueError("build typed-cangjie and emit-cangjie under build/ (or pass --cli/--translator)")
         suite = load_suite(args.suite)
         selected = set(args.tasks or (t["id"] for t in suite["tasks"]))
         tasks = [t for t in suite["tasks"] if t["id"] in selected]
         if selected != {t["id"] for t in tasks}:
             raise ValueError("unknown task ID; inspect benchmarks/tasks.json for available IDs")
-        args.cli = args.cli.resolve(strict=True)
-        args.translator = args.translator.resolve(strict=True)
         if not args.validate:
-            args.plain = args.plain.resolve(strict=True)
+            args.plain = resolve_repo_path(args.plain)
+            if not args.plain.is_file():
+                raise ValueError("build plain-llama under build/ (or pass --plain)")
         compiler = shutil.which(args.cjc)
+        if compiler is None:
+            candidate = resolve_repo_path(args.cjc)
+            compiler = str(candidate) if candidate.is_file() else None
         if compiler is None:
             raise ValueError("cjc was not found; install the Cangjie SDK or supply --cjc")
         args.cjc = str(Path(compiler).resolve())
-        help_result = execute([args.cli, "generate", "--help"], 10)
+        help_result = execute([str(args.cli), "generate", "--help"], 10)
         if help_result.returncode != 0 or any(option not in help_result.stdout for option in
                                             ("--force-postfix", "--plan-only", "--plan-file")):
             raise ValueError("rebuild typed-cangjie: benchmark runs require a binary whose forced postfix is opt-in (--force-postfix, --plan-only, --plan-file)")
         model_files = []
         if args.plans is not None:
-            args.plans = args.plans.resolve(strict=True)
-            if not plans_directory_ok(args.plans):
+            args.plans = resolve_repo_path(args.plans)
+            if not args.plans.is_dir() or not plans_directory_ok(args.plans):
                 raise ValueError("--plans must be a --plan-only output directory, or one folder per task containing typed.txt and cangjie.txt")
         if not args.validate:
             resources.enter_context(model_lock())
-            args.model = args.model.resolve(strict=True)
+            args.model = args.model.expanduser().resolve(strict=True)
             model_files.append(args.model)
             if args.model.suffix.lower() == ".json":
                 weights = json.loads(args.model.read_text())["model"]
                 model_files.append((args.model.parent / weights).resolve(strict=True))
             assign_code_budgets(tasks, model_files[-1], args.suite.parent)
         timestamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
-        output = (args.output or ROOT / "benchmark-results" / timestamp).resolve()
+        output = resolve_repo_path(args.output) if args.output is not None else (
+            ROOT / "benchmark-results" / timestamp)
         output.mkdir(parents=True, exist_ok=False)
         config = {"created_utc": timestamp, "suite_name": suite["name"], "suite_sha256": sha256(args.suite),
                   "runner_sha256": sha256(__file__), "task_ids": [t["id"] for t in tasks],

@@ -95,7 +95,7 @@ void apply(llama_sampler * sampler, llama_token_data_array * candidates) {
         std::abort();
     }
     size_t rejected = 0;
-    const size_t winner = ctx->selector.choose(*candidates, [&](size_t i) {
+    size_t winner = ctx->selector.choose(*candidates, [&](size_t i) {
         const llama_token token = candidates->data[i].id;
         const bool eog = llama_vocab_is_eog(ctx->vocab, token);
         const std::string text = eog ? std::string{} : piece(ctx->vocab, token);
@@ -116,8 +116,22 @@ void apply(llama_sampler * sampler, llama_token_data_array * candidates) {
     });
 
     if (winner == candidates->size) {
+        // Ranking skips non-finite logits. Retry every candidate so a Metal/NaN
+        // glitch does not look like an empty typed vocabulary.
+        for (size_t i = 0; i < candidates->size; ++i) {
+            const llama_token token = candidates->data[i].id;
+            if (llama_vocab_is_eog(ctx->vocab, token)) continue;
+            const std::string text = piece(ctx->vocab, token);
+            if (!text.empty() && ctx->state.can_append(text)) {
+                winner = i;
+                break;
+            }
+        }
+    }
+    if (winner == candidates->size) {
+        // Soft-fail: exit 2 so the harness records an unfinished attempt and continues.
         std::fputs("typed sampler: no viable candidate in vocabulary\n", stderr);
-        std::abort();
+        std::_Exit(2);
     }
     if (ctx->debug) {
         if (rejected > ctx->debug_limit) {

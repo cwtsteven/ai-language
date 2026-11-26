@@ -28,7 +28,7 @@ Configure with `-DGGML_METAL=OFF` for a build that has no Metal backend.
 
 ### Linux
 
-This is a CPU build. `GGML_NATIVE` stays on, so the binary uses the host CPU (AVX-512 on this class of Xeon).
+This is a CPU build by default. `GGML_NATIVE` stays on, so the binary targets the host CPU.
 
 ```sh
 sudo apt install cmake g++ git
@@ -53,13 +53,14 @@ The other commands need no model. Run from the repository root:
 ./build/typed-cangjie format - < examples/fibonacci-5-break.typed
 ```
 
-`generate` writes a Cangjie program when the typed sample is complete, and writes
-nothing when it is not. `check`, `complete`, and `format` inspect the typed
-language without a model. `check` accepts complete programs or valid prefixes;
-`complete` finishes a valid prefix. `format` requires a complete typed program.
-These commands accept quoted code or `-` for stdin; `format` defaults to stdin
-when code is omitted. Invalid input exits 2 and prints a compiler-style error
-on stderr. A valid unfinished prefix passes `check` with `complete=no`.
+`generate` writes Cangjie on stdout when the typed sample is complete. If the
+token budget ends first, stdout still holds the unfinished typed prefix (exit 2).
+`check`, `complete`, and `format` inspect the typed language without a model.
+`check` accepts complete programs or valid prefixes; `complete` finishes a valid
+prefix. `format` requires a complete typed program. These commands accept quoted
+code or `-` for stdin; `format` defaults to stdin when code is omitted. Invalid
+input exits 2 and prints a compiler-style error on stderr. A valid unfinished
+prefix passes `check` with `complete=no`.
 
 ## Generate options
 
@@ -90,6 +91,58 @@ Higher temperature makes lower-scoring tokens more likely; temperature 0 is gree
 
 Save a plan with `generate TEXT --model FILE --plan-only > plan.txt`, then pass `--plan-file plan.txt`. The [benchmark](benchmarks/README.md) does not share that plan. It runs `typed-cangjie` and `plain-llama` on the same task, seed, temperature, and token budget. The Cangjie arm uses [its own excerpt](docs/cangjie-subset.md).
 
+## Benchmarks
+
+The [benchmark harness](benchmarks/README.md) pairs `typed-cangjie` with `plain-llama` on the same task, seed, temperature, and token budget. Prerequisites on macOS or Linux: Python 3.10+, a Release build of this repo, and the Cangjie SDK so `cjc` is on `PATH` (or pass `--cjc`).
+
+Set `MODEL` to your GGUF or JSON plugin path (no model is checked into the repo):
+
+```sh
+# From the repository root; same commands on macOS and Linux.
+export MODEL=/path/to/model.gguf   # or: export MODEL="$HOME/models/my-model.gguf"
+
+cmake --build build --parallel
+python3 benchmarks/run.py --validate
+```
+
+`--validate` scores the checked-in references only (no model). A full paired run needs `$MODEL` and a **new** output directory (relative paths are from the repo root; existing dirs are never overwritten):
+
+```sh
+# No planning (both arms skip the planner).
+python3 benchmarks/run.py --model "$MODEL" --no-plan \
+    --output benchmark-results/skip-plan
+
+# With planning (default): each arm plans, then generates from its own plan.
+python3 benchmarks/run.py --model "$MODEL" \
+    --output benchmark-results/with-plan
+```
+
+Useful flags (all optional; harness defaults apply if omitted): `--seed`, `--temperature`, `--threads`, `--ubatch`, `--ngl` (**0** forces CPU; otherwise the generator’s platform default), `--tasks` for a subset, `--cli` / `--plain` / `--cjc` to override tool paths. Each attempt writes under the output directory (`report.md`, `summary.json`, prompts, and candidates).
+
+Smoke example:
+
+```sh
+python3 benchmarks/run.py --model "$MODEL" --no-plan \
+    --tasks he_053_add he_055_fibonacci --samples 1 \
+    --output benchmark-results/smoke
+```
+
+### Results
+
+Published paired runs on suite `humaneval-scalar-anf-v1` (**35** tasks, **592** cases), seed **42**, temperature **0.8**, one sample per task, **2048**-token code budget, Qwen3.5 9B Q4_K_M GGUF. Full per-task tables:
+
+- [Without planning (`--no-plan`)](docs/benchmark-no-plan.md)
+- [With planning (default)](docs/benchmark-with-plan.md)
+
+| Run | Mode | Generated | Compiled | Tests | Correct |
+| --- | --- | ---: | ---: | ---: | ---: |
+| [no-plan](docs/benchmark-no-plan.md) | constrained | 20/35 | 14/35 | 155/592 | 4/35 |
+| [no-plan](docs/benchmark-no-plan.md) | cangjie | 35/35 | 3/35 | 84/592 | 3/35 |
+| [with-plan](docs/benchmark-with-plan.md) | constrained | 20/35 | 19/35 | 260/592 | 8/35 |
+| [with-plan](docs/benchmark-with-plan.md) | cangjie | 35/35 | 5/35 | 104/592 | 4/35 |
+
+These are not official HumanEval scores.
+
 ## Fibonacci example
 
 ```sh
@@ -113,3 +166,5 @@ The [prompt](examples/fibonacci-5-prompt.txt) supplies the algorithm explicitly.
 - [Cangjie translation](docs/cangjie.md) (`generate` writes the translated program)
 - [Checker and decoder internals](docs/decoder.md)
 - [Typed pipeline vs direct Cangjie](benchmarks/README.md)
+- [Benchmark report: no planning](docs/benchmark-no-plan.md)
+- [Benchmark report: with planning](docs/benchmark-with-plan.md)
