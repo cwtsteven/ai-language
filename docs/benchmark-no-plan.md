@@ -1,6 +1,6 @@
 # Benchmark: without planning
 
-Paired comparison of the typed pipeline (`typed-cangjie`) against direct Cangjie (`plain-llama`) on suite `humaneval-scalar-anf-v1` (**35** tasks, **592** unittest cases). Both arms skip the planner (`--no-plan`): each sees only the shared request text and its own language specification ([language.md](language.md) vs [cangjie-subset.md](cangjie-subset.md)).
+Paired comparison of the typed pipeline (`typed-decode-cj`) against direct Cangjie (`plain-llama`) on suite `humaneval-scalar-anf-v1` (**35** tasks, **592** unittest cases). Both arms skip the planner (`--no-plan`): each sees only the shared request text and its own language specification ([language.md](language.md) vs [cangjie-subset.md](cangjie-subset.md)).
 
 ## Setup
 

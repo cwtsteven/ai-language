@@ -262,7 +262,7 @@ def assign_code_budgets(tasks, model_path, suite_dir):
 
 
 def task_prompt(task):
-    """Typed-arm request text. typed-cangjie appends the language specification itself."""
+    """Typed-arm request text. typed-decode-cj appends the language specification itself."""
     return task_text(task, "constrained")
 
 
@@ -826,7 +826,7 @@ def main(argv=None):
     parser.add_argument("--validate", action="store_true", help="compile and execute reference solutions only; no model")
     parser.add_argument("--suite", type=Path, default=Path("benchmarks/tasks.json"),
                         help="task manifest JSON (relative paths are from the repo root)")
-    parser.add_argument("--cli", type=Path, default=Path("build/typed-cangjie"),
+    parser.add_argument("--cli", type=Path, default=Path("build/typed-decode-cj"),
                         help="typed constrained Cangjie generator (relative paths are from the repo root)")
     parser.add_argument("--translator", type=Path, default=Path("build/emit-cangjie"),
                         help="translator for checked-in typed references; generate output is already Cangjie")
@@ -880,7 +880,7 @@ def main(argv=None):
         args.cli = resolve_repo_path(args.cli)
         args.translator = resolve_repo_path(args.translator)
         if not args.cli.is_file() or not args.translator.is_file():
-            raise ValueError("build typed-cangjie and emit-cangjie under build/ (or pass --cli/--translator)")
+            raise ValueError("build typed-decode-cj and emit-cangjie under build/ (or pass --cli/--translator)")
         suite = load_suite(args.suite)
         selected = set(args.tasks or (t["id"] for t in suite["tasks"]))
         tasks = [t for t in suite["tasks"] if t["id"] in selected]
@@ -900,7 +900,7 @@ def main(argv=None):
         help_result = execute([str(args.cli), "generate", "--help"], 10)
         if help_result.returncode != 0 or any(option not in help_result.stdout for option in
                                             ("--force-postfix", "--plan-only", "--plan-file")):
-            raise ValueError("rebuild typed-cangjie: benchmark runs require a binary whose forced postfix is opt-in (--force-postfix, --plan-only, --plan-file)")
+            raise ValueError("rebuild typed-decode-cj: benchmark runs require a binary whose forced postfix is opt-in (--force-postfix, --plan-only, --plan-file)")
         model_files = []
         if args.plans is not None:
             args.plans = resolve_repo_path(args.plans)

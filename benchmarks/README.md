@@ -1,6 +1,6 @@
 # Typed pipeline vs direct Cangjie
 
-Compare one local model on the same task, token budget, temperature, and seed. The typed arm uses `typed-cangjie`, appends [docs/language.md](../docs/language.md), and writes Cangjie. The Cangjie arm uses `plain-llama`, appends [docs/cangjie-subset.md](../docs/cangjie-subset.md), and does not run the typed checker. Requires Python 3.10+, both binaries, and the Cangjie SDK.
+Compare one local model on the same task, token budget, temperature, and seed. The typed arm uses `typed-decode-cj`, appends [docs/language.md](../docs/language.md), and writes Cangjie. The Cangjie arm uses `plain-llama`, appends [docs/cangjie-subset.md](../docs/cangjie-subset.md), and does not run the typed checker. Requires Python 3.10+, both binaries, and the Cangjie SDK.
 
 ```sh
 cmake --build build --parallel 4
@@ -20,7 +20,7 @@ Model selection matches `generate`: a GGUF file or a JSON plugin. Use a new outp
 
 The runner has two generation modes. Typed stdout is already Cangjie.
 
-End to end is the default. Each arm plans from the prompt, then generates from that plan. The typed planner is `typed-cangjie generate --plan-only`. The Cangjie planner is `plain-llama` with the Cangjie specification and no token cap.
+End to end is the default. Each arm plans from the prompt, then generates from that plan. The typed planner is `typed-decode-cj generate --plan-only`. The Cangjie planner is `plain-llama` with the Cangjie specification and no token cap.
 
 ```sh
 python3 benchmarks/run.py --model /path/to/model.gguf \

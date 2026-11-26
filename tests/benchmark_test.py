@@ -20,7 +20,7 @@ for task in SUITE["tasks"]:
     task["model_tokens"] = 100
     task["code_tokens"] = bench.code_budget_for(task["model_tokens"])
 ADD = next(task for task in SUITE["tasks"] if task["id"] == "he_053_add")
-CLI = os.environ.get("BENCHMARK_CLI", str(bench.ROOT / "build/typed-cangjie"))
+CLI = os.environ.get("BENCHMARK_CLI", str(bench.ROOT / "build/typed-decode-cj"))
 TRANSLATOR = os.environ.get("BENCHMARK_TRANSLATOR", str(bench.ROOT / "build/emit-cangjie"))
 CJC = shutil.which(os.environ.get("BENCHMARK_CJC") or "cjc")
 

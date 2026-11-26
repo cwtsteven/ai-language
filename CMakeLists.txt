@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(typed_cangjie LANGUAGES C CXX)
+project(typed_decode_cj LANGUAGES C CXX)
 
 if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/llama.cpp/CMakeLists.txt")
     message(FATAL_ERROR "Missing llama.cpp. Run: git submodule update --init --recursive")
@@ -45,9 +45,9 @@ add_library(token_sampling src/sampling.cpp src/typed_sampler.cpp)
 target_link_libraries(token_sampling PUBLIC typed_prefix llama)
 target_compile_features(token_sampling PUBLIC cxx_std_17)
 
-add_executable(typed-cangjie src/main.cpp)
-target_link_libraries(typed-cangjie PRIVATE token_sampling model_plugin cli_options language_spec cj_codegen)
-target_compile_features(typed-cangjie PRIVATE cxx_std_17)
+add_executable(typed-decode-cj src/main.cpp)
+target_link_libraries(typed-decode-cj PRIVATE token_sampling model_plugin cli_options language_spec cj_codegen)
+target_compile_features(typed-decode-cj PRIVATE cxx_std_17)
 
 add_executable(emit-cangjie src/emit_cangjie.cpp)
 target_link_libraries(emit-cangjie PRIVATE cj_codegen)
@@ -100,14 +100,14 @@ if(CANGJIE_COMPILER)
 endif()
 add_test(NAME plain-llama-help COMMAND $<TARGET_FILE:plain-llama> --help)
 add_test(NAME cli-test COMMAND ${CMAKE_COMMAND}
-    -DCLI=$<TARGET_FILE:typed-cangjie>
+    -DCLI=$<TARGET_FILE:typed-decode-cj>
     -DTEST_DIR=${CMAKE_CURRENT_BINARY_DIR}/cli-test
     -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/cli_test.cmake)
 
 find_package(Python3 3.10 COMPONENTS Interpreter QUIET)
 if(Python3_Interpreter_FOUND)
     add_test(NAME benchmark-test COMMAND ${CMAKE_COMMAND} -E env
-        BENCHMARK_CLI=$<TARGET_FILE:typed-cangjie>
+        BENCHMARK_CLI=$<TARGET_FILE:typed-decode-cj>
         BENCHMARK_TRANSLATOR=$<TARGET_FILE:emit-cangjie>
         "BENCHMARK_CJC=${CANGJIE_COMPILER}"
         ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/benchmark_test.py)

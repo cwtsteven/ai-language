@@ -3,7 +3,7 @@
 `generate` writes standalone Cangjie once the [typed program](language.md) is complete and well-typed. No extra command or Cangjie SDK is required. An unfinished sample writes a diagnostic to stderr and no source. The benchmark's other arm is `plain-llama`, which samples Cangjie from [the Cangjie excerpt](cangjie-subset.md).
 
 ```sh
-./build/typed-cangjie generate 'Compute Fibonacci(5) iteratively.' --model /path/to/model.gguf --n 512 > fibonacci.cj
+./build/typed-decode-cj generate 'Compute Fibonacci(5) iteratively.' --model /path/to/model.gguf --n 512 > fibonacci.cj
 cjc fibonacci.cj -o fibonacci --set-runtime-rpath
 ./fibonacci
 echo $?  # 5

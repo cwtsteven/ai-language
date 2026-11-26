@@ -14,7 +14,7 @@
 } while (false)
 
 static cli::Options parse(std::initializer_list<const char *> arguments) {
-    std::vector<const char *> argv{ "typed-cangjie" };
+    std::vector<const char *> argv{ "typed-decode-cj" };
     argv.insert(argv.end(), arguments);
     return cli::parse(static_cast<int>(argv.size()), argv.data());
 }

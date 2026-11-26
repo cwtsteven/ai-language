@@ -1,6 +1,6 @@
 # Benchmark: with planning
 
-Paired comparison of the typed pipeline (`typed-cangjie`) against direct Cangjie (`plain-llama`) on suite `humaneval-scalar-anf-v1` (**35** tasks, **592** unittest cases). Each arm plans from the same task, seed, and temperature, then generates from its own plan. Plans are not shared. Specifications differ: [language.md](language.md) for typed, [cangjie-subset.md](cangjie-subset.md) for Cangjie.
+Paired comparison of the typed pipeline (`typed-decode-cj`) against direct Cangjie (`plain-llama`) on suite `humaneval-scalar-anf-v1` (**35** tasks, **592** unittest cases). Each arm plans from the same task, seed, and temperature, then generates from its own plan. Plans are not shared. Specifications differ: [language.md](language.md) for typed, [cangjie-subset.md](cangjie-subset.md) for Cangjie.
 
 ## Setup
 

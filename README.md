@@ -1,4 +1,4 @@
-# typed-cangjie
+# typed-decode-cj
 
 Typed constrained code generation for a subset of Cangjie. A local llama.cpp model samples
 a small typed language, and a complete program is translated to Cangjie before
@@ -17,8 +17,8 @@ Metal is on by default, and its shader library is embedded in the binary.
 
 ```sh
 brew install cmake git
-git clone --recurse-submodules https://github.com/cwtsteven/typed-cangjie.git
-cd typed-cangjie
+git clone --recurse-submodules https://github.com/cwtsteven/typed-decode-cj.git
+cd typed-decode-cj
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build --parallel 4
 ctest --test-dir build --output-on-failure
@@ -32,8 +32,8 @@ This is a CPU build by default. `GGML_NATIVE` stays on, so the binary targets th
 
 ```sh
 sudo apt install cmake g++ git
-git clone --recurse-submodules https://github.com/cwtsteven/typed-cangjie.git
-cd typed-cangjie
+git clone --recurse-submodules https://github.com/cwtsteven/typed-decode-cj.git
+cd typed-decode-cj
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build --parallel
 ctest --test-dir build --output-on-failure
@@ -47,10 +47,10 @@ GPU offload needs a backend compiled in. Add `-DGGML_CUDA=ON` for NVIDIA or `-DG
 The other commands need no model. Run from the repository root:
 
 ```sh
-./build/typed-cangjie generate 'Return the sum of 2 and 3.' --model /path/to/model.gguf --n 128
-./build/typed-cangjie check 'main(): Int64 { return 5; }'
-./build/typed-cangjie complete 'main(): Int64 { return '
-./build/typed-cangjie format - < examples/fibonacci-5-break.typed
+./build/typed-decode-cj generate 'Return the sum of 2 and 3.' --model /path/to/model.gguf --n 128
+./build/typed-decode-cj check 'main(): Int64 { return 5; }'
+./build/typed-decode-cj complete 'main(): Int64 { return '
+./build/typed-decode-cj format - < examples/fibonacci-5-break.typed
 ```
 
 `generate` writes Cangjie on stdout when the typed sample is complete. If the
@@ -89,11 +89,11 @@ Code goes to stdout; diagnostics go to stderr. Each command has `--help`.
 
 Higher temperature makes lower-scoring tokens more likely; temperature 0 is greedy. Code tokens must keep the program syntactically and type-correct unless `--unconstrained` is set. A complete program is translated to Cangjie on stdout. If `--n` runs out first, stdout still holds the unfinished typed prefix (exit 2), and stderr prints it under `Typed program:`. `--force-postfix` closes that prefix, translates it, and says so on stderr; the constructed ending may not fulfill the task.
 
-Save a plan with `generate TEXT --model FILE --plan-only > plan.txt`, then pass `--plan-file plan.txt`. The [benchmark](benchmarks/README.md) does not share that plan. It runs `typed-cangjie` and `plain-llama` on the same task, seed, temperature, and token budget. The Cangjie arm uses [its own excerpt](docs/cangjie-subset.md).
+Save a plan with `generate TEXT --model FILE --plan-only > plan.txt`, then pass `--plan-file plan.txt`. The [benchmark](benchmarks/README.md) does not share that plan. It runs `typed-decode-cj` and `plain-llama` on the same task, seed, temperature, and token budget. The Cangjie arm uses [its own excerpt](docs/cangjie-subset.md).
 
 ## Benchmarks
 
-The [benchmark harness](benchmarks/README.md) pairs `typed-cangjie` with `plain-llama` on the same task, seed, temperature, and token budget. Prerequisites on macOS or Linux: Python 3.10+, a Release build of this repo, and the Cangjie SDK so `cjc` is on `PATH` (or pass `--cjc`).
+The [benchmark harness](benchmarks/README.md) pairs `typed-decode-cj` with `plain-llama` on the same task, seed, temperature, and token budget. Prerequisites on macOS or Linux: Python 3.10+, a Release build of this repo, and the Cangjie SDK so `cjc` is on `PATH` (or pass `--cjc`).
 
 Set `MODEL` to your GGUF or JSON plugin path (no model is checked into the repo):
 
@@ -146,7 +146,7 @@ These are not official HumanEval scores.
 ## Fibonacci example
 
 ```sh
-./build/typed-cangjie generate "$(cat examples/fibonacci-5-prompt.txt)" --model /path/to/model.gguf --n 512 > fibonacci.cj
+./build/typed-decode-cj generate "$(cat examples/fibonacci-5-prompt.txt)" --model /path/to/model.gguf --n 512 > fibonacci.cj
 cjc fibonacci.cj -o fibonacci --set-runtime-rpath
 ./fibonacci
 echo $?  # 5: the program's return value is its exit status
@@ -159,7 +159,7 @@ The [prompt](examples/fibonacci-5-prompt.txt) supplies the algorithm explicitly.
 
 `let` is immutable. `var` is updated with `name = value;`. Types are `Int64`, `Bool`, `String`, `List<T>`, and declared structs. Conditions are `Bool` expressions. `break;` and `continue;` occur only inside loops. Helpers are `func` and `struct` declarations before `main`; see the [function example](examples/functions.typed). Values may nest (`1 + 2 * 3`, `n + 1 == 0`, `xs[i + 1]`, `xs.size`, `xs.add(1)`). Generic functions take explicit type arguments (`id<Int64>(n)`). A written function type may hold a named function or an annotated lambda (`fun(x: Int64): Int64 => x + 1`). The [specification](docs/language.md) lists every form.
 
-- [Typed language specification](docs/language.md) (embedded in `typed-cangjie` prompts at build time)
+- [Typed language specification](docs/language.md) (embedded in `typed-decode-cj` prompts at build time)
 - [Typing rules](docs/typing.md) (not embedded in prompts)
 - [Cangjie prompt excerpt](docs/cangjie-subset.md) (appended by the benchmark's Cangjie arm)
 - [Model plugin settings](docs/model-plugins.md)
