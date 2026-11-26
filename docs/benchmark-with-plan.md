@@ -13,14 +13,14 @@ Paired comparison of the typed pipeline (`typed-decode-cj`) against direct Cangj
 | Planning | on; each arm’s local model planner, no output token cap |
 | Forced postfix | off |
 
-Generated = the model finished within the code budget. Compiled = `cjc` accepted the candidate. Tests = passed unittest cases / 592. Correct = tasks where every case passed (pass@1 with `n=1`). Summary cells also show the rate as a percentage. A failed or empty plan fails that arm only and skips code generation for it. No code extraction, repair, formatting, or deterministic completion is applied. An unfinished typed program is a translation failure (`cjc` is not run). These are not official HumanEval scores. How to reproduce: [README](../README.md#benchmarks) and [benchmarks/README.md](../benchmarks/README.md).
+Generated = the model finished within the code budget. Compiled = `cjc` accepted the candidate. Tests = passed unittest cases / 592. On the constrained row, percentages are relative change versus cangjie: (constrained - cangjie) / cangjie. A failed or empty plan fails that arm only and skips code generation for it. No code extraction, repair, formatting, or deterministic completion is applied. An unfinished typed program is a translation failure (`cjc` is not run). These are not official HumanEval scores. How to reproduce: [README](../README.md#benchmarks) and [benchmarks/README.md](../benchmarks/README.md).
 
 ## Summary
 
-| Mode | Generated | Compiled | Tests | Correct |
-| --- | ---: | ---: | ---: | ---: |
-| constrained | 20/35 (57%) | 19/35 (54%) | 260/592 (44%) | 8/35 (23%) |
-| cangjie | 35/35 (100%) | 5/35 (14%) | 104/592 (18%) | 4/35 (11%) |
+| Mode | Generated | Compiled | Tests |
+| --- | ---: | ---: | ---: |
+| constrained | 20/35 (-43%) | 19/35 (+280%) | 260/592 (+150%) |
+| cangjie | 35/35 | 5/35 | 104/592 |
 
 ## Per task
 

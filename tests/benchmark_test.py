@@ -474,8 +474,8 @@ class BenchmarkTests(unittest.TestCase):
             bench.write_report(Path(temporary), config, records)
             text = (Path(temporary) / "report.md").read_text()
         self.assertIn("| one | 2048 | true | true | 9/11 | true | false | 0/11 |", text)
-        self.assertIn("| constrained | 1 | 1/1 (100%) | 1/1 (100%) | 9/11 (82%) | 0/1 (0%) |", text)
-        self.assertIn("| cangjie | 1 | 1/1 (100%) | 0/1 (0%) | 0/11 (0%) | 0/1 (0%) |", text)
+        self.assertIn("| constrained | 1 | 1/1 (+0%) | 1/1 (from 0) | 9/11 (from 0) |", text)
+        self.assertIn("| cangjie | 1 | 1/1 | 0/1 | 0/11 |", text)
 
     def test_failure_denominators_and_pairing(self):
         rows = []

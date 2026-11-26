@@ -639,12 +639,21 @@ def summarize(records, expected_attempts):
             "modes": modes, "paired": paired}
 
 
-def rate_cell(numer, denom):
+def count_cell(numer, denom):
     if numer is None or denom is None:
         return "not run"
-    if denom == 0:
-        return f"{numer}/{denom}"
-    return f"{numer}/{denom} ({100.0 * numer / denom:.0f}%)"
+    return f"{numer}/{denom}"
+
+
+def relative_cell(numer, denom, baseline):
+    """Count plus relative change vs baseline: (numer - baseline) / baseline."""
+    cell = count_cell(numer, denom)
+    if cell == "not run" or baseline is None:
+        return cell
+    if baseline == 0:
+        return cell if numer == 0 else f"{cell} (from 0)"
+    delta = 100.0 * (numer - baseline) / baseline
+    return f"{cell} ({delta:+.0f}%)"
 
 
 def write_report(output, config, records):
@@ -662,16 +671,24 @@ def write_report(output, config, records):
             "Generated counts attempts that finished within the code token budget. "
             "Each task row reports generation and compilation as true or false. "
             "Correctness is the number of passed test cases over that task's total. "
-            "Summary percentages are rates over all attempts (or all unittest cases for Tests).",
-            "| Mode | Attempts | Generated | Compiled | Tests | Correct |",
-            "| --- | ---: | ---: | ---: | ---: | ---: |"]
+            "On the constrained row, percentages are relative change versus the paired cangjie arm "
+            "((constrained - cangjie) / cangjie).",
+            "| Mode | Attempts | Generated | Compiled | Tests |",
+            "| --- | ---: | ---: | ---: | ---: |"]
+    baseline = summary["modes"].get("cangjie")
     for mode, stats in summary["modes"].items():
-        text.append(
-            f"| {mode} | {stats['attempts']} | "
-            f"{rate_cell(stats['generated'], stats['attempts'])} | "
-            f"{rate_cell(stats['compiled'], stats['attempts'])} | "
-            f"{rate_cell(stats['tests_passed'], stats['tests_total'])} | "
-            f"{rate_cell(stats['correct'], stats['attempts'])} |")
+        if mode == "constrained" and baseline is not None:
+            text.append(
+                f"| {mode} | {stats['attempts']} | "
+                f"{relative_cell(stats['generated'], stats['attempts'], baseline['generated'])} | "
+                f"{relative_cell(stats['compiled'], stats['attempts'], baseline['compiled'])} | "
+                f"{relative_cell(stats['tests_passed'], stats['tests_total'], baseline['tests_passed'])} |")
+        else:
+            text.append(
+                f"| {mode} | {stats['attempts']} | "
+                f"{count_cell(stats['generated'], stats['attempts'])} | "
+                f"{count_cell(stats['compiled'], stats['attempts'])} | "
+                f"{count_cell(stats['tests_passed'], stats['tests_total'])} |")
     headers = []
     for mode in MODES:
         headers.extend((f"{mode} generated", f"{mode} compiled", f"{mode} tests"))
