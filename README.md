@@ -5,6 +5,10 @@ a small typed language, and a complete program is translated to Cangjie before
 anything is written. You compile that output with `cjc`.
 Typechecking does not guarantee algorithm correctness.
 
+The decoding approach follows [Mündler et al., PLDI 2025](https://arxiv.org/abs/2504.09246):
+an incremental prefix checker admits only tokens that keep the program completable to a
+well-typed program.
+
 ## Build
 
 Requires CMake 3.16+, a C++17 compiler, and Git. Tests need no model weights.
@@ -168,3 +172,9 @@ The [prompt](examples/fibonacci-5-prompt.txt) supplies the algorithm explicitly.
 - [Typed pipeline vs direct Cangjie](benchmarks/README.md)
 - [Benchmark report: no planning](docs/benchmark-no-plan.md)
 - [Benchmark report: with planning](docs/benchmark-with-plan.md)
+
+## References
+
+- Niels Mündler, Jingxuan He, Hao Wang, Koushik Sen, Dawn Song, and Martin Vechev.
+  [Type-Constrained Code Generation with Language Models](https://arxiv.org/abs/2504.09246).
+  PLDI 2025. arXiv:2504.09246.
