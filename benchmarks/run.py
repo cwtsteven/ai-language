@@ -639,6 +639,14 @@ def summarize(records, expected_attempts):
             "modes": modes, "paired": paired}
 
 
+def rate_cell(numer, denom):
+    if numer is None or denom is None:
+        return "not run"
+    if denom == 0:
+        return f"{numer}/{denom}"
+    return f"{numer}/{denom} ({100.0 * numer / denom:.0f}%)"
+
+
 def write_report(output, config, records):
     summary = summarize(records, len(config["task_ids"]) * config["samples"])
     (output / "summary.json").write_text(json.dumps({"config": config, **summary}, indent=2) + "\n")
@@ -653,16 +661,17 @@ def write_report(output, config, records):
             "No code extraction, repair, formatting, or deterministic completion is applied.", "",
             "Generated counts attempts that finished within the code token budget. "
             "Each task row reports generation and compilation as true or false. "
-            "Correctness is the number of passed test cases over that task's total.",
-            "| Mode | Attempts | Generated | Compiled | Tests |",
-            "| --- | ---: | ---: | ---: | ---: |"]
+            "Correctness is the number of passed test cases over that task's total. "
+            "Summary percentages are rates over all attempts (or all unittest cases for Tests).",
+            "| Mode | Attempts | Generated | Compiled | Tests | Correct |",
+            "| --- | ---: | ---: | ---: | ---: | ---: |"]
     for mode, stats in summary["modes"].items():
-        if stats["tests_total"] is None:
-            tests_cell = "not run"
-        else:
-            tests_cell = f"{stats['tests_passed']}/{stats['tests_total']}"
-        text.append(f"| {mode} | {stats['attempts']} | {stats['generated']}/{stats['attempts']} | "
-                    f"{stats['compiled']}/{stats['attempts']} | {tests_cell} |")
+        text.append(
+            f"| {mode} | {stats['attempts']} | "
+            f"{rate_cell(stats['generated'], stats['attempts'])} | "
+            f"{rate_cell(stats['compiled'], stats['attempts'])} | "
+            f"{rate_cell(stats['tests_passed'], stats['tests_total'])} | "
+            f"{rate_cell(stats['correct'], stats['attempts'])} |")
     headers = []
     for mode in MODES:
         headers.extend((f"{mode} generated", f"{mode} compiled", f"{mode} tests"))

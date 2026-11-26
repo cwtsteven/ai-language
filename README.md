@@ -136,12 +136,12 @@ Published paired runs on suite `humaneval-scalar-anf-v1` (**35** tasks, **592** 
 
 | Run | Mode | Generated | Compiled | Tests | Correct |
 | --- | --- | ---: | ---: | ---: | ---: |
-| [no-plan](docs/benchmark-no-plan.md) | constrained | 20/35 | 14/35 | 155/592 | 4/35 |
-| [no-plan](docs/benchmark-no-plan.md) | cangjie | 35/35 | 3/35 | 84/592 | 3/35 |
-| [with-plan](docs/benchmark-with-plan.md) | constrained | 20/35 | 19/35 | 260/592 | 8/35 |
-| [with-plan](docs/benchmark-with-plan.md) | cangjie | 35/35 | 5/35 | 104/592 | 4/35 |
+| [no-plan](docs/benchmark-no-plan.md) | constrained | 20/35 (57%) | 14/35 (40%) | 155/592 (26%) | 4/35 (11%) |
+| [no-plan](docs/benchmark-no-plan.md) | cangjie | 35/35 (100%) | 3/35 (9%) | 84/592 (14%) | 3/35 (9%) |
+| [with-plan](docs/benchmark-with-plan.md) | constrained | 20/35 (57%) | 19/35 (54%) | 260/592 (44%) | 8/35 (23%) |
+| [with-plan](docs/benchmark-with-plan.md) | cangjie | 35/35 (100%) | 5/35 (14%) | 104/592 (18%) | 4/35 (11%) |
 
-These are not official HumanEval scores.
+Percentages are rates over all attempts (or all unittest cases for Tests). Constrained trails on finishing generation, but leads on compile rate, tests passed, and fully correct tasks. These are not official HumanEval scores.
 
 ## Fibonacci example
 

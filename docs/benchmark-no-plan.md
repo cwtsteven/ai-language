@@ -13,14 +13,14 @@ Paired comparison of the typed pipeline (`typed-decode-cj`) against direct Cangj
 | Planning | off for both arms |
 | Forced postfix | off |
 
-Generated = the model finished within the code budget. Compiled = `cjc` accepted the candidate. Tests = passed unittest cases / 592. Correct = tasks where every case passed (pass@1 with `n=1`). No code extraction, repair, formatting, or deterministic completion is applied. An unfinished typed program is a translation failure (`cjc` is not run). These are not official HumanEval scores. How to reproduce: [README](../README.md#benchmarks) and [benchmarks/README.md](../benchmarks/README.md).
+Generated = the model finished within the code budget. Compiled = `cjc` accepted the candidate. Tests = passed unittest cases / 592. Correct = tasks where every case passed (pass@1 with `n=1`). Summary cells also show the rate as a percentage. No code extraction, repair, formatting, or deterministic completion is applied. An unfinished typed program is a translation failure (`cjc` is not run). These are not official HumanEval scores. How to reproduce: [README](../README.md#benchmarks) and [benchmarks/README.md](../benchmarks/README.md).
 
 ## Summary
 
 | Mode | Generated | Compiled | Tests | Correct |
 | --- | ---: | ---: | ---: | ---: |
-| constrained | 20/35 | 14/35 | 155/592 | 4/35 |
-| cangjie | 35/35 | 3/35 | 84/592 | 3/35 |
+| constrained | 20/35 (57%) | 14/35 (40%) | 155/592 (26%) | 4/35 (11%) |
+| cangjie | 35/35 (100%) | 3/35 (9%) | 84/592 (14%) | 3/35 (9%) |
 
 ## Per task
 
